@@ -1,0 +1,3 @@
+[submodule "engine/third_party/vk-bootstrap"]
+	path = engine/third_party/vk-bootstrap
+	url = https://github.com/charles-lunarg/vk-bootstrap
