@@ -9,20 +9,26 @@ add_library(${PROJECT_NAME}
         lib/Window.cpp
         lib/Time.cpp
         lib/Input.cpp
-        include/Slate/Ref.h
+        lib/Renderer.cpp
+        lib/Files.cpp
+
+        lib/VulkanEngine.cpp
+        lib/vkinfo.cpp
+        lib/vkutil.cpp
+        lib/PipelineBuilder.cpp
 
 )
+# git submodules
+add_subdirectory(third_party/vk-bootstrap)
 
 # locate packages
 find_package(assimp REQUIRED)
 find_package(EnTT REQUIRED)
-find_package(glm REQUIRED)
 find_package(Stb REQUIRED)
-find_package(glfw3 CONFIG REQUIRED)
-find_package(Vulkan REQUIRED)
+find_package(Vulkan REQUIRED) # Vulkan loads headers and glm
 find_package(VulkanMemoryAllocator CONFIG REQUIRED)
+find_package(fmt REQUIRED)
 
-add_subdirectory(third_party/vk-bootstrap)
 
 # include and link it
 target_include_directories(${PROJECT_NAME}
@@ -31,12 +37,11 @@ target_include_directories(${PROJECT_NAME}
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
 target_link_libraries(${PROJECT_NAME}
-        PUBLIC
+        PUBLIC # can be found in all engine files
         assimp::assimp
         EnTT::EnTT
-        glm::glm
         Vulkan::Vulkan
-        glfw
         vk-bootstrap::vk-bootstrap
-        PRIVATE
+        PRIVATE # can only be found in engine header files
+        fmt::fmt
 )

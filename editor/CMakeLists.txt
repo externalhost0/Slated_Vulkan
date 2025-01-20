@@ -4,11 +4,24 @@ project(${PROJECT_NAME}
         LANGUAGES C CXX
 )
 
+
 add_executable(${PROJECT_NAME}
         src/main.cpp
         src/EditorApplication.cpp
+        ${SHADERS}
+        src/EditorGui.cpp
+        src/PropertiesPanel.cpp
+        src/ViewportPanel.cpp
+        src/AssetsPanel.cpp
+        src/ScenePanel.cpp
+        src/ViewportCamera.cpp
 )
+# for compiling shaders
+helper_compileShaders()
+add_dependencies(${PROJECT_NAME} shaders)
 
+find_package(imgui CONFIG REQUIRED)
+find_package(ImGuizmo CONFIG REQUIRED)
 
 target_include_directories(${PROJECT_NAME}
         PUBLIC
@@ -17,5 +30,7 @@ target_include_directories(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME}
         PUBLIC
         SlateEngine
+        imgui::imgui
+        imguizmo::imguizmo
 )
 

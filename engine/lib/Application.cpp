@@ -15,25 +15,22 @@ namespace Slate {
 
 	void Application::BaseSlateApp_Start() {
 		Time::Initialize();
-		{
-			MWindowManager.Initialize();
-			MInputManager.Initialize();
-
-		}
-
+		m_WindowSystem.Initialize();
+		m_RenderSystem.Initialize();
+		m_InputSystem.Initialize();
 		this->Initialize(); // user start func
 	}
 	void Application::BaseSlateApp_Loop() {
-		while (!shouldStopLoop) {
+		while (continue_Loop) {
 			Time::UpdateDeltaTime(); // Time class is one of the few that has no need to be tied to anything
 			this->Loop(); // user loop func
 		}
 	}
 	void Application::BaseSlateApp_End() {
 		this->Shutdown(); // user end func
-		{
-			MInputManager.Shutdown();
-			MWindowManager.Shutdown();
-		}
+		m_InputSystem.Shutdown();
+		m_RenderSystem.Shutdown();
+		m_WindowSystem.Shutdown();
+		Time::Shutdown();
 	}
 }

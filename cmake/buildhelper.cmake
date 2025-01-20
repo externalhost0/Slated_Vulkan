@@ -47,3 +47,33 @@ macro(helper_addDefines)
         add_compile_definitions(_GLIBCXX_DEBUG _GLIBCXX_VERBOSE)
     endif()
 endmacro()
+
+macro(helper_compileShaders)
+    set(SHADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/shaders)
+
+    file(GLOB SHADERS
+            ${SHADER_DIR}/*.vert
+            ${SHADER_DIR}/*.frag
+            ${SHADER_DIR}/*.comp
+            ${SHADER_DIR}/*.geom
+            ${SHADER_DIR}/*.tesc
+            ${SHADER_DIR}/*.tese
+            ${SHADER_DIR}/*.mesh
+            ${SHADER_DIR}/*.task
+            ${SHADER_DIR}/*.rgen
+            ${SHADER_DIR}/*.rchit
+            ${SHADER_DIR}/*.rmiss
+    )
+    foreach (SHADER IN LISTS SHADERS)
+        get_filename_component(FILENAME ${SHADER} NAME)
+        add_custom_command(
+                OUTPUT ${SHADER_DIR}/compiled_shaders/${FILENAME}.spv
+                COMMAND ${Vulkan_GLSLC_EXECUTABLE} ${SHADER} -o ${SHADER_DIR}/compiled_shaders/${FILENAME}.spv
+                DEPENDS ${SHADER}
+                COMMENT "Compiling: ${FILENAME}"
+        )
+        list(APPEND SPV_SHADERS ${SHADER_DIR}/compiled_shaders/${FILENAME}.spv)
+    endforeach ()
+
+    add_custom_target(shaders ALL DEPENDS ${SPV_SHADERS})
+endmacro()

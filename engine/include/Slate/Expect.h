@@ -8,13 +8,22 @@
 #include <csignal>
 #include <functional>
 
+#include <fmt/core.h>
+#include <fmt/format.h>
+
 namespace Slate {
-	// our error macro
-#define EXPECT(ERROR, FORMAT, ...) {                                                                                                        \
-    int macroErrorCode = ERROR;                                                                                                             \
-    if(!macroErrorCode) {                                                                                                                   \
-        fprintf(stderr, "EXPECT: %s:%i -> %s -> Error(%i):\n\t" FORMAT "\n", __FILE__, __LINE__, __func__, macroErrorCode, ##__VA_ARGS__);  \
-        raise(SIGABRT);                                                                                                                     \
-    }                                                                                                                                       \
+
+
+#ifdef SLATE_DEBUG
+#define EXPECT(ERROR, FORMAT, ...) {                                                                                                            \
+    int macroErrorCode = static_cast<int>(ERROR);                                                                                               \
+    if (!macroErrorCode) {                                                                                                                      \
+        fmt::print(stderr, "EXPECT: {}:{} -> {} -> Error({}):\n\t" FORMAT "\n", __FILE__, __LINE__, __func__, macroErrorCode, ##__VA_ARGS__);   \
+        std::raise(SIGABRT);                                                                                                                    \
+    }                                                                                                                                           \
 }
+#else
+#define EXPECT(ERROR, FORMAT)
+#endif
+
 }

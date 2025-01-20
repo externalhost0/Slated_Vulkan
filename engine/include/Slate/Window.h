@@ -8,7 +8,7 @@
 
 #include "Ref.h"
 
-#include "IManager.h"
+#include "BaseSystem.h"
 #include "Expect.h"
 
 namespace Slate {
@@ -20,26 +20,20 @@ namespace Slate {
 
 	struct WindowSpecification {
 		bool IsResizeable{false};
-		bool VSyncEnabled{false};
-
-		unsigned int RefreshRate{}; // leave empty for the mode to figure out
-		unsigned int WindowWidth{1720}, WindowHeight{1280};
-
+		unsigned int WindowWidth{1280}, WindowHeight{720};
 		std::string WindowTitle{"Untitled Window"};
 		VIDEO_MODE VideoMode{VIDEO_MODE::WINDOWED};
-
 	};
 	class Window {
 	public:
 		Window() = default;
 		~Window() = default;
+		explicit Window(WindowSpecification spec)
+				: m_Spec(std::move(spec)) {}
 
 		explicit operator bool() const {
 			return (m_NativeWindow != nullptr);
 		}
-
-		explicit Window(WindowSpecification spec)
-		: m_Spec(std::move(spec)) {}
 	public:
 		void Build();
 		void Destroy();
@@ -52,27 +46,34 @@ namespace Slate {
 			return nullptr;
 		}
 
-	private:
-		WindowSpecification m_Spec;
-		GLFWwindow* m_NativeWindow{nullptr};
+		[[maybe_unused]]
+		WindowSpecification GetSpec() {
+			return m_Spec;
+		}
 
+		[[maybe_unused]]
+		void SetSpecification(WindowSpecification spec) {
+			m_Spec = std::move(spec);
+		}
+	private:
+		WindowSpecification m_Spec{};
+		GLFWwindow* m_NativeWindow{nullptr};
 	};
 
-	class WindowManager : public IManager {
+	class WindowSystem : BaseSystem {
 	public:
-		Ref<Window> GetWindow() {
-			if (m_Window)
-				return m_Window;
-			else
-				EXPECT(false, "A main window has not been set!")
+		Ref<Window> GetMainWindow() {
+			if (_windowRef) return _windowRef;
+			EXPECT(false, "A main window has not been injected!")
+			return nullptr;
 		}
-		void SetMainWindow(const Window& window) { m_Window = CreateRef<Window>(window); }
-
+	public:
+		void InjectWindow(const Ref<Window>& windowRef) { _windowRef = windowRef; };
 	private:
-		void Initialize() override {};
-		void Shutdown() override {};
+		Ref<Window> _windowRef = nullptr;
+	private:
+		void Initialize() override;
+		void Shutdown() override;
 		friend class Application;
-	private:
-		Ref<Window> m_Window;
 	};
 }

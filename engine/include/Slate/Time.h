@@ -30,5 +30,6 @@ namespace Slate {
 			lastTime = startTime;
 		}
 		friend class Application;
+		static void Shutdown();
 	};
 }

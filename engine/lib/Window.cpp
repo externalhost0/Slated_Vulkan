@@ -5,10 +5,18 @@
 #include "Slate/Window.h"
 
 namespace Slate {
-	void Window::Build() {
-		if (!glfwGetCurrentContext())
-			glfwInit();
 
+	void WindowSystem::Initialize() {
+		_isInitialized = true;
+	}
+	void WindowSystem::Shutdown() {
+		EXPECT(_isInitialized, "WindowSystem has not been initialized.")
+		// glfw cleanup
+		glfwTerminate();
+	}
+
+	void Window::Build() {
+		EXPECT(glfwVulkanSupported(), "[GLFW] Vulkan Not Supported!")
 
 		// get some properties of user monitor
 		GLFWmonitor* monitor = glfwGetPrimaryMonitor();
@@ -24,12 +32,8 @@ namespace Slate {
 
 			// variable hints
 			glfwWindowHint(GLFW_RESIZABLE, m_Spec.IsResizeable);
-			if (m_Spec.RefreshRate) {
-				glfwWindowHint(GLFW_REFRESH_RATE, static_cast<int>(m_Spec.RefreshRate));
-			} else {
-				glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
-			}
 		}
+
 
 		// video mode setting logic
 		int width = mode->width;
@@ -43,14 +47,6 @@ namespace Slate {
 		}
 
 		m_NativeWindow = glfwCreateWindow(width, height, m_Spec.WindowTitle.c_str(), monitor, nullptr);
-
-
-//		VkResult err = glfwCreateWindowSurface(instance, window, NULL, &surface);
-//		if (err)
-//		{
-//			// Window surface creation failed
-//		}
-//
 	}
 	void Window::Destroy() {
 		glfwDestroyWindow(m_NativeWindow);

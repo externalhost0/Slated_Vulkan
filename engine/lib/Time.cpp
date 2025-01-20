@@ -16,4 +16,7 @@ namespace Slate {
 		auto currentTime = std::chrono::high_resolution_clock::now();
 		return std::chrono::duration<double>(currentTime - startTime).count();
 	}
+	void Time::Shutdown() {
+
+	}
 }

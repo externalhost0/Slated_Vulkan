@@ -3,29 +3,35 @@
 //
 #include "Slate/Application.h"
 #include "Slate/Input.h"
+#include "Slate/Window.h"
 #include <GLFW/glfw3.h>
 
 namespace Slate {
+	void InputSystem::Initialize() {
+		_isInitialized = true;
+	}
+	void InputSystem::Shutdown() {
+		EXPECT(_isInitialized, "InputSystem has not been initialized!")
+	}
 
-	bool InputManager::IsKeyPressed(const int key) {
-		auto state = glfwGetKey(SystemLocator::Get<WindowManager>().GetWindow()->GetNativeWindow(), static_cast<int32_t>(key));
+	bool InputSystem::IsKeyPressed(int key, int keystate) {
+		int state = glfwGetKey(_windowRef->GetNativeWindow(), static_cast<int32_t>(key));
+		return state == keystate;
+	}
+	bool InputSystem::IsMouseButtonPressed(const int button) {
+		auto state = glfwGetMouseButton(_windowRef->GetNativeWindow(), static_cast<int32_t>(button));
 		return state == GLFW_PRESS;
 	}
-	bool InputManager::IsMouseButtonPressed(const int button) {
-		auto state = glfwGetMouseButton(SystemLocator::Get<WindowManager>().GetWindow()->GetNativeWindow(), static_cast<int32_t>(button));
-		return state == GLFW_PRESS;
-	}
-	glm::vec2 InputManager::GetMousePosition() {
+	glm::ivec2 InputSystem::GetMousePosition() {
 		double x_pos, y_pos;
-		glfwGetCursorPos(SystemLocator::Get<WindowManager>().GetWindow()->GetNativeWindow(), &x_pos, &y_pos);
-		return {static_cast<float>(x_pos), static_cast<float>(y_pos) };
+		glfwGetCursorPos(_windowRef->GetNativeWindow(), &x_pos, &y_pos);
+		return { x_pos, y_pos };
 	}
 
-	int InputManager::GetInputMode() {
-		return glfwGetInputMode(SystemLocator::Get<WindowManager>().GetWindow()->GetNativeWindow(), GLFW_CURSOR);
+	int InputSystem::GetInputMode() {
+		return glfwGetInputMode(_windowRef->GetNativeWindow(), GLFW_CURSOR);
 	}
-	void InputManager::SetInputMode(int mode) {
-		glfwSetInputMode(SystemLocator::Get<WindowManager>().GetWindow()->GetNativeWindow(), GLFW_CURSOR, mode);
+	void InputSystem::SetInputMode(int mode) {
+		glfwSetInputMode(_windowRef->GetNativeWindow(), GLFW_CURSOR, mode);
 	}
-
 }

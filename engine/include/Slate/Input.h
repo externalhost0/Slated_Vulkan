@@ -5,23 +5,28 @@
 #pragma once
 
 #include <glm/glm.hpp>
-#include "IManager.h"
+
+#include "Ref.h"
+#include "Window.h"
 
 namespace Slate {
-	class InputManager : public IManager {
+	class InputSystem : BaseSystem {
 	public:
-
-		bool IsKeyPressed(int key);
+		bool IsKeyPressed(int key, int keystate = GLFW_PRESS);
 		bool IsMouseButtonPressed(int button);
-		glm::vec2 GetMousePosition();
+		glm::ivec2 GetMousePosition();
 
 		void SetInputMode(int mode);
 		int GetInputMode();
+
+	public:
+		void InjectWindow(const Ref<Window>& windowRef) { _windowRef = windowRef; }
 	private:
-		void Initialize() override {};
-		void Shutdown() override {};
+		Ref<Window> _windowRef = nullptr;
+	private:
+		void Initialize() override;
+		void Shutdown() override;
 		friend class Application;
-	private:
 	};
 
 }

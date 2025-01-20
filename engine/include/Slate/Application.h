@@ -5,31 +5,12 @@
 
 #include "Input.h"
 #include "Window.h"
+#include "Renderer.h"
 
 #include <unordered_map>
 
 namespace Slate {
-	// used to retrieve systems without singleton application
-	class SystemLocator {
-	public:
-		// for registration
-		template <typename T>
-		static void Provide(T* service) {
-			GetSystems()[typeid(T).hash_code()] = service;
-		}
-		// for retrieval
-		template <typename T>
-		static T& Get() {
-			return *static_cast<T*>(GetSystems()[typeid(T).hash_code()]);
-		}
-	private:
-		static std::unordered_map<size_t, void*>& GetSystems() {
-			static std::unordered_map<size_t, void*> services;
-			return services;
-		}
-	};
-
-	// application, top most system of Slate engine
+	// application, topmost system of Slate engine
 	class Application {
 	public:
 		// used to make the users app!
@@ -46,9 +27,10 @@ namespace Slate {
 		}
 		// starts the app, should be done in main() after creation
 		void Run(); // (init(), loop(), end())
-
 	public:
-		bool shouldStopLoop = false;
+		bool continue_Loop = true;
+	public:
+		Application() = default;
 		virtual ~Application() = default;
 		Application(const Application&) = delete; // delete copy construction
 		virtual Application& operator=(const Application&) = delete; // delete assignment construction
@@ -56,25 +38,19 @@ namespace Slate {
 		// user defined run event sequence
 		// this is where the user will write all their code
 		// therefore it means a Slate app requires inheriting a Application class
-		// not pure virtual ig cause the user cannot do anything i guess
+		// not pure virtual ig cause the user should be able to do anything i guess
 		virtual void Initialize() {};
 		virtual void Loop()       {};
 		virtual void Shutdown()   {};
-
-		// privte constructor means users are required to "create" an instance via static functions
-		// makes it so there is ONLY one possible instance
-		// also indicates that creating an instance doesnt do anything until run()
-		Application() {
-			// very important to register the managers to the system provider for access throughout the application easily
-			SystemLocator::Provide<InputManager>(&MInputManager);
-			SystemLocator::Provide<WindowManager>(&MWindowManager);
-		};
 	private:
-		// single instance managers
-		// explicit empty initalization so the analysis' warning disappears
-		InputManager MInputManager   = {};
-		WindowManager MWindowManager = {};
-
+		WindowSystem m_WindowSystem;
+		RenderSystem m_RenderSystem;
+		InputSystem  m_InputSystem;
+	public:
+		InputSystem& GetInputSystem() { return m_InputSystem; };
+		RenderSystem& GetRenderSystem() { return m_RenderSystem; };
+		WindowSystem& GetWindowSystem() { return m_WindowSystem; };
+	private:
 		// general system event steps, only for base Application engine to touch
 		// this is the sequence that exists outside of the users control
 		void BaseSlateApp_Start();
