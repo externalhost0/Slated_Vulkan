@@ -6,7 +6,9 @@
 #include "Input.h"
 #include "Window.h"
 #include "Renderer.h"
+#include "SmartPointers.h"
 
+#include <memory>
 #include <unordered_map>
 
 namespace Slate {
@@ -19,15 +21,13 @@ namespace Slate {
 			static_assert(std::is_base_of<Application, Derived>::value, "Derived must inherit from Application");
 
 			static bool instanceCreated = false;
-			if (instanceCreated)
-				throw std::runtime_error("An instance of Application has already been created!");
+			if (instanceCreated) throw std::runtime_error("An instance of Application has already been created!");
 			instanceCreated = true;
 
 			return std::make_unique<Derived>();
 		}
 		// starts the app, should be done in main() after creation
 		void Run(); // (init(), loop(), end())
-	public:
 		bool continue_Loop = true;
 	public:
 		Application() = default;
@@ -42,14 +42,6 @@ namespace Slate {
 		virtual void Initialize() {};
 		virtual void Loop()       {};
 		virtual void Shutdown()   {};
-	private:
-		WindowSystem m_WindowSystem;
-		RenderSystem m_RenderSystem;
-		InputSystem  m_InputSystem;
-	public:
-		InputSystem& GetInputSystem() { return m_InputSystem; };
-		RenderSystem& GetRenderSystem() { return m_RenderSystem; };
-		WindowSystem& GetWindowSystem() { return m_WindowSystem; };
 	private:
 		// general system event steps, only for base Application engine to touch
 		// this is the sequence that exists outside of the users control

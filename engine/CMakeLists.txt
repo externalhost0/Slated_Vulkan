@@ -16,13 +16,15 @@ add_library(${PROJECT_NAME}
         lib/vkinfo.cpp
         lib/vkutil.cpp
         lib/PipelineBuilder.cpp
+        lib/Scene.cpp
+        lib/MeshGenerators.cpp
+        include/Slate/MeshGenerators.h
 
 )
 # git submodules
 add_subdirectory(third_party/vk-bootstrap)
 
 # locate packages
-find_package(assimp REQUIRED)
 find_package(EnTT REQUIRED)
 find_package(Stb REQUIRED)
 find_package(Vulkan REQUIRED) # Vulkan loads headers and glm
@@ -38,7 +40,6 @@ target_include_directories(${PROJECT_NAME}
 )
 target_link_libraries(${PROJECT_NAME}
         PUBLIC # can be found in all engine files
-        assimp::assimp
         EnTT::EnTT
         Vulkan::Vulkan
         vk-bootstrap::vk-bootstrap

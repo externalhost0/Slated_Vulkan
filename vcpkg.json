@@ -25,9 +25,6 @@
     "name" : "stb",
     "version>=" : "2024-07-29#1"
   }, {
-    "name" : "assimp",
-    "version>=" : "5.4.3"
-  }, {
     "name" : "vulkan-memory-allocator",
     "version>=" : "3.1.0"
   }, {

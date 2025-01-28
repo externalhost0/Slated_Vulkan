@@ -2,13 +2,10 @@
 // Created by Hayden Rivas on 1/8/25.
 //
 #pragma once
-
-#include <string>
 #include <GLFW/glfw3.h>
+#include <string>
+#include <utility>
 
-#include "Ref.h"
-
-#include "BaseSystem.h"
 #include "Expect.h"
 
 namespace Slate {
@@ -19,17 +16,17 @@ namespace Slate {
 	};
 
 	struct WindowSpecification {
-		bool IsResizeable{false};
-		unsigned int WindowWidth{1280}, WindowHeight{720};
-		std::string WindowTitle{"Untitled Window"};
-		VIDEO_MODE VideoMode{VIDEO_MODE::WINDOWED};
+		bool IsResizeable {false};
+		unsigned int WindowWidth {1280}, WindowHeight {720};
+		std::string WindowTitle {"Untitled Window"};
+		VIDEO_MODE VideoMode {VIDEO_MODE::WINDOWED};
 	};
+
 	class Window {
 	public:
 		Window() = default;
 		~Window() = default;
-		explicit Window(WindowSpecification spec)
-				: m_Spec(std::move(spec)) {}
+		explicit Window(WindowSpecification spec) : m_Spec(std::move(spec)) {}
 
 		explicit operator bool() const {
 			return (m_NativeWindow != nullptr);
@@ -46,34 +43,31 @@ namespace Slate {
 			return nullptr;
 		}
 
-		[[maybe_unused]]
 		WindowSpecification GetSpec() {
 			return m_Spec;
 		}
-
-		[[maybe_unused]]
 		void SetSpecification(WindowSpecification spec) {
 			m_Spec = std::move(spec);
 		}
 	private:
-		WindowSpecification m_Spec{};
-		GLFWwindow* m_NativeWindow{nullptr};
+		WindowSpecification m_Spec {};
+		GLFWwindow* m_NativeWindow {nullptr};
 	};
 
-	class WindowSystem : BaseSystem {
-	public:
-		Ref<Window> GetMainWindow() {
-			if (_windowRef) return _windowRef;
-			EXPECT(false, "A main window has not been injected!")
-			return nullptr;
-		}
-	public:
-		void InjectWindow(const Ref<Window>& windowRef) { _windowRef = windowRef; };
-	private:
-		Ref<Window> _windowRef = nullptr;
-	private:
-		void Initialize() override;
-		void Shutdown() override;
-		friend class Application;
-	};
+//	class WindowSystem : BaseSystem {
+//	public:
+//		Window* GetMainWindow() {
+//			if (_pWindow) return _pWindow;
+//			EXPECT(false, "A main window has not been injected!")
+//			return nullptr;
+//		}
+//	public:
+//		void InjectWindow(Window* window) { _pWindow = window; };
+//	private:
+//		Window* _pWindow = nullptr;
+//	private:
+//		void Initialize() override;
+//		void Shutdown() override;
+//		friend class Application;
+//	};
 }

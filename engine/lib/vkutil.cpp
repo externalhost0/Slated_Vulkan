@@ -9,6 +9,20 @@
 #include "Slate/VK/vkutil.h"
 
 namespace Slate::vkutil {
+	VkImageAspectFlags AspectMaskFromLayout(VkImageLayout layout) {
+		switch (layout) {
+			case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR: return VK_IMAGE_ASPECT_COLOR_BIT;
+			case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL: return VK_IMAGE_ASPECT_COLOR_BIT;
+
+			case VK_IMAGE_LAYOUT_GENERAL: return VK_IMAGE_ASPECT_COLOR_BIT;
+			case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL: return VK_IMAGE_ASPECT_COLOR_BIT;
+
+			case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL: return VK_IMAGE_ASPECT_DEPTH_BIT;
+			case VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL: return VK_IMAGE_ASPECT_STENCIL_BIT;
+			case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL: return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+			default: return VK_IMAGE_ASPECT_NONE;
+		}
+	}
 	void TransitionImageLayout(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout) {
 		VkImageMemoryBarrier2 barrier = { .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2, .pNext = nullptr };
 		barrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
@@ -17,7 +31,7 @@ namespace Slate::vkutil {
 		barrier.dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT | VK_ACCESS_2_MEMORY_READ_BIT;
 		barrier.oldLayout = currentLayout;
 		barrier.newLayout = newLayout;
-		VkImageAspectFlags aspectMask = (newLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+		VkImageAspectFlags aspectMask = AspectMaskFromLayout(newLayout);
 		barrier.subresourceRange = vkinfo::CreateImageSubresourceRange(aspectMask);
 		barrier.image = image;
 		VkDependencyInfo info = { .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO, .pNext = nullptr };
@@ -74,11 +88,12 @@ namespace Slate::vkutil {
 	}
 
 	void SetViewport(VkCommandBuffer cmd, VkExtent2D extent2D) {
+		// we flip the viewport because Vulkan is reversed using LH instead of GL's RH
 		VkViewport viewport = {};
 		viewport.x = 0;
-		viewport.y = 0;
+		viewport.y = static_cast<float>(extent2D.height);
 		viewport.width = static_cast<float>(extent2D.width);
-		viewport.height = static_cast<float>(extent2D.height);
+		viewport.height = -static_cast<float>(extent2D.height);
 		viewport.minDepth = 0.f;
 		viewport.maxDepth = 1.f;
 		vkCmdSetViewport(cmd, 0, 1, &viewport);
@@ -90,4 +105,5 @@ namespace Slate::vkutil {
 		scissor.extent = extent2D;
 		vkCmdSetScissor(cmd, 0, 1, &scissor);
 	}
+
 }

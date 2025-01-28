@@ -13,7 +13,6 @@
 
 namespace Slate {
 
-
 #ifdef SLATE_DEBUG
 #define EXPECT(ERROR, FORMAT, ...) {                                                                                                            \
     int macroErrorCode = static_cast<int>(ERROR);                                                                                               \
@@ -25,5 +24,7 @@ namespace Slate {
 #else
 #define EXPECT(ERROR, FORMAT)
 #endif
+
+
 
 }

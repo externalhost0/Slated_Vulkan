@@ -20,7 +20,8 @@ project(Slate
 
 # add defines
 helper_detectOS()
-helper_addDefines()
+helper_addGlobalDefines()
+helper_addGLMDefines()
 
 add_subdirectory("${SLATE_BASE_FOLDER}/engine")
 add_subdirectory("${SLATE_BASE_FOLDER}/editor")

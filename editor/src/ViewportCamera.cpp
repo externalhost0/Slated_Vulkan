@@ -2,37 +2,42 @@
 // Created by Hayden Rivas on 1/19/25.
 //
 
-#include "ViewportCamera.h"
-#include "Slate/Input.h"
-#include <Slate/Time.h>
-
 #include <GLFW/glfw3.h>
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_transform.hpp>
+
+#include <Slate/Input.h>
+#include <Slate/Time.h>
+#include "ViewportCamera.h"
+
 
 namespace Slate {
 	void ViewportCamera::OnResize(int width, int height) {
 		_aspectRatio = static_cast<float>(width) / static_cast<float>(height);
 	}
-	void ViewportCamera::ProcessKeys(InputSystem& system) {
+	void ViewportCamera::OnResize(float width, float height) {
+		if (width/height <= 0) return;
+		_aspectRatio = width/height;
+	}
+	void ViewportCamera::ProcessKeys() {
 
 		float realSpeed;
-		if (system.IsKeyPressed(GLFW_KEY_LEFT_SHIFT)) realSpeed = CAMERA_BASE_SPEED;
-		else realSpeed = CAMERA_SPRINT_SPEED;
+		if (InputSystem::IsKeyPressed(GLFW_KEY_LEFT_SHIFT)) realSpeed = cameraSpeed * 1.5f;
+		else realSpeed = cameraSpeed;
 
 		float adjustedSpeed = realSpeed * static_cast<float>(Time::GetDeltaTime());
 
-		if (system.IsKeyPressed(GLFW_KEY_W))
+		if (InputSystem::IsKeyPressed(GLFW_KEY_W))
 			_position += adjustedSpeed * _front;
-		if (system.IsKeyPressed(GLFW_KEY_S))
+		if (InputSystem::IsKeyPressed(GLFW_KEY_S))
 			_position -= adjustedSpeed * _front;
-		if (system.IsKeyPressed(GLFW_KEY_A))
+		if (InputSystem::IsKeyPressed(GLFW_KEY_A))
 			_position -= glm::normalize(glm::cross(_front, _up)) * adjustedSpeed;
-		if (system.IsKeyPressed(GLFW_KEY_D))
+		if (InputSystem::IsKeyPressed(GLFW_KEY_D))
 			_position += glm::normalize(glm::cross(_front, _up)) * adjustedSpeed;
-		if (system.IsKeyPressed(GLFW_KEY_SPACE))
+		if (InputSystem::IsKeyPressed(GLFW_KEY_SPACE))
 			_position += adjustedSpeed * _up;
-		if (system.IsKeyPressed(GLFW_KEY_LEFT_CONTROL))
+		if (InputSystem::IsKeyPressed(GLFW_KEY_LEFT_CONTROL))
 			_position -= adjustedSpeed * _up;
 	}
 
@@ -66,8 +71,8 @@ namespace Slate {
 		_front = glm::normalize(direction);
 	}
 	void ViewportCamera::Update() {
-		auto proj = glm::perspective(glm::radians(_fov), _aspectRatio, _zNear, _zFar);
-		proj[1][1] *= -1; // inverts the y axis
+		glm::mat4 proj = glm::perspective(glm::radians(_fov), _aspectRatio, _zNear, _zFar);
+//		proj[1][1] *= -1; // inverts the y axis
 		_projectionMatrix = proj;
 
 		_viewMatrix = glm::lookAt(_position, _position + _front, _up);

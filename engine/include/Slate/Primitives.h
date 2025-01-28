@@ -8,13 +8,19 @@
 
 namespace Slate::Primitives {
 
-	const std::vector<Vertex> Vertices = {
+	const std::vector<Vertex> quadVertices = {
 			{{-1.0f, 1.0f, 0.0f}, {1.0f, 1.0f, 0.0f}}, // top left
 			{{-1.0f, -1.0f, 0.0f}, {1.0f, 0.0f, 1.0f}}, // bottom left
 			{{1.0f, -1.0f, 0.0f}, {0.0f, 1.0f, 1.0f}}, // bottom right
 			{{1.0f, 1.0f, 0.0f}, {0.0f, 1.0f, 0.5f}} // top right
 	};
-	const std::vector<uint32_t> Indices = {
+	const std::vector<Vertex> planeVertices = {
+			{{-1.0f, 0.0f, -1.0f}, {1.0f, 1.0f, 0.0f}}, // top left
+			{{-1.0f, 0.0f, 1.0f}, {1.0f, 0.0f, 1.0f}}, // bottom left
+			{{1.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 1.0f}}, // bottom right
+			{{1.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.5f}} // top right
+	};
+	const std::vector<uint32_t> quadIndices = {
 			0, 1, 3,
 			1, 2, 3
 	};

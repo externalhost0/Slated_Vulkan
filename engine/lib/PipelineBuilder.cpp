@@ -4,7 +4,7 @@
 #include "Slate/Debug.h"
 #include "Slate/VK/vkinfo.h"
 
-#include "Slate/VK/PipelineBuilder.h"
+#include "Slate/PipelineBuilder.h"
 
 namespace Slate {
 	void PipelineBuilder::Clear() {

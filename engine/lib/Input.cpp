@@ -15,23 +15,22 @@ namespace Slate {
 	}
 
 	bool InputSystem::IsKeyPressed(int key, int keystate) {
-		int state = glfwGetKey(_windowRef->GetNativeWindow(), static_cast<int32_t>(key));
+		int state = glfwGetKey(_pNativeWindow, static_cast<int32_t>(key));
 		return state == keystate;
 	}
 	bool InputSystem::IsMouseButtonPressed(const int button) {
-		auto state = glfwGetMouseButton(_windowRef->GetNativeWindow(), static_cast<int32_t>(button));
+		auto state = glfwGetMouseButton(_pNativeWindow, static_cast<int32_t>(button));
 		return state == GLFW_PRESS;
 	}
 	glm::ivec2 InputSystem::GetMousePosition() {
 		double x_pos, y_pos;
-		glfwGetCursorPos(_windowRef->GetNativeWindow(), &x_pos, &y_pos);
+		glfwGetCursorPos(_pNativeWindow, &x_pos, &y_pos);
 		return { x_pos, y_pos };
 	}
-
 	int InputSystem::GetInputMode() {
-		return glfwGetInputMode(_windowRef->GetNativeWindow(), GLFW_CURSOR);
+		return glfwGetInputMode(_pNativeWindow, GLFW_CURSOR);
 	}
 	void InputSystem::SetInputMode(int mode) {
-		glfwSetInputMode(_windowRef->GetNativeWindow(), GLFW_CURSOR, mode);
+		glfwSetInputMode(_pNativeWindow, GLFW_CURSOR, mode);
 	}
 }

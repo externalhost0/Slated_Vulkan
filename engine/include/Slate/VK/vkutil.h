@@ -14,4 +14,6 @@ namespace Slate::vkutil {
 	void SetViewport(VkCommandBuffer cmd, VkExtent2D extent2D);
 	void SetScissor(VkCommandBuffer cmd, VkExtent2D extent2D);
 
-}// namespace Slate::vkutil
+	void CreateBuffer(VkDevice device, VkPhysicalDevice physicalDevice, size_t size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
+	uint32_t FindMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter, VkMemoryPropertyFlags properties);
+}

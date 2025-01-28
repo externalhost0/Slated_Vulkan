@@ -15,6 +15,9 @@ add_executable(${PROJECT_NAME}
         src/AssetsPanel.cpp
         src/ScenePanel.cpp
         src/ViewportCamera.cpp
+        src/ImGuiSnippets.cpp
+        src/ImGuiSnippets.h
+        src/Context.h
 )
 # for compiling shaders
 helper_compileShaders()
@@ -26,6 +29,8 @@ find_package(ImGuizmo CONFIG REQUIRED)
 target_include_directories(${PROJECT_NAME}
         PUBLIC
         SlateEngine
+        PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party
 )
 target_link_libraries(${PROJECT_NAME}
         PUBLIC

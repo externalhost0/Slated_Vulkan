@@ -6,14 +6,14 @@
 
 namespace Slate {
 
-	void WindowSystem::Initialize() {
-		_isInitialized = true;
-	}
-	void WindowSystem::Shutdown() {
-		EXPECT(_isInitialized, "WindowSystem has not been initialized.")
-		// glfw cleanup
-		glfwTerminate();
-	}
+//	void WindowSystem::Initialize() {
+//		_isInitialized = true;
+//	}
+//	void WindowSystem::Shutdown() {
+//		EXPECT(_isInitialized, "WindowSystem has not been initialized.")
+//		// glfw cleanup
+//		glfwTerminate();
+//	}
 
 	void Window::Build() {
 		EXPECT(glfwVulkanSupported(), "[GLFW] Vulkan Not Supported!")

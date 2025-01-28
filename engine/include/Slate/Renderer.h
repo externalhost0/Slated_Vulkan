@@ -11,7 +11,6 @@
 
 // Slate Headers
 #include "BaseSystem.h"
-#include "Ref.h"
 #include "VulkanEngine.h"
 #include "Window.h"
 

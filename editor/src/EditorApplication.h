@@ -4,20 +4,29 @@
 #pragma once
 
 #include <Slate/Application.h>
+#include <Slate/Scene.h>
+#include <Slate/Entity.h>
+
 #include "EditorGui.h"
 #include "ViewportCamera.h"
+#include "Context.h"
 
 namespace Slate {
+	struct MyGlobals {
+		Window window;
+		EditorGui editorGui;
+		Context activeContxt;
+		ViewportCamera camera;
+		VulkanEngine engine;
+	};
+
 	class EditorApplication : public Application {
 	private:
 		void Initialize() override;
 		void Loop() override;
 		void Shutdown() override;
-	private:
+	private: // all this stuff should be better held
 		bool isMinimized = false;
-		EditorGui _editorGui;
-		Ref<ViewportCamera> _camera;
-	private:
-
+		MyGlobals _globals;
 	};
 }

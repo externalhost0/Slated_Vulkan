@@ -39,7 +39,7 @@ namespace Slate::vkinfo {
 		return info;
 	}
 
-	VkRenderingAttachmentInfo CreateAttachmentInfo(VkImageView view, VkClearValue* clear, VkImageLayout layout) {
+	VkRenderingAttachmentInfo CreateAttachmentInfo(VkImageView view, VkClearColorValue* clear, VkImageLayout layout) {
 		VkRenderingAttachmentInfo colorAttachment = {};
 		colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
 		colorAttachment.pNext = nullptr;
@@ -47,10 +47,10 @@ namespace Slate::vkinfo {
 		colorAttachment.imageLayout = layout;
 		colorAttachment.loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
 		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		if (clear) colorAttachment.clearValue = *clear;
+		if (clear) colorAttachment.clearValue.color = *clear;
 		return colorAttachment;
 	}
-	VkRenderingAttachmentInfo CreateDepthAttachmentInfo(VkImageView view, VkImageLayout layout) {
+	VkRenderingAttachmentInfo CreateDepthStencilAttachmentInfo(VkImageView view, VkClearDepthStencilValue* clear, VkImageLayout layout) {
 		VkRenderingAttachmentInfo depthAttachment = {};
 		depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
 		depthAttachment.pNext = nullptr;
@@ -59,7 +59,7 @@ namespace Slate::vkinfo {
 		depthAttachment.imageLayout = layout;
 		depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		depthAttachment.clearValue.depthStencil.depth = 0.f;
+		if (clear) depthAttachment.clearValue.depthStencil = *clear;
 
 		return depthAttachment;
 	}
@@ -76,7 +76,7 @@ namespace Slate::vkinfo {
 		info.pNext = nullptr;
 		info.flags = 0;
 		info.renderArea = {
-				.offset = {0, 0},
+				.offset = { 0, 0 },
 				.extent = extent2D,
 		};
 		info.layerCount = 1;

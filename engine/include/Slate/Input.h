@@ -5,24 +5,24 @@
 #pragma once
 
 #include <glm/glm.hpp>
-
-#include "Ref.h"
 #include "Window.h"
+#include "BaseSystem.h"
 
 namespace Slate {
 	class InputSystem : BaseSystem {
 	public:
-		bool IsKeyPressed(int key, int keystate = GLFW_PRESS);
-		bool IsMouseButtonPressed(int button);
-		glm::ivec2 GetMousePosition();
 
-		void SetInputMode(int mode);
-		int GetInputMode();
+		static bool IsKeyPressed(int key, int keystate = GLFW_PRESS);
+		static bool IsMouseButtonPressed(int button);
+		static glm::ivec2 GetMousePosition();
+
+		static void SetInputMode(int mode);
+		static int GetInputMode();
 
 	public:
-		void InjectWindow(const Ref<Window>& windowRef) { _windowRef = windowRef; }
+		static void InjectWindow(GLFWwindow* window) { _pNativeWindow = window; }
 	private:
-		Ref<Window> _windowRef = nullptr;
+		inline static GLFWwindow* _pNativeWindow = nullptr;
 	private:
 		void Initialize() override;
 		void Shutdown() override;

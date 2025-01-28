@@ -3,16 +3,17 @@
 //
 
 #pragma once
-#include "Slate/Input.h"
+#include <Slate/Input.h>
 #include <glm/glm.hpp>
 namespace Slate {
 	class ViewportCamera {
 	public:
-		void ProcessKeys(InputSystem& system);
+		void ProcessKeys();
 		void ProcessMouse(int xpos, int ypos);
 
 		void Update();
 		void OnResize(int width, int height);
+		void OnResize(float width, float height);
 	public:
 		glm::mat4 GetProjectionMatrix() { return _projectionMatrix; };
 		glm::mat4 GetViewMatrix() { return _viewMatrix; };
@@ -20,10 +21,9 @@ namespace Slate {
 		glm::mat4 _projectionMatrix;
 		glm::mat4 _viewMatrix;
 	private:
-		const float CAMERA_BASE_SPEED = 5.f;
-		const float CAMERA_SPRINT_SPEED = CAMERA_BASE_SPEED * 1.5f;
 		const float MOUSE_SENSITIVITY = 0.1f;
 	public:
+		float cameraSpeed = 5.f;
 		bool isFirstMouse = false;
 	private: // for mouse operations
 		float yaw;
@@ -36,7 +36,9 @@ namespace Slate {
 		float _aspectRatio;
 	private:
 		glm::vec3 _position = {0.f, 0.f, 5.f}; // we like to be started back a bit so we can see things at origin easily when debugging
-		glm::vec3 _front = {0.f, 0.f, -1.f};
-		glm::vec3 _up = {0.f, 1.f, 0.f}; // (static) will always be this vector
+		glm::vec3 _front = {0, 0, -1};
+		glm::vec3 _up = {0, 1, 0}; // (static) will always be this vector
+
+		friend class EditorGui;
 	};
 }

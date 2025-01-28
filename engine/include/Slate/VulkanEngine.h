@@ -13,6 +13,8 @@
 #include "Slate/VK/vktypes.h"
 
 namespace Slate {
+	struct MeshComponent;
+	struct MeshData;
 
 	constexpr unsigned int FRAME_OVERLAP = 2;
 	// every frame has one of these, because we are double buffer we will assign two
@@ -36,6 +38,8 @@ namespace Slate {
 	public:
 		VulkanEngine() = default;
 		~VulkanEngine() = default;
+		VulkanEngine(const VulkanEngine&) = delete;
+		VulkanEngine& operator=(const VulkanEngine&) = delete;
 	public:
 		// creation functions
 		// must be done in this order
@@ -47,22 +51,26 @@ namespace Slate {
 		void CreateSwapchain();
 		void CreateCommands();
 		void CreateSyncStructures();
+
+		void Aquire();
+		void Present();
 	public:
 		// runtime functions
 		void BuildSwapchain(uint16_t width = 0, uint16_t height = 0);
+
 		void RebuildSwapchain(uint16_t width = 0, uint16_t height = 0);
-		void ResizeSwapchain(GLFWwindow *pWindow);
+		void OnResizeSwapchain(GLFWwindow *pWindow);
 		bool resizeRequested = false;
 
 	public:
 		// for meshes
 		vktypes::AllocatedBuffer CreateBuffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage) const;
-		void DestroyBuffer(const vktypes::AllocatedBuffer& buffer) const;
 		void Immediate_Submit(std::function<void(VkCommandBuffer cmd)>&& function);
 
-		vktypes::GPUMeshBuffers UploadMesh(std::vector<Vertex> vertices);
-		vktypes::GPUMeshBuffers UploadMesh(std::vector<Vertex> vertices, std::vector<uint32_t> indices);
-		vktypes::GPUMeshBuffers UploadMesh(std::span<Vertex> vertices, std::span<uint32_t> indices);
+		vktypes::MeshData CreateMesh(std::vector<Vertex> vertices);
+		vktypes::MeshData CreateMesh(std::vector<Vertex> vertices, std::vector<uint32_t> indices);
+
+		void Draw(vktypes::MeshData data, VkPipelineLayout layout);
 	public:
 		void Destroy();
 	private:
@@ -94,10 +102,8 @@ namespace Slate {
 
 		// draw resources
 		uint32_t _imageIndex = static_cast<uint32_t>(-1);
-		vktypes::AllocatedImage _drawImage = {};
-		vktypes::AllocatedImage _depthImage = {};
-	private:
-		FrameData _frames[FRAME_OVERLAP] = {};
+		vktypes::AllocatedImage _colorImage = {};
+		vktypes::AllocatedImage _depthStencilImage = {};
 	public:
 		uint32_t _frameNum = 0;
 		FrameData& getCurrentFrameData() { return _frames[_frameNum % FRAME_OVERLAP]; };
@@ -105,16 +111,22 @@ namespace Slate {
 		// currently used by imgui:
 		VkDescriptorPool imguiDescriptorPool   = VK_NULL_HANDLE;
 	public:
-		// our main pipeline
-		VkPipeline _vkMainPipeline             = VK_NULL_HANDLE;
+		// our main pipeline:
+		VkPipeline _standardPipeline = VK_NULL_HANDLE;
 		VkPipelineLayout _vkMainPipelineLayout = VK_NULL_HANDLE;
+
+		VkPipeline _gridPipeline;
+		VkPipelineLayout _gridPipelineLayout;
 	public:
 		// immediate submit structures
 		VkFence _immFence                 = VK_NULL_HANDLE;
 		VkCommandBuffer _immCommandBuffer = VK_NULL_HANDLE;
 		VkCommandPool _immCommandPool     = VK_NULL_HANDLE;
+	private:
+		FrameData _frames[FRAME_OVERLAP] = {};
 	public:
-		glm::vec3 transformtest{};
+		std::vector<vktypes::AllocatedBuffer> allIndexBuffers;
+		VkClearColorValue clearColorValue = { 0.2f, 0.4f, 0.65f, 1.0f };
 	};
 
 }
