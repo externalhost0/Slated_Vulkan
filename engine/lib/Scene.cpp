@@ -9,7 +9,6 @@
 #include "Slate/Entity.h"
 
 namespace Slate {
-	Entity Entity::Null = Entity(entt::null, nullptr);
 
 	Entity Scene::CreateEntity() {
 		return CreateEntity("Unnamed Entity");

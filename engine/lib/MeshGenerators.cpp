@@ -4,9 +4,10 @@
 #include <vector>
 
 #include "Slate/VK/vktypes.h"
+
 namespace Slate {
-	std::vector<Vertex> GenerateGridVertices(float size, unsigned int numLines) {
-		std::vector<Vertex> vertices; // tempy for return and loop
+	std::vector<Vertex_Standard> GenerateGridVertices(float size, unsigned int numLines) {
+		std::vector<Vertex_Standard> vertices; // tempy for return and loop
 		// auto calc spacing
 		float spacing = size / static_cast<float>(numLines);
 		// lines along x and z
@@ -14,24 +15,21 @@ namespace Slate {
 			float pos = -size / 2.0f + i * spacing;  // line position
 
 			// x-axis
-			Vertex xPoint;
-			xPoint.color = { 1.f, 1.f, 1.f};
+			Vertex_Standard xPoint = {};
 
 			xPoint.position.x = (-size / 2.0f);
 			xPoint.position.y = (0.0f);
 			xPoint.position.z = (pos);
 			vertices.push_back(xPoint);
 
-			Vertex yPoint;
-			yPoint.color = { 1.f, 1.f, 1.f};
+			Vertex_Standard yPoint = {};
 
 			yPoint.position.x = (size / 2.0f);
 			yPoint.position.y = 0.0f;
 			yPoint.position.z = pos;
 			vertices.push_back(yPoint);
 
-			Vertex zPoint;
-			zPoint.color = { 1.f, 1.f, 1.f};
+			Vertex_Standard zPoint = {};
 
 			// z-axis
 			zPoint.position.x = pos;
@@ -39,8 +37,7 @@ namespace Slate {
 			zPoint.position.z = -size / 2.0f;
 			vertices.push_back(zPoint);
 
-			Vertex extraPoint;
-			extraPoint.color = { 1.f, 1.f, 1.f};
+			Vertex_Standard extraPoint = {};
 
 			extraPoint.position.x = pos;
 			extraPoint.position.y = 0.0f;

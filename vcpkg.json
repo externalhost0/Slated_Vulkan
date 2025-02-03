@@ -1,5 +1,5 @@
 {
-  "name" : "slate",
+  "name" : "slateeditor",
   "version-string" : "1.0.0",
   "builtin-baseline" : "93570a28ecdf49d3d9676cec8aa0cc72935d43db",
   "dependencies" : [ {
@@ -33,5 +33,11 @@
   }, {
     "name" : "fmt",
     "version>=" : "11.0.2#1"
+  }, {
+    "name" : "fastgltf",
+    "version>=" : "0.8.0"
+  }, {
+    "name" : "nativefiledialog-extended",
+    "version>=" : "1.2.1"
   } ]
 }

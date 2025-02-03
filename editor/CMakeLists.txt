@@ -6,9 +6,9 @@ project(${PROJECT_NAME}
 
 
 add_executable(${PROJECT_NAME}
+        ${SHADERS}
         src/main.cpp
         src/EditorApplication.cpp
-        ${SHADERS}
         src/EditorGui.cpp
         src/PropertiesPanel.cpp
         src/ViewportPanel.cpp
@@ -25,6 +25,7 @@ add_dependencies(${PROJECT_NAME} shaders)
 
 find_package(imgui CONFIG REQUIRED)
 find_package(ImGuizmo CONFIG REQUIRED)
+find_package(nfd CONFIG REQUIRED)
 
 target_include_directories(${PROJECT_NAME}
         PUBLIC
@@ -37,5 +38,6 @@ target_link_libraries(${PROJECT_NAME}
         SlateEngine
         imgui::imgui
         imguizmo::imguizmo
+        nfd::nfd
 )
 

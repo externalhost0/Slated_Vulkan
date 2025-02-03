@@ -3,28 +3,41 @@
 //
 
 #pragma once
-#include <GLFW/glfw3.h>
 #include <cstdint>
 #include <span>
 #include <vector>
+#include <filesystem>
+
 #include <vulkan/vulkan.h>
 #include <VkBootstrap.h>
 
-#include "Slate/VK/vktypes.h"
+#include "VK/vkdescriptor.h"
+#include "VK/vktypes.h"
+
+class GLFWwindow;
+namespace Slate { struct MeshComponent; }
 
 namespace Slate {
-	struct MeshComponent;
-	struct MeshData;
-
 	constexpr unsigned int FRAME_OVERLAP = 2;
+
+	struct EngineStatistics {
+		float frametime;
+		int triangle_count;
+		int drawcall_count;
+		float scene_update_count;
+		float mesh_draw_time;
+	};
+
 	// every frame has one of these, because we are double buffer we will assign two
 	struct FrameData {
 		// sync objects
-		VkSemaphore _swapchainSemaphore, _renderSemaphore;
-		VkFence _renderFence;
+		VkSemaphore _swapchainSemaphore = VK_NULL_HANDLE, _renderSemaphore = VK_NULL_HANDLE;
+		VkFence _renderFence = VK_NULL_HANDLE;
 		// commands
-		VkCommandPool _commandPool;
-		VkCommandBuffer _commandBuffer;
+		VkCommandPool _commandPool = VK_NULL_HANDLE;
+		VkCommandBuffer _commandBuffer = VK_NULL_HANDLE;
+		// frame descriptors
+		DescriptorAllocatorGrowable _frameDescriptors = {};
 	};
 
 	// required for setting up other parts of the Vulkan initialization
@@ -46,37 +59,46 @@ namespace Slate {
 		void CreateInstance(const VulkanInstanceInfo & info);
 		void CreateSurface(GLFWwindow* pWindow);
 		void CreateDevices();
+		void CreateSwapchain(uint16_t width = 0, uint16_t height = 0);
 		void CreateAllocator();
+
 		void CreateQueues();
-		void CreateSwapchain();
 		void CreateCommands();
 		void CreateSyncStructures();
+		void CreateStandardSamplers();
 
-		void Aquire();
-		void Present();
+		void CreateDescriptors();
+		void CreateDefaultImages();
+		void CreateDefaultBuffers();
 	public:
+		void Aquire(); // opening
+		void Present(); // closing
+		void DestroyEngine();
+
 		// runtime functions
-		void BuildSwapchain(uint16_t width = 0, uint16_t height = 0);
-
-		void RebuildSwapchain(uint16_t width = 0, uint16_t height = 0);
-		void OnResizeSwapchain(GLFWwindow *pWindow);
+		void OnResizeWindow(GLFWwindow *pWindow);
 		bool resizeRequested = false;
-
 	public:
-		// for meshes
-		vktypes::AllocatedBuffer CreateBuffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage) const;
+		vktypes::AllocatedImage CreateImage(VkExtent2D extent, VkFormat format, VkImageUsageFlags usages, VkSampleCountFlags samples = VK_SAMPLE_COUNT_1_BIT, bool mipmapped = false) const;
+		vktypes::AllocatedImage CreateImage(VkExtent3D extent, VkFormat format, VkImageUsageFlags usages, VkSampleCountFlags samples = VK_SAMPLE_COUNT_1_BIT, bool mipmapped = false) const;
+
+		vktypes::AllocatedBuffer CreateBuffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage, VmaAllocationCreateFlags flags = 0) const;
+
+
+		vktypes::MeshData CreateMesh(std::vector<Vertex_Standard> vertices);
+		vktypes::MeshData CreateMesh(std::vector<Vertex_Standard> vertices, std::vector<uint32_t> indices);
+//		vktypes::MeshData CreateMesh(const std::filesystem::path& file_path);
+
 		void Immediate_Submit(std::function<void(VkCommandBuffer cmd)>&& function);
+		void DrawMeshData(vktypes::MeshData data, VkPipelineLayout layout);
 
-		vktypes::MeshData CreateMesh(std::vector<Vertex> vertices);
-		vktypes::MeshData CreateMesh(std::vector<Vertex> vertices, std::vector<uint32_t> indices);
+		void DestroyBuffer(const vktypes::AllocatedBuffer& allocatedBuffer) const;
+		void DestroyImage(const vktypes::AllocatedImage& allocatedImage) const;
+		void DestroyPipeline(const vktypes::PipelineObject& pipelineObject) const;
 
-		void Draw(vktypes::MeshData data, VkPipelineLayout layout);
-	public:
-		void Destroy();
+		void UpdateDescriptorSets(const vktypes::GPUSceneData& scene_data);
 	private:
-		// only needed upon recreateswapchain() and final destroy()
 		void DestroySwapchain();
-	public:
 		// needed for some initializing logic when using vkBootstrap
 		BootstrapSolution _bootstrap = {};
 	public:
@@ -90,43 +112,54 @@ namespace Slate {
 		VkSwapchainKHR _vkSwapchain                = VK_NULL_HANDLE;
 	public:
 		// our two queues, one for rendering, other for presentaiton on screen
-		VkQueue _vkPresentQueue = VK_NULL_HANDLE; // not used as of now
+		VkQueue _vkPresentQueue  = VK_NULL_HANDLE; // not used as of now
 		VkQueue _vkGraphicsQueue = VK_NULL_HANDLE;
 		uint32_t _vkGraphicsQueueFamily = static_cast<uint32_t>(-1);
 	public:
 		// swapchain values
-		std::vector<VkImage> _vkSwapchainImages;
-		std::vector<VkImageView> _vkSwapchainImageViews;
+		std::vector<VkImage> _vkSwapchainImages = {};
+		std::vector<VkImageView> _vkSwapchainImageViews = {};
 		VkFormat _swapchainImageFormat = VK_FORMAT_UNDEFINED;
 		VkExtent2D _vkSwapchianExtent = {};
-
 		// draw resources
 		uint32_t _imageIndex = static_cast<uint32_t>(-1);
-		vktypes::AllocatedImage _colorImage = {};
-		vktypes::AllocatedImage _depthStencilImage = {};
+		// all images
+		vktypes::AllocatedImage _drawImage             = {};
+		vktypes::AllocatedImage _colorMSAAImage        = {};
+		vktypes::AllocatedImage _depthStencilMSAAImage = {};
+		vktypes::AllocatedImage _entityImage           = {};
+		vktypes::AllocatedImage _entityMSAAImage       = {};
+		vktypes::AllocatedImage _viewportImage         = {};
 	public:
 		uint32_t _frameNum = 0;
 		FrameData& getCurrentFrameData() { return _frames[_frameNum % FRAME_OVERLAP]; };
+	private:
+		FrameData _frames[FRAME_OVERLAP];
 	public:
-		// currently used by imgui:
-		VkDescriptorPool imguiDescriptorPool   = VK_NULL_HANDLE;
-	public:
-		// our main pipeline:
-		VkPipeline _standardPipeline = VK_NULL_HANDLE;
-		VkPipelineLayout _vkMainPipelineLayout = VK_NULL_HANDLE;
-
-		VkPipeline _gridPipeline;
-		VkPipelineLayout _gridPipelineLayout;
+		vktypes::PipelineObject _standardPipeline;
+		vktypes::PipelineObject _gridPipeline;
 	public:
 		// immediate submit structures
 		VkFence _immFence                 = VK_NULL_HANDLE;
 		VkCommandBuffer _immCommandBuffer = VK_NULL_HANDLE;
 		VkCommandPool _immCommandPool     = VK_NULL_HANDLE;
-	private:
-		FrameData _frames[FRAME_OVERLAP] = {};
 	public:
-		std::vector<vktypes::AllocatedBuffer> allIndexBuffers;
+		VkSampler default_LinearSampler  = VK_NULL_HANDLE;
+		VkSampler default_NearestSampler = VK_NULL_HANDLE;
+	public:
 		VkClearColorValue clearColorValue = { 0.2f, 0.4f, 0.65f, 1.0f };
-	};
 
+		// required to move our descriptor data
+
+		VkDescriptorSet _gpuDescriptorSet;
+		VkDescriptorSetLayout _gpuDescriptorSetLayout;
+		vktypes::AllocatedBuffer _gpuSceneDataBuffer;
+
+		// currently used by imgui:
+		VkDescriptorPool imguiDescriptorPool   = VK_NULL_HANDLE;
+		VkDescriptorSet _viewportImageDescriptorSet = {};
+
+		// currently not used yet!
+		DescriptorAllocatorGrowable _globalDescriptorAllocator;
+	};
 }

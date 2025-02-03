@@ -1,7 +1,8 @@
 //
 // Created by Hayden Rivas on 1/15/25.
 //
-
+#include <algorithm>
+#include <span>
 #include <vulkan/vulkan.h>
 #include "Slate/VK/vkinfo.h"
 
@@ -39,30 +40,49 @@ namespace Slate::vkinfo {
 		return info;
 	}
 
-	VkRenderingAttachmentInfo CreateAttachmentInfo(VkImageView view, VkClearColorValue* clear, VkImageLayout layout) {
-		VkRenderingAttachmentInfo colorAttachment = {};
-		colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+	VkRenderingAttachmentInfo CreateColorAttachmentInfo(VkImageView view, VkClearColorValue* clear, VkImageView resolveView, VkResolveModeFlags resolveFlags) {
+		VkRenderingAttachmentInfo colorAttachment = { .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
 		colorAttachment.pNext = nullptr;
+
 		colorAttachment.imageView = view;
-		colorAttachment.imageLayout = layout;
+		colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
 		colorAttachment.loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
-		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 		if (clear) colorAttachment.clearValue.color = *clear;
+		colorAttachment.storeOp = resolveView ? VK_ATTACHMENT_STORE_OP_DONT_CARE : VK_ATTACHMENT_STORE_OP_STORE;
+
+		if (resolveView) {
+			colorAttachment.resolveImageView = resolveView;
+			colorAttachment.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+			colorAttachment.resolveMode = static_cast<VkResolveModeFlagBits>(resolveFlags);
+		}
 		return colorAttachment;
 	}
-	VkRenderingAttachmentInfo CreateDepthStencilAttachmentInfo(VkImageView view, VkClearDepthStencilValue* clear, VkImageLayout layout) {
+	VkRenderingAttachmentInfo CreateDepthAttachmentInfo(VkImageView view, VkClearDepthStencilValue* clear) {
 		VkRenderingAttachmentInfo depthAttachment = {};
 		depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
 		depthAttachment.pNext = nullptr;
 
 		depthAttachment.imageView = view;
-		depthAttachment.imageLayout = layout;
+		depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
 		depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		if (clear) depthAttachment.clearValue.depthStencil = *clear;
-
 		return depthAttachment;
 	}
+	VkRenderingAttachmentInfo CreateDepthStencilAttachmentInfo(VkImageView view, VkClearDepthStencilValue* clear) {
+		VkRenderingAttachmentInfo depthAttachment = {};
+		depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+		depthAttachment.pNext = nullptr;
+
+		depthAttachment.imageView = view;
+		depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		if (clear) depthAttachment.clearValue.depthStencil = *clear;
+		return depthAttachment;
+	}
+
 	VkCommandBufferBeginInfo CreateCommandBufferBeginInfo(VkCommandBufferUsageFlags flags) {
 		VkCommandBufferBeginInfo info = {};
 		info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -70,9 +90,9 @@ namespace Slate::vkinfo {
 		info.flags = flags;
 		return info;
 	}
-	VkRenderingInfo CreateRenderingInfo(VkExtent2D extent2D, VkRenderingAttachmentInfo* colorAttachment, VkRenderingAttachmentInfo* depthAttachment) {
+	VkRenderingInfo CreateRenderingInfo(VkExtent2D extent2D, std::span<VkRenderingAttachmentInfo> colorAttachments, VkRenderingAttachmentInfo* depthAttachment) {
 		VkRenderingInfo info = {};
-		info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
+		info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
 		info.pNext = nullptr;
 		info.flags = 0;
 		info.renderArea = {
@@ -81,6 +101,25 @@ namespace Slate::vkinfo {
 		};
 		info.layerCount = 1;
 		info.viewMask = 0;
+
+		info.colorAttachmentCount = static_cast<uint32_t>(colorAttachments.size());
+		info.pColorAttachments = colorAttachments.data();
+		info.pDepthAttachment = depthAttachment;
+		info.pStencilAttachment = VK_NULL_HANDLE;
+		return info;
+	}
+	VkRenderingInfo CreateRenderingInfo(VkExtent2D extent2D, VkRenderingAttachmentInfo* colorAttachment, VkRenderingAttachmentInfo* depthAttachment) {
+		VkRenderingInfo info = {};
+		info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+		info.pNext = nullptr;
+		info.flags = 0;
+		info.renderArea = {
+				.offset = { 0, 0 },
+				.extent = extent2D,
+		};
+		info.layerCount = 1;
+		info.viewMask = 0;
+
 		info.colorAttachmentCount = 1;
 		info.pColorAttachments = colorAttachment;
 		info.pDepthAttachment = depthAttachment;
@@ -162,25 +201,26 @@ namespace Slate::vkinfo {
 		info.dynamicStateCount = statescount;
 		return info;
 	}
-	VkImageCreateInfo CreateImageInfo(VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent) {
+	VkImageCreateInfo CreateImageInfo(VkExtent3D extent, VkFormat format, VkImageUsageFlags usage_flags, uint32_t mipmap_levels, VkSampleCountFlagBits sample_flag) {
 		VkImageCreateInfo info = {};
 		info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 		info.pNext = nullptr;
 
-		info.imageType = VK_IMAGE_TYPE_2D;
-
 		info.format = format;
 		info.extent = extent;
+		info.samples = sample_flag;
+		info.usage = usage_flags;
 
-		info.mipLevels = 1;
+		info.imageType = VK_IMAGE_TYPE_2D;
+
+		if (mipmap_levels > 1) {
+			info.mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(extent.width, extent.height)))) + 1;
+		} else {
+			info.mipLevels = mipmap_levels;
+		}
 		info.arrayLayers = 1;
-
-		// no msaaa, 1 bit
-		info.samples = VK_SAMPLE_COUNT_1_BIT;
-
-		// auto decide best format
-		info.tiling = VK_IMAGE_TILING_OPTIMAL;
-		info.usage = usageFlags;
+		info.tiling = VK_IMAGE_TILING_OPTIMAL; // auto decide best format
+		info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
 		return info;
 	}

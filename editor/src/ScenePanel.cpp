@@ -9,7 +9,6 @@
 #include <Slate/Components.h>
 #include <Slate/SceneTemplates.h>
 
-#include "Context.h"
 #include "EditorGui.h"
 #include "Fonts.h"
 #include "ImGuiSnippets.h"
@@ -24,7 +23,7 @@ namespace Slate {
 		{
 			// if we click on any empty space, unselect the entity
 			if (ImGui::IsMouseDoubleClicked(0) && ImGui::IsWindowHovered())
-				pActiveContext->entity = Entity::Null;
+				pActiveContext->entity = std::nullopt;
 
 			// scene needs to be choosen!
 //			if (!pActiveContext->scene) {
@@ -60,7 +59,7 @@ namespace Slate {
 				Entity entity = {entity_order_vector[i], &pActiveContext->scene};
 				// scene panel actual content
 				float ypad = ImGui::GetFontSize() * 0.35f;
-				bool isSelected = entity.GetHandle() == pActiveContext->entity.GetHandle();
+				bool isSelected = entity.GetHandle() == pActiveContext->entity->GetHandle();
 				if (isSelected)
 					flags |= ImGuiTreeNodeFlags_Selected;
 
@@ -145,7 +144,7 @@ namespace Slate {
 
 					if (ImGui::Selectable("Duplicate")) {
 						if (pActiveContext->entity) {
-							Entity newEntity = pActiveContext->scene.DuplicateEntity(pActiveContext->entity);
+							Entity newEntity = pActiveContext->scene.DuplicateEntity(pActiveContext->entity.value());
 							pActiveContext->entity = newEntity; // set newly duplicated entity as active
 						}
 					}
@@ -163,7 +162,7 @@ namespace Slate {
 				}
 			}
 			if (toDeleteIndex != -1) {
-				pActiveContext->entity = Entity::Null;
+				pActiveContext->entity = std::nullopt;
 				pActiveContext->scene.DestroyEntity(Entity(entity_order_vector[toDeleteIndex], &pActiveContext->scene));
 				entity_order_vector.erase(entity_order_vector.begin() + toDeleteIndex);
 			}

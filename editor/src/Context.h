@@ -10,7 +10,6 @@
 namespace Slate {
 	struct Context {
 		Scene scene;
-		Entity entity;
+		std::optional<Entity> entity;
 	};
-
 }

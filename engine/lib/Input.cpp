@@ -1,10 +1,11 @@
 //
 // Created by Hayden Rivas on 1/8/25.
 //
+#include <GLFW/glfw3.h>
 #include "Slate/Application.h"
 #include "Slate/Input.h"
 #include "Slate/Window.h"
-#include <GLFW/glfw3.h>
+#include "Slate/Debug.h"
 
 namespace Slate {
 	void InputSystem::Initialize() {

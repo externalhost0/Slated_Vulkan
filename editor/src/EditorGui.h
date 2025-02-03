@@ -8,9 +8,9 @@
 #include <Slate/Renderer.h>
 
 
+#include <vulkan/vulkan.h>
 #include <imgui_impl_vulkan.h>
 #include <ImGuizmo.h>
-#include <vulkan/vulkan_core.h>
 
 #include "ViewportCamera.h"
 #include "Context.h"
@@ -19,14 +19,21 @@ namespace Slate {
 	class EditorGui {
 	public:
 		void OnAttach(GLFWwindow* pNativeWindow);
-		void OnDetach(VkDevice& device) const;
+		void OnDetach() const;
 
 		void OnUpdate();
-		void Render(VkCommandBuffer cmd, VkImageView imageView, VkExtent2D extent2D);
+		void Render() const;
+		bool gridIsEnabled = true;
+
+		vktypes::MeshData gridmesh;
+
+		glm::vec2 _viewportBounds[2] {};
+
+		bool IsMouseInViewportBounds();
+
 	private:
 		bool _isCameraControlActive = false;
 	public: // imgui vk resources
-		VkSampler sampler{};
 		ImTextureID sceneTexture{};
 
 
@@ -35,17 +42,15 @@ namespace Slate {
 		Context* pActiveContext = nullptr;
 		ViewportCamera* pCamera = nullptr;
 	private:
-		Entity hoveredEntity {};
+		std::optional<Entity> hoveredEntity;
+
 		ImGuizmo::MODE _guizmoSpace = ImGuizmo::MODE::WORLD;
 		ImGuizmo::OPERATION _guizmoOperation = ImGuizmo::OPERATION::TRANSLATE;
 	private:
-		bool IsMouseInViewportBounds();
-		glm::vec2 _viewportBounds[2] {};
 		glm::vec2 _viewportSize {};
 
 	private:
-		bool gridIsEnabled = true;
-		vktypes::MeshData gridmesh;
+		vktypes::AllocatedBuffer stagbuf;
 
 	private: // all of the panels
 		void OnViewportAttach();

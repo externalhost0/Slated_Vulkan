@@ -15,6 +15,7 @@
 #include <Slate/Components.h>
 #include <Slate/Primitives.h>
 #include <Slate/MeshGenerators.h>
+#include <Slate/VK/vkutil.h>
 
 #include "EditorGui.h"
 
@@ -29,11 +30,11 @@ namespace Slate {
 		int mouseX = static_cast<int>(mx);
 		int mouseY = static_cast<int>(my);
 
-		if (mouseX >= 0 && mouseY >= 0 && mouseX < static_cast<int>(viewportSize.x) &&
-			mouseY < static_cast<int>(viewportSize.y))
+		if (mouseX >= 0 && mouseY >= 0 && mouseX < static_cast<int>(viewportSize.x) && mouseY < static_cast<int>(viewportSize.y)) {
 			return true;
-		else
+		} else {
 			return false;
+		}
 	}
 
 	void Menubar() {
@@ -42,34 +43,56 @@ namespace Slate {
 	void EditorGui::OnViewportAttach() {
 		// scene image
 		{
-			VkSamplerCreateInfo samplerInfo = {.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO, .pNext = nullptr};
-			samplerInfo.magFilter = VK_FILTER_LINEAR;
-			samplerInfo.minFilter = VK_FILTER_LINEAR;
-			samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-			samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-			samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-			samplerInfo.minLod = -1000;
-			samplerInfo.maxLod = 1000;
-			samplerInfo.maxAnisotropy = 1.0f;
-
-			vkCreateSampler(engine->_vkDevice, &samplerInfo, nullptr, &sampler);
-			VkDescriptorSet imageDescriptorSet = ImGui_ImplVulkan_AddTexture(sampler, engine->_colorImage.imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-			sceneTexture = reinterpret_cast<ImTextureID>(imageDescriptorSet);
+			engine->_viewportImageDescriptorSet = ImGui_ImplVulkan_AddTexture(engine->default_LinearSampler, engine->_viewportImage.imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		}
 		// editor meshes
 		{
 			 gridmesh = engine->CreateMesh(GenerateGridVertices(100.f));
 		}
-
+		{
+			stagbuf = engine->CreateBuffer(sizeof(uint32_t), VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_AUTO_PREFER_HOST, VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT);
+		}
 	}
 
 	void EditorGui::OnViewportPanelUpdate() {
-		// grid
-		{
-			if (gridIsEnabled) {
-				gridmesh.constants.renderMatrix = pCamera->GetProjectionMatrix() * pCamera->GetViewMatrix() * glm::mat4(1);
-				engine->Draw(gridmesh, engine->_gridPipelineLayout);
+
+		if (IsMouseInViewportBounds()) {
+			float mouseX = ImGui::GetMousePos().x;
+			float mouseY = ImGui::GetMousePos().y;
+
+			float xrel = (mouseX - _viewportBounds[0].x) / _viewportSize.x;
+			float yrel = (mouseY - _viewportBounds[0].y) / _viewportSize.y;
+
+			int32_t offsetX = engine->_vkSwapchianExtent.width * xrel;
+			int32_t offsetY = engine->_vkSwapchianExtent.height * yrel;
+
+			VkImageSubresourceLayers layer = {};
+			layer.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			layer.baseArrayLayer = 0;
+			layer.layerCount = 1;
+			layer.mipLevel = 0;
+
+			VkBufferImageCopy region = {};
+			region.bufferOffset = 0;
+			int pack = 1;
+			region.bufferImageHeight = pack;
+			region.bufferRowLength = pack;
+			region.imageOffset = { offsetX, offsetY, 0 };
+			region.imageExtent = { 1, 1, 1 };
+			region.imageSubresource = layer;
+
+			engine->Immediate_Submit([&](VkCommandBuffer cmd) {
+				vkCmdCopyImageToBuffer(cmd, engine->_entityImage.image, VK_IMAGE_LAYOUT_GENERAL, stagbuf.buffer, 1, &region);
+			});
+
+			uint32_t data = *static_cast<uint32_t*>(stagbuf.info.pMappedData);
+			if (data < sizeof (data)) { // basically not negative one
+				hoveredEntity = Entity(static_cast<entt::entity>(data), &pActiveContext->scene);
+			} else {
+				hoveredEntity = std::nullopt;
 			}
+		} else {
+			hoveredEntity = std::nullopt;
 		}
 
 		ImGui::Begin("Viewport", nullptr, ImGuiWindowFlags_MenuBar);
@@ -86,7 +109,10 @@ namespace Slate {
 			// if already active, continue to update
 			if (_isCameraControlActive) {
 				glm::ivec2 pos = InputSystem::GetMousePosition();
-				pCamera->ProcessMouse(pos.x, pos.y);
+				{ // kinda important
+					pCamera->ProcessMouse(pos.x, pos.y);
+					pCamera->ProcessKeys();
+				}
 				ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouse;
 			}
 		} else if (_isCameraControlActive) {
@@ -97,7 +123,6 @@ namespace Slate {
 
 
 		if (ImGui::BeginMenuBar()) {
-
 			// camera menu
 			if (ImGui::BeginMenu(ICON_LC_VIDEO" Camera")) {
 				ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(1, 1));
@@ -148,7 +173,7 @@ namespace Slate {
 				}
 				if (ImGui::BeginPopup("ev-picker")) {
 					if (ImGui::IsKeyPressed(ImGuiKey_Enter)) ImGui::CloseCurrentPopup();
-					ImGui::ColorPicker4("##pickerBg", reinterpret_cast<float *>(&engine->clearColorValue));
+					ImGui::ColorPicker4("##pickerBg", reinterpret_cast<float*>(&engine->clearColorValue));
 					ImGui::EndPopup();
 				}
 				//toggle viewport helpers, like grid
@@ -197,17 +222,17 @@ namespace Slate {
 		ImVec2 size = ImGui::GetContentRegionAvail();
 		if (_viewportSize != *((glm::vec2 *) &size) && size.x > 0.0f && size.y > 0.0f) {
 			pCamera->OnResize(size.x, size.y);
-			_viewportSize = {size.x, size.y};
+			_viewportSize = { size.x, size.y };
+			fmt::print("Viewport Change\n");
 		}
+		sceneTexture = reinterpret_cast<ImTextureID>(engine->_viewportImageDescriptorSet); // we need to re assign sceneTexture variable for when the descriptorSet changes via resize
 		ImGui::Image(sceneTexture, ImVec2{_viewportSize.x, _viewportSize.y}); // important part
 
 		// gizmo functionality
 		{
-			if (pActiveContext->entity && !_isCameraControlActive &&
-				pActiveContext->entity.HasComponent<TransformComponent>()) {
+			if (pActiveContext->entity && !_isCameraControlActive && pActiveContext->entity->HasComponent<TransformComponent>()) {
 				ImGuizmo::SetOrthographic(false);
 				ImGuizmo::SetDrawlist();
-
 				// properly set bounds as these are specific to the viewport image pane not just the window
 				ImGuizmo::SetRect(_viewportBounds[0].x, _viewportBounds[0].y,
 								  _viewportBounds[1].x - _viewportBounds[0].x,
@@ -222,18 +247,9 @@ namespace Slate {
 				// put the snapping scale on each axis
 				float snapValues[3] = { snapValue, snapValue, snapValue };
 
-				auto& entityTC = pActiveContext->entity.GetComponent<TransformComponent>();
+				auto& entityTC = pActiveContext->entity->GetComponent<TransformComponent>();
 				// more snapping logic to round position if i start snapping
-				glm::vec3 snappedPosition = entityTC.Position;
-				// ok this is scuffed but it basically works when you stop using the gizmo somehow
-				if (snap && ImGuizmo::IsUsing()) {
-					snappedPosition.x = roundf(snappedPosition.x / snapValue) * snapValue;
-					snappedPosition.y = roundf(snappedPosition.y / snapValue) * snapValue;
-					snappedPosition.z = roundf(snappedPosition.z / snapValue) * snapValue;
-				}
-
-
-				glm::mat4 transformMatrix = glm::translate(glm::mat4(1.f), snappedPosition) *
+				glm::mat4 transformMatrix = glm::translate(glm::mat4(1.f), entityTC.Position) *
 									  glm::mat4_cast(entityTC.Rotation) *
 									  glm::scale(glm::mat4(1.f), entityTC.Scale);
 
@@ -241,6 +257,7 @@ namespace Slate {
 									 glm::value_ptr(pCamera->GetProjectionMatrix()),
 									 _guizmoOperation, _guizmoSpace,
 									 glm::value_ptr(transformMatrix), nullptr, snap ? snapValues : nullptr);
+
 				// now apply the transformations
 				if (ImGuizmo::IsUsing()) {
 					glm::vec3 position;
@@ -270,7 +287,7 @@ namespace Slate {
 			}
 			// right now will currently go off in menu that overlaps the image
 			if (ImGui::IsMouseDoubleClicked(GLFW_MOUSE_BUTTON_LEFT) && IsMouseInViewportBounds() && !hoveredEntity) {
-				pActiveContext->entity = Entity::Null;
+				pActiveContext->entity = std::nullopt;
 			}
 		}
 		ImGui::End();

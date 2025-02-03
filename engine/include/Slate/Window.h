@@ -6,7 +6,6 @@
 #include <string>
 #include <utility>
 
-#include "Expect.h"
 
 namespace Slate {
 	enum class VIDEO_MODE : unsigned char {

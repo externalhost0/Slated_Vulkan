@@ -11,16 +11,19 @@
 namespace Slate::vkutil {
 	VkImageAspectFlags AspectMaskFromLayout(VkImageLayout layout) {
 		switch (layout) {
-			case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR: return VK_IMAGE_ASPECT_COLOR_BIT;
-			case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL: return VK_IMAGE_ASPECT_COLOR_BIT;
-
-			case VK_IMAGE_LAYOUT_GENERAL: return VK_IMAGE_ASPECT_COLOR_BIT;
-			case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL: return VK_IMAGE_ASPECT_COLOR_BIT;
-
 			case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL: return VK_IMAGE_ASPECT_DEPTH_BIT;
 			case VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL: return VK_IMAGE_ASPECT_STENCIL_BIT;
 			case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL: return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-			default: return VK_IMAGE_ASPECT_NONE;
+
+			default: return VK_IMAGE_ASPECT_COLOR_BIT;
+		}
+	}
+	VkImageAspectFlags AspectMaskFromFormat(VkFormat format) {
+		switch (format) {
+			case VK_FORMAT_D32_SFLOAT: return VK_IMAGE_ASPECT_DEPTH_BIT;
+			case VK_FORMAT_D32_SFLOAT_S8_UINT: return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+
+			default: return VK_IMAGE_ASPECT_COLOR_BIT;
 		}
 	}
 	void TransitionImageLayout(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout) {
@@ -31,8 +34,7 @@ namespace Slate::vkutil {
 		barrier.dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT | VK_ACCESS_2_MEMORY_READ_BIT;
 		barrier.oldLayout = currentLayout;
 		barrier.newLayout = newLayout;
-		VkImageAspectFlags aspectMask = AspectMaskFromLayout(newLayout);
-		barrier.subresourceRange = vkinfo::CreateImageSubresourceRange(aspectMask);
+		barrier.subresourceRange = vkinfo::CreateImageSubresourceRange(AspectMaskFromLayout(newLayout));
 		barrier.image = image;
 		VkDependencyInfo info = { .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO, .pNext = nullptr };
 		info.imageMemoryBarrierCount = 1;
@@ -41,7 +43,7 @@ namespace Slate::vkutil {
 	}
 
 	VkShaderModule CreateShaderModule(const std::filesystem::path& path, VkDevice device) {
-		std::vector<std::byte> result = ReadBinaryFile(path);
+		std::vector<std::byte> result = ReadBinaryFile("shaders/compiled_shaders" / path);
 
 		VkShaderModuleCreateInfo create_info = { .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
 		create_info.codeSize = result.size();
@@ -98,10 +100,10 @@ namespace Slate::vkutil {
 		viewport.maxDepth = 1.f;
 		vkCmdSetViewport(cmd, 0, 1, &viewport);
 	}
-	void SetScissor(VkCommandBuffer cmd, VkExtent2D extent2D) {
+	void SetScissor(VkCommandBuffer cmd, VkExtent2D extent2D, VkOffset2D offset2D) {
 		VkRect2D scissor = {};
-		scissor.offset.x = 0;
-		scissor.offset.y = 0;
+		scissor.offset.x = offset2D.x;
+		scissor.offset.y = offset2D.y;
 		scissor.extent = extent2D;
 		vkCmdSetScissor(cmd, 0, 1, &scissor);
 	}

@@ -3,10 +3,15 @@
 //
 
 #pragma once
-#include <fmt/core.h>
-#include <vulkan/vulkan_core.h>
-#include <vulkan/vk_enum_string_helper.h>
 #include <csignal>
+#include <cstdio>
+#include <functional>
+
+#include <fmt/format.h>
+
+#include <vulkan/vulkan.h>
+#include <vulkan/vulkan_core.h>
+
 
 namespace Slate {
 
@@ -15,12 +20,25 @@ namespace Slate {
     do { \
         VkResult errorResult = x; \
         if (errorResult) { \
-			fmt::print(stderr, "[VULKAN] Detected Vulkan error: {}:{} -> {} \n\t {}", __FILE__, __LINE__, __func__, string_VkResult(errorResult)); \
+			fmt::print(stderr, "[VULKAN] Detected Vulkan error: {}:{} -> {} \n\t", __FILE__, __LINE__, __func__); \
             std::raise(SIGABRT); \
 		} \
     } while (0)
 #else
 #define VK_CHECK(x) x
 #endif
+
+#ifdef SLATE_DEBUG
+#define EXPECT(ERROR, FORMAT, ...) {                                                                                                            \
+    int macroErrorCode = static_cast<int>(ERROR);                                                                                               \
+    if (!macroErrorCode) {                                                                                                                      \
+        fmt::print(stderr, "EXPECT: {}:{} -> {} -> Error({}):\n\t" FORMAT "\n", __FILE__, __LINE__, __func__, macroErrorCode, ##__VA_ARGS__);   \
+        std::raise(SIGABRT);                                                                                                                    \
+    }                                                                                                                                           \
+}
+#else
+#define EXPECT(ERROR, FORMAT)
+#endif
+
 
 }

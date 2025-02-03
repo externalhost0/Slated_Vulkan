@@ -16,7 +16,6 @@
 #include <Slate/Time.h>
 #include <Slate/VK/vkext.h>
 #include <Slate/VK/vkinfo.h>
-#include <Slate/VulkanEngine.h>
 
 // also my headers
 #include "EditorGui.h"
@@ -37,102 +36,97 @@ namespace Slate {
 
 	void EditorGui::OnAttach(GLFWwindow* pNativeWindow) {
 		// all imgui initialization
-		{
-			IMGUI_CHECKVERSION();
-			ImGui::CreateContext();
+		IMGUI_CHECKVERSION();
+		ImGui::CreateContext();
 
-			ImGuiIO &io = ImGui::GetIO();
-			io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;// Enable Keyboard Controls
-			io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad; // Enable Gamepad Controls
-			io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;    // Enable Docking
-			io.ConfigDragClickToInputText = true;                // makes single click on sldiers
-			io.ConfigWindowsMoveFromTitleBarOnly = true;         // makes it so you can only move windows from the bar, required for viewport functionality when undocked
-			io.ConfigInputTextCursorBlink = true;                // enables blinking cursor in text boxes
-#if defined(OS_MACOS)
+		ImGuiIO &io = ImGui::GetIO();
+		io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;// Enable Keyboard Controls
+		io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad; // Enable Gamepad Controls
+		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;    // Enable Docking
+		io.ConfigDragClickToInputText = true;                // makes single click on sldiers
+		io.ConfigWindowsMoveFromTitleBarOnly = true;         // makes it so you can only move windows from the bar, required for viewport functionality when undocked
+		io.ConfigInputTextCursorBlink = true;                // enables blinking cursor in text boxes
+		#if defined(OS_MACOS)
 			io.ConfigMacOSXBehaviors = true;// changes a ton of stuff, just click on it
-#endif
+		#endif
 
-			// 1: create descriptor pool for IMGUI
-			//  the size of the pool is very oversize, but it's copied from imgui demo
-			//  itself.
-			VkDescriptorPoolSize pool_sizes[] = {{VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
-												 {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
-												 {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000},
-												 {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000},
-												 {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000},
-												 {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000},
-												 {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000},
-												 {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000},
-												 {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000},
-												 {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000},
-												 {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000}};
+		// 1: create descriptor pool for IMGUI
+		//  the size of the pool is very oversize, but it's copied from imgui demo
+		VkDescriptorPoolSize pool_sizes[] = {{VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
+											 {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
+											 {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000},
+											 {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000},
+											 {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000},
+											 {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000},
+											 {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000},
+											 {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000},
+											 {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000},
+											 {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000},
+											 {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000}};
 
-			VkDescriptorPoolCreateInfo pool_info = {};
-			pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-			pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-			pool_info.maxSets = 1000;
-			pool_info.poolSizeCount = static_cast<uint32_t>(std::size(pool_sizes));
-			pool_info.pPoolSizes = pool_sizes;
-
-
-			VK_CHECK(vkCreateDescriptorPool(engine->_vkDevice, &pool_info, nullptr, &engine->imguiDescriptorPool));
-
-			// init imgui for glfw
-			ImGui_ImplGlfw_InitForVulkan(pNativeWindow, false);
-
-			// vulkan render info from our rendersystem
-			ImGui_ImplVulkan_InitInfo initInfo = {};
-			initInfo.Instance = engine->_vkInstance;
-			initInfo.PhysicalDevice = engine->_vkPhysicalDevice;
-			initInfo.Device = engine->_vkDevice;
-			initInfo.Queue = engine->_vkGraphicsQueue;
-
-			// the pool we just created above on construction
-			initInfo.DescriptorPool = engine->imguiDescriptorPool;
-
-			initInfo.MinImageCount = 2;
-			initInfo.ImageCount = 3;
-			initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-
-			// dyn rendering requirements
-			initInfo.UseDynamicRendering = true;
-			initInfo.PipelineRenderingCreateInfo = {
-					.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
-					.pNext = nullptr,
-					.colorAttachmentCount = 1,
-					.pColorAttachmentFormats = &engine->_swapchainImageFormat};
-			initInfo.Allocator = nullptr;
-			initInfo.CheckVkResultFn = check_vk_result;
-
-			// init imgui for vulkan
-			ImGui_ImplVulkan_Init(&initInfo);
+		VkDescriptorPoolCreateInfo pool_info = {};
+		pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+		pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+		pool_info.maxSets = 1000;
+		pool_info.poolSizeCount = static_cast<uint32_t>(std::size(pool_sizes));
+		pool_info.pPoolSizes = pool_sizes;
 
 
-			// do our themes setting, imgui fonts and style
-			BuildStyle();
+		VK_CHECK(vkCreateDescriptorPool(engine->_vkDevice, &pool_info, nullptr, &engine->imguiDescriptorPool));
 
-			engine->Immediate_Submit([&](VkCommandBuffer cmd) {
-				ImGui_ImplVulkan_CreateFontsTexture();
-			});
-		}
+		// init imgui for glfw
+		ImGui_ImplGlfw_InitForVulkan(pNativeWindow, false);
+
+		// vulkan render info from our rendersystem
+		ImGui_ImplVulkan_InitInfo initInfo = {};
+		initInfo.Instance = engine->_vkInstance;
+		initInfo.PhysicalDevice = engine->_vkPhysicalDevice;
+		initInfo.Device = engine->_vkDevice;
+		initInfo.Queue = engine->_vkGraphicsQueue;
+
+		// the pool we just created above on construction
+		initInfo.DescriptorPool = engine->imguiDescriptorPool;
+
+		initInfo.MinImageCount = 2;
+		initInfo.ImageCount = 3;
+		initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+
+		// dyn rendering requirements
+		initInfo.UseDynamicRendering = true;
+		initInfo.PipelineRenderingCreateInfo = {
+				.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+				.pNext = nullptr,
+				.colorAttachmentCount = 1,
+				.pColorAttachmentFormats = &engine->_viewportImage.imageFormat};
+		initInfo.Allocator = nullptr;
+		initInfo.CheckVkResultFn = check_vk_result;
+
+		// init imgui for vulkan
+		ImGui_ImplVulkan_Init(&initInfo);
+
 		// personal initialization
+		// do our themes setting, imgui fonts and style
+		BuildStyle();
 
-
+		engine->Immediate_Submit([&](VkCommandBuffer cmd) {
+			ImGui_ImplVulkan_CreateFontsTexture();
+		});
 
 		// panel attach organizations
 		{
 			this->OnViewportAttach();
 		}
 	}
+
 	void EditorGui::OnUpdate() {
 		// required imgui opening
 		{
 			ImGui_ImplVulkan_NewFrame();
 			ImGui_ImplGlfw_NewFrame();
 			ImGui::NewFrame();
+			// gizmo frame
+			ImGuizmo::BeginFrame();
 		}
-		// gizmo frame
-		ImGuizmo::BeginFrame();
 
 		// below is all dockspace setup
 		ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_NoWindowMenuButton;// flags for our Dockspace, which will be the whole screen
@@ -198,35 +192,31 @@ namespace Slate {
 				ImGui::Text("Capturing Mouse: %s", io.WantCaptureMouse ? "True" : "False");
 				ImGui::Text("Display Size: %.1f x %.1f", io.DisplaySize.x, io.DisplaySize.y);
 				ImGui::Text("Swapchain Size: %.1u x %.1u", engine->_vkSwapchianExtent.width, engine->_vkSwapchianExtent.height);
-				ImGui::Text("Image Viewport Size: %.1u x %.1u", engine->_colorImage.imageExtent.width, engine->_colorImage.imageExtent.height);
+				ImGui::Text("Image Viewport Size: %.1u x %.1u", engine->_colorMSAAImage.imageExtent.width, engine->_colorMSAAImage.imageExtent.height);
 				ImGui::Text("Display Framebuffer Scale: %.1f x %.1f", io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
 				ImGui::Text("ImGui Framerate: %.2f", io.Framerate);
 				// should be the same if everything is correct
 				ImGui::Text("Slate Delta Time: %.2f", Time::GetDeltaTime());
 				ImGui::Text("ImGui Delta Time: %.2f", io.DeltaTime);
+				if (hoveredEntity.has_value())
+					ImGui::Text("Hovered Entity: %s | %u", hoveredEntity->GetComponent<CoreComponent>().name.c_str(), static_cast<int>(hoveredEntity->GetHandle()));
+				else
+					ImGui::Text("Hovered Entity: 'NONE'");
 				ImGui::End();
 			}
 			ImGui::End();
 		}
-	}
-
-	void EditorGui::Render(VkCommandBuffer cmd, VkImageView imageView, VkExtent2D extent2D) {
-		ImGui::Render();
-
-		VkRenderingAttachmentInfo colorattachmentinfo = vkinfo::CreateAttachmentInfo(imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-		VkRenderingInfo renderingInfo = vkinfo::CreateRenderingInfo(extent2D, &colorattachmentinfo, nullptr);
+		// required imgui ending
 		{
-			vkext::vkCmdBeginRendering(cmd, &renderingInfo);
-			ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
-			vkext::vkCmdEndRendering(cmd);
+			ImGui::Render();
 		}
 	}
 
-	void EditorGui::OnDetach(VkDevice& device) const {
-		// our own gui cleanup
-		{
-			vkDestroySampler(device, sampler, nullptr);
-		}
+	void EditorGui::Render() const {
+		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), engine->getCurrentFrameData()._commandBuffer);
+	}
+
+	void EditorGui::OnDetach() const {
 		// required imgui cleanup (might require waiting on device or a fence)
 		{
 			ImGui_ImplVulkan_Shutdown();

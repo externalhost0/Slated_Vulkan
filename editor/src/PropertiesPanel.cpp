@@ -31,6 +31,7 @@ namespace Slate {
 			entity.GetComponent<CoreComponent>().name = buffer;
 		}
 		ImGui::PopFont();
+		ImGui::Text("%u", (uint32_t)entity.GetHandle());
 	}
 	void ComponentTransform(Entity* entity) {
 		auto &transform = entity->GetComponent<TransformComponent>();
@@ -139,7 +140,7 @@ namespace Slate {
 		ImGui::Begin("Properties");
 		if (pActiveContext->entity) {
 
-			Entity& entity = pActiveContext->entity;// alias active entity
+			Entity& entity = *pActiveContext->entity;// alias active entity
 			ComponentCore(entity);
 			ImGui::Separator();
 			ImGui::Spacing();

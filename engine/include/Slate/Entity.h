@@ -4,18 +4,19 @@
 #pragma once
 #include <entt/entity/entity.hpp>
 
-#include "Expect.h"
+#include "Debug.h"
 #include "Scene.h"
 
 namespace Slate {
 	class Entity {
 	public:
 		Entity() = default;
+		Entity(const Entity& other) = default;
 		Entity(entt::entity handle, Scene* scene) : _entityHandle(handle), _pScene(scene) {};
 
 		bool operator==(const Entity& other) const { return _entityHandle == other._entityHandle; }
 		bool operator!=(const Entity& other) const { return !(*this == other); }
-		explicit operator bool() const { return _entityHandle != entt::null && this != &Entity::Null; }
+		explicit operator bool() const { return _entityHandle != entt::null && _pScene; }
 
 		entt::entity GetHandle() const { return _entityHandle; };
 	public:
@@ -45,8 +46,6 @@ namespace Slate {
 			_pScene->_entityRegistry.remove<T>(_entityHandle);
 		}
 
-	public:
-		static Entity Null;
 	private:
 		entt::entity _entityHandle = entt::null;
 		Scene* _pScene = nullptr;

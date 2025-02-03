@@ -2,14 +2,11 @@
 
 #include "shared/scene_data.glsl"
 
-layout(location = 0) out vec3 outNormal;
-layout(location = 1) out vec2 outUV;
-
+layout(location = 0) out vec3 outColor;
 
 void main() {
     Vertex v = PushConstants.vertexBuffer.vertices[gl_VertexIndex];
 
     gl_Position = (sceneData.proj * sceneData.view * PushConstants.model_matrix) * vec4(v.position, 1.0f);
-    outNormal = (PushConstants.model_matrix * vec4(v.normal, 0)).xyz;
-    outUV = v.uv;
+    outColor = vec3(1.0f, 1.0f, 1.0f);
 }

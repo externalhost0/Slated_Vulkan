@@ -33,7 +33,7 @@ namespace Slate {
 		float _zFar = 100.f;
 		float _zNear = 0.1f;
 		float _fov = 65.f;
-		float _aspectRatio;
+		float _aspectRatio = 1.33f;
 	private:
 		glm::vec3 _position = {0.f, 0.f, 5.f}; // we like to be started back a bit so we can see things at origin easily when debugging
 		glm::vec3 _front = {0, 0, -1};
