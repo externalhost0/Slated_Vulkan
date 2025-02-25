@@ -12,18 +12,22 @@ namespace Slate {
 		void ProcessMouse(int xpos, int ypos);
 
 		void Update();
-		void OnResize(int width, int height);
+		void OnResize(int width, int height) { OnResize(static_cast<float>(width), static_cast<float>(height)); };
 		void OnResize(float width, float height);
 	public:
 		glm::mat4 GetProjectionMatrix() { return _projectionMatrix; };
 		glm::mat4 GetViewMatrix() { return _viewMatrix; };
+
+		glm::vec3 GetUpVector() { return _up; };
+		glm::vec3 GetFrontVector() { return _front; };
+		glm::vec3 GetPosition() { return _position; };
 	private:
 		glm::mat4 _projectionMatrix;
 		glm::mat4 _viewMatrix;
 	private:
 		const float MOUSE_SENSITIVITY = 0.1f;
 	public:
-		float cameraSpeed = 5.f;
+		float cameraSpeed = 6.f;
 		bool isFirstMouse = false;
 	private: // for mouse operations
 		float yaw;

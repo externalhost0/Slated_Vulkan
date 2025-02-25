@@ -2,22 +2,40 @@
 // Created by Hayden Rivas on 1/14/25.
 //
 // external headers
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-#include <VkBootstrap.h>
+#define VOLK_IMPLEMENTATION
+#include <volk.h>
+
+#define VMA_STATIC_VULKAN_FUNCTIONS 0
+#define VMA_DYNAMIC_VULKAN_FUNCTIONS 1
 #define VMA_IMPLEMENTATION
-#include <imgui_impl_vulkan.h>
+#define VMA_LEAK_LOG_FORMAT(format, ...) {  \
+    printf((format), __VA_ARGS__);          \
+    printf("\n");           			    \
+}
 #include <vk_mem_alloc.h>
+#include <VkBootstrap.h>
+// shader reflection headers
+#include <spirv_cross/spirv_cross.hpp>
+#include <spirv_cross/spirv_glsl.hpp>
+
+#define GLFW_INCLUDE_NONE
+#include <GLFW/glfw3.h>
+
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
 
 // my headers
 #include "Slate/Debug.h"
-#include "Slate/VulkanEngine.h"
+#include "Slate/Filesystem.h"
 #include "Slate/VK/vkinfo.h"
-#include "Slate/VK/vkext.h"
 #include "Slate/VK/vkutil.h"
+#include "Slate/VulkanEngine.h"
 
 namespace Slate {
 	void VulkanEngine::CreateInstance(const VulkanInstanceInfo &info) {
+		EXPECT(volkInitialize() == VK_SUCCESS, "Volk failed to initialize!"); // kinda important
+
 		vkb::InstanceBuilder builder;
 		auto instance_result = builder
 									   .set_app_name(info.app_name)
@@ -32,11 +50,12 @@ namespace Slate {
 		if (!instance_result) {
 			EXPECT(false, "Failed to create Vulkan instance. Error: {}", instance_result.error().message().c_str())
 		}
-		auto &vkbinstance = instance_result.value();
-
+		vkb::Instance& vkbinstance = instance_result.value();
 		_bootstrap.VkbInstance = vkbinstance;
 		_vkInstance = vkbinstance.instance;
 		_vkDebugMessenger = vkbinstance.debug_messenger;
+
+		volkLoadInstance(_vkInstance);
 	}
 	void VulkanEngine::CreateSurface(GLFWwindow *pGlfwWindow) {
 		// surface creation
@@ -61,16 +80,20 @@ namespace Slate {
 
 		//vulkan 1.0 features
 		VkPhysicalDeviceFeatures features = {};
-		features.fillModeNonSolid = true;
 		features.fragmentStoresAndAtomics = true;
+		features.fillModeNonSolid = true;
 		features.independentBlend = true;
+		features.shaderInt64 = true;
 
 		vkb::PhysicalDeviceSelector selector(_bootstrap.VkbInstance);
 		auto physical_result = selector
 									   .set_minimum_version(1, 2)
-									   .add_required_extension("VK_KHR_dynamic_rendering")
-									   .add_required_extension("VK_KHR_synchronization2")
-									   .add_required_extension("VK_KHR_copy_commands2")
+									   .add_required_extension(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME)
+									   .add_required_extension(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME)
+									   .add_required_extension(VK_KHR_COPY_COMMANDS_2_EXTENSION_NAME)
+									   .add_required_extension(VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME)
+									   .add_required_extension(VK_EXT_EXTENDED_DYNAMIC_STATE_2_EXTENSION_NAME)
+									   .add_required_extension(VK_EXT_EXTENDED_DYNAMIC_STATE_3_EXTENSION_NAME)
 									   //  .set_required_features_13(features13) //cant be on until 1.3 mvk
 									   .set_required_features_12(features12)
 									   .set_required_features_11(features11)
@@ -80,8 +103,7 @@ namespace Slate {
 		if (!physical_result) {
 			EXPECT(false, "Failed to select Vulkan Physical Device. Error: {}", physical_result.error().message().c_str())
 		}
-		auto &vkbphysdevice = physical_result.value();
-
+		vkb::PhysicalDevice& vkbphysdevice = physical_result.value();
 		_bootstrap.VkbPhysicalDevice = vkbphysdevice;
 		_vkPhysicalDevice = vkbphysdevice.physical_device;
 
@@ -96,26 +118,48 @@ namespace Slate {
 		synchronization2_feature.pNext = nullptr;
 		synchronization2_feature.synchronization2 = VK_TRUE;
 
+		VkPhysicalDeviceExtendedDynamicStateFeaturesEXT dynamic_state_feature = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT };
+		dynamic_state_feature.pNext = nullptr;
+		dynamic_state_feature.extendedDynamicState = VK_TRUE;
+
+		VkPhysicalDeviceExtendedDynamicState2FeaturesEXT dynamic_state2_feature = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_2_FEATURES_EXT };
+		dynamic_state2_feature.pNext = nullptr;
+		dynamic_state2_feature.extendedDynamicState2 = VK_TRUE;
+
+		VkPhysicalDeviceExtendedDynamicState3FeaturesEXT dynamic_state3_feature = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_3_FEATURES_EXT };
+		dynamic_state3_feature.pNext = nullptr;
+		dynamic_state3_feature.extendedDynamicState3PolygonMode = VK_TRUE;
+
 		// GET DEVICE
 		vkb::DeviceBuilder device_builder{_bootstrap.VkbPhysicalDevice};
 		auto device_result = device_builder
 									 .add_pNext(&dynamic_rendering_feature)
 									 .add_pNext(&synchronization2_feature)
+									 .add_pNext(&dynamic_state_feature)
+									 .add_pNext(&dynamic_state2_feature)
+									 .add_pNext(&dynamic_state3_feature)
 									 .build();
 		if (!device_result) {
 			EXPECT(false, "Failed to create Vulkan device. Error: {}", device_result.error().message().c_str())
 		}
-		auto &vkbdevice = device_result.value();
-
+		vkb::Device& vkbdevice = device_result.value();
 		_bootstrap.VkbDevice = vkbdevice;
 		_vkDevice = vkbdevice.device;
+
+		volkLoadDevice(_vkDevice);
 	}
-	void VulkanEngine::CreateAllocator() {
+	void VulkanEngine::CreateAllocator() { // done after device creation
 		VmaAllocatorCreateInfo allocatorInfo = {};
 		allocatorInfo.physicalDevice = _vkPhysicalDevice;
 		allocatorInfo.device = _vkDevice;
 		allocatorInfo.instance = _vkInstance;
 		allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+		allocatorInfo.vulkanApiVersion = VK_API_VERSION_1_3;
+		const VmaVulkanFunctions functions = {
+				.vkGetInstanceProcAddr = vkGetInstanceProcAddr,
+				.vkGetDeviceProcAddr = vkGetDeviceProcAddr
+		};
+		allocatorInfo.pVulkanFunctions = &functions;
 		vmaCreateAllocator(&allocatorInfo, &_allocator);
 	}
 	void VulkanEngine::CreateQueues() {
@@ -163,85 +207,6 @@ namespace Slate {
 		_vkSwapchianExtent = vkbswapchain.extent;
 	}
 
-	void VulkanEngine::CreateDefaultImages() {
-		VkExtent2D tempextent = {
-				_vkSwapchianExtent.width,
-				_vkSwapchianExtent.height
-		};
-		// COLOR (final)
-		{
-			VkImageUsageFlags color_resolve_image_usages = {};
-			color_resolve_image_usages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-			color_resolve_image_usages |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-			color_resolve_image_usages |= VK_IMAGE_USAGE_SAMPLED_BIT;
-			_drawImage = this->CreateImage(tempextent, VK_FORMAT_R16G16B16A16_SFLOAT, color_resolve_image_usages, VK_SAMPLE_COUNT_1_BIT, false);
-		}
-		// MSAA COLOR (draw)
-		{
-			VkImageUsageFlags color_msaa_image_usages = {};
-			color_msaa_image_usages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-			color_msaa_image_usages |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
-			_colorMSAAImage = this->CreateImage(tempextent, VK_FORMAT_R16G16B16A16_SFLOAT, color_msaa_image_usages, VK_SAMPLE_COUNT_4_BIT, false);
-		}
-		// MSAA DEPTH (draw)
-		{
-			VkImageUsageFlags depth_image_usages = {};
-			depth_image_usages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-			depth_image_usages |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
-			_depthStencilMSAAImage = this->CreateImage(tempextent, VK_FORMAT_D32_SFLOAT_S8_UINT, depth_image_usages, VK_SAMPLE_COUNT_4_BIT, false);
-		}
-		// ENTITY (editor)
-		{
-			VkImageUsageFlags entity_image_usages = {};
-			entity_image_usages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-			entity_image_usages |= VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-			entity_image_usages |= VK_IMAGE_USAGE_STORAGE_BIT;
-			_entityImage = this->CreateImage(tempextent, VK_FORMAT_R32_UINT, entity_image_usages, VK_SAMPLE_COUNT_1_BIT, false);
-		}
-		// MSAA ENTITY (editor)
-		{
-			VkImageUsageFlags entity_msaa_image_usages = {};
-			entity_msaa_image_usages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-			entity_msaa_image_usages |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
-			_entityMSAAImage = this->CreateImage(tempextent, VK_FORMAT_R32_UINT, entity_msaa_image_usages, VK_SAMPLE_COUNT_4_BIT, false);
-		}
-		// VIEWPORT (ui)
-		{
-			VkImageUsageFlags viewport_image_usages = {};
-			viewport_image_usages |= VK_IMAGE_USAGE_SAMPLED_BIT;
-			viewport_image_usages |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-			_viewportImage = this->CreateImage(tempextent, VK_FORMAT_R16G16B16A16_SFLOAT, viewport_image_usages, VK_SAMPLE_COUNT_1_BIT, false);
-		}
-
-	}
-	void VulkanEngine::CreateDefaultBuffers() {
-		_gpuSceneDataBuffer = this->CreateBuffer(sizeof(vktypes::GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
-	}
-
-	void VulkanEngine::CreateStandardSamplers() {
-		VkSamplerCreateInfo linearInfo = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO, .pNext = nullptr };
-		linearInfo.magFilter = VK_FILTER_LINEAR;
-		linearInfo.minFilter = VK_FILTER_LINEAR;
-		linearInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-		linearInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-		linearInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-		linearInfo.minLod = -1000;
-		linearInfo.maxLod = 1000;
-		linearInfo.maxAnisotropy = 1.0f;
-		vkCreateSampler(_vkDevice, &linearInfo, nullptr, &default_LinearSampler);
-
-		VkSamplerCreateInfo nearestInfo = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO, .pNext = nullptr };
-		nearestInfo.magFilter = VK_FILTER_NEAREST;
-		nearestInfo.minFilter = VK_FILTER_NEAREST;
-		nearestInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-		nearestInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-		nearestInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-		nearestInfo.minLod = -1000;
-		nearestInfo.maxLod = 1000;
-		nearestInfo.maxAnisotropy = 1.0f;
-		vkCreateSampler(_vkDevice, &nearestInfo, nullptr, &default_NearestSampler);
-	}
-
 	void VulkanEngine::CreateCommands() {
 		// this needs to be altered later depending on the operations my engine needs
 		VkCommandPoolCreateInfo poolInfo = vkinfo::CreateCommandPoolInfo(_vkGraphicsQueueFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
@@ -271,30 +236,30 @@ namespace Slate {
 		// imm
 		VK_CHECK(vkCreateFence(_vkDevice, &fenceInfo, nullptr, &_immFence));
 	}
+	void VulkanEngine::CreateDefaultData() {
+		VkSamplerCreateInfo linearInfo = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO, .pNext = nullptr };
+		linearInfo.magFilter = VK_FILTER_LINEAR;
+		linearInfo.minFilter = VK_FILTER_LINEAR;
+		linearInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		linearInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		linearInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		linearInfo.minLod = -1000;
+		linearInfo.maxLod = 1000;
+		linearInfo.maxAnisotropy = 1.0f;
+		vkCreateSampler(_vkDevice, &linearInfo, nullptr, &default_LinearSampler);
 
-	void VulkanEngine::CreateDescriptors() {
-		// top level descriptor
-		std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> pool_sizes = {
-				{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 },
-				{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 },
-		};
-		this->_globalDescriptorAllocator.Init(_vkDevice, 10, pool_sizes);
-		{
-			DescriptorLayoutBuilder dsbuilder;
-			this->_gpuDescriptorSetLayout = dsbuilder
-													.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-													.addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE)
-												.build(_vkDevice, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
-		}
-		_gpuDescriptorSet = this->_globalDescriptorAllocator.Allocate(_vkDevice, _gpuDescriptorSetLayout);
-		{
-			DescriptorWriter writer;
-			writer.WriteBuffer(0, this->_gpuSceneDataBuffer.buffer, sizeof(vktypes::GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-			writer.WriteImage(1, this->_entityImage.imageView, this->default_NearestSampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-			writer.UpdateSet(_vkDevice, this->_gpuDescriptorSet);
-		}
-
-
+		VkSamplerCreateInfo nearestInfo = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO, .pNext = nullptr };
+		nearestInfo.magFilter = VK_FILTER_NEAREST;
+		nearestInfo.minFilter = VK_FILTER_NEAREST;
+		nearestInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		nearestInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		nearestInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		nearestInfo.minLod = -1000;
+		nearestInfo.maxLod = 1000;
+		nearestInfo.maxAnisotropy = 1.0f;
+		vkCreateSampler(_vkDevice, &nearestInfo, nullptr, &default_NearestSampler);
+	}
+	void VulkanEngine::CreateFrameDescriptors() {
 		// load up per frame descriptors
 		for (auto &_frame: _frames) {
 			// create a descriptor pool
@@ -302,14 +267,63 @@ namespace Slate {
 					{VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3},
 					{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3},
 					{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3},
-					{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4},
+					{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4}
 			};
-
 			_frame._frameDescriptors = DescriptorAllocatorGrowable {};
 			_frame._frameDescriptors.Init(_vkDevice, 1000, frame_sizes);
 		}
 	}
 
+	void VulkanEngine::CreateDefaultImages() {
+		VkExtent2D tempextent = {
+				_vkSwapchianExtent.width,
+				_vkSwapchianExtent.height
+		};
+		// COLOR (final)
+		{
+			VkImageUsageFlags color_resolve_image_usages = {};
+			color_resolve_image_usages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+			color_resolve_image_usages |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+			color_resolve_image_usages |= VK_IMAGE_USAGE_SAMPLED_BIT;
+			_colorResolveImage = this->CreateImage(tempextent, VK_FORMAT_R8G8B8A8_UNORM, color_resolve_image_usages, VK_SAMPLE_COUNT_1_BIT, false);
+		}
+		// MSAA COLOR (draw)
+		{
+			VkImageUsageFlags color_msaa_image_usages = {};
+			color_msaa_image_usages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+			color_msaa_image_usages |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
+			_colorMSAAImage = this->CreateImage(tempextent, VK_FORMAT_R8G8B8A8_UNORM, color_msaa_image_usages, VK_SAMPLE_COUNT_4_BIT, false);
+		}
+		// MSAA DEPTH (draw)
+		{
+			VkImageUsageFlags depth_image_usages = {};
+			depth_image_usages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+			depth_image_usages |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
+			_depthStencilMSAAImage = this->CreateImage(tempextent, VK_FORMAT_D32_SFLOAT_S8_UINT, depth_image_usages, VK_SAMPLE_COUNT_4_BIT, false);
+		}
+		// ENTITY (editor)
+		{
+			VkImageUsageFlags entity_image_usages = {};
+			entity_image_usages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+			entity_image_usages |= VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+			entity_image_usages |= VK_IMAGE_USAGE_STORAGE_BIT;
+			_entityImage = this->CreateImage(tempextent, VK_FORMAT_R32_UINT, entity_image_usages, VK_SAMPLE_COUNT_1_BIT, false);
+		}
+		// MSAA ENTITY (editor)
+		{
+			VkImageUsageFlags entity_msaa_image_usages = {};
+			entity_msaa_image_usages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+			entity_msaa_image_usages |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
+			_entityMSAAImage = this->CreateImage(tempextent, VK_FORMAT_R32_UINT, entity_msaa_image_usages, VK_SAMPLE_COUNT_4_BIT, false);
+		}
+		// VIEWPORT (ui)
+		{
+			VkImageUsageFlags viewport_image_usages = {};
+			viewport_image_usages |= VK_IMAGE_USAGE_SAMPLED_BIT;
+			viewport_image_usages |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+			_viewportImage = this->CreateImage(tempextent, VK_FORMAT_R8G8B8A8_UNORM, viewport_image_usages, VK_SAMPLE_COUNT_1_BIT, false);
+		}
+	}
 
 	void VulkanEngine::DestroySwapchain() {
 		for (VkImageView imageView : _vkSwapchainImageViews) {
@@ -324,21 +338,19 @@ namespace Slate {
 		vkDeviceWaitIdle(_vkDevice);
 		{
 			// create swapchain
+			this->DestroySwapchain();
 			int w, h;
 			glfwGetFramebufferSize(pWindow, &w, &h);
-			this->DestroySwapchain();
 			this->CreateSwapchain(w, h);
 
 			// recreate images
 			this->DestroyImage(this->_colorMSAAImage);
 			this->DestroyImage(this->_depthStencilMSAAImage);
-			this->DestroyImage(this->_drawImage);
+			this->DestroyImage(this->_colorResolveImage);
 			this->DestroyImage(this->_entityImage);
 			this->DestroyImage(this->_viewportImage);
 			this->CreateDefaultImages();
 
-			// recreate descriptor set for the viewport image used by imgui
-			this->_viewportImageDescriptorSet = ImGui_ImplVulkan_AddTexture(this->default_LinearSampler, this->_viewportImage.imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		}
 		this->resizeRequested = false;
 	}
@@ -347,20 +359,25 @@ namespace Slate {
 		// wait before destruction process
 		vkDeviceWaitIdle(_vkDevice);
 		{
-			this->DestroyBuffer(_gpuSceneDataBuffer);
 			/// destroy our pipelines
 			{
-				this->DestroyPipeline(_gridPipeline);
-				this->DestroyPipeline(_standardPipeline);
+//				this->DestroyPipeline(_wireframePipeline);
+//				this->DestroyPipeline(_standardPipeline);
+//				this->DestroyPipeline(_standardWireframePipeline);
 
+			}
+			// destroy default resources
+			{
+				vkDestroySampler(_vkDevice, default_NearestSampler, nullptr);
+				vkDestroySampler(_vkDevice, default_LinearSampler, nullptr);
 			}
 			// destroy imgui resources
 			{
-				vkDestroyDescriptorPool(_vkDevice, imguiDescriptorPool, nullptr);
+				vkDestroyDescriptorPool(_vkDevice, _imguiDescriptorPool, nullptr);
 			}
 			// destroy vma images
 			{
-				this->DestroyImage(_drawImage);
+				this->DestroyImage(_colorResolveImage);
 				this->DestroyImage(_colorMSAAImage);
 				this->DestroyImage(_viewportImage);
 				this->DestroyImage(_depthStencilMSAAImage);
@@ -368,20 +385,22 @@ namespace Slate {
 			}
 
 			// destroy imm
-			vkDestroyFence(_vkDevice, _immFence, nullptr);
-			vkFreeCommandBuffers(_vkDevice, _immCommandPool, 1, &_immCommandBuffer);
-			vkDestroyCommandPool(_vkDevice, _immCommandPool, nullptr);
-
+			{
+				vkDestroyFence(_vkDevice, _immFence, nullptr);
+				vkFreeCommandBuffers(_vkDevice, _immCommandPool, 1, &_immCommandBuffer);
+				vkDestroyCommandPool(_vkDevice, _immCommandPool, nullptr);
+			}
 			// destroy framedata (commands and sync structures)
-			for (FrameData &_frame: _frames) {
+			for (FrameData& _frame: _frames) {
 				vkDestroyFence(_vkDevice, _frame._renderFence, nullptr);
 				vkDestroySemaphore(_vkDevice, _frame._swapchainSemaphore, nullptr);
 				vkDestroySemaphore(_vkDevice, _frame._renderSemaphore, nullptr);
 
 				vkFreeCommandBuffers(_vkDevice, _frame._commandPool, 1, &_frame._commandBuffer);
 				vkDestroyCommandPool(_vkDevice, _frame._commandPool, nullptr);
-			}
 
+				_frame._frameDescriptors.DestroyPools(_vkDevice); // per frame descriptor pool destruction
+			}
 			// destroy swapchain & its resources
 			// because we already have this functionality implemented for runtime swapchain recreation we just reuse it here
 			{
@@ -397,6 +416,51 @@ namespace Slate {
 			}
 		}
 	}
+
+	void VulkanEngine::Aquire() {
+		VK_CHECK(vkWaitForFences(this->_vkDevice, 1, &this->getCurrentFrameData()._renderFence, VK_TRUE, UINT64_MAX));
+		this->getCurrentFrameData()._frameDescriptors.ClearPools(_vkDevice);
+
+		VkResult aquireResult = vkAcquireNextImageKHR(
+				this->_vkDevice,
+				this->_vkSwapchain,
+				UINT64_MAX,
+				this->getCurrentFrameData()._swapchainSemaphore,
+				nullptr,
+				&this->_imageIndex);
+		if (aquireResult == VK_ERROR_OUT_OF_DATE_KHR || aquireResult == VK_SUBOPTIMAL_KHR || resizeRequested) {
+			this->resizeRequested = true;
+			if (aquireResult == VK_ERROR_OUT_OF_DATE_KHR) return;
+		}
+		VK_CHECK(vkResetFences(this->_vkDevice, 1, &this->getCurrentFrameData()._renderFence));
+		VK_CHECK(vkResetCommandPool(this->_vkDevice, this->getCurrentFrameData()._commandPool, 0));
+	}
+
+	void VulkanEngine::Present() {
+		VkCommandBufferSubmitInfo cmdinfo = vkinfo::CreateCommandBufferSubmitInfo(this->getCurrentFrameData()._commandBuffer);
+		VkSemaphoreSubmitInfo waitInfo = vkinfo::CreateSemaphoreSubmitInfo(VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR, this->getCurrentFrameData()._swapchainSemaphore);
+		VkSemaphoreSubmitInfo signalInfo = vkinfo::CreateSemaphoreSubmitInfo(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, this->getCurrentFrameData()._renderSemaphore);
+
+		VkSubmitInfo2 submitInfo = vkinfo::CreateSubmitInfo(&cmdinfo, &signalInfo, &waitInfo);
+		vkQueueSubmit2KHR(this->_vkGraphicsQueue, 1, &submitInfo, this->getCurrentFrameData()._renderFence);
+
+
+		VkPresentInfoKHR presentinfo = { .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR, .pNext = nullptr };
+		presentinfo.pSwapchains = &this->_vkSwapchain;
+		presentinfo.swapchainCount = 1;
+		presentinfo.pWaitSemaphores = &this->getCurrentFrameData()._renderSemaphore;
+		presentinfo.waitSemaphoreCount = 1;
+		presentinfo.pImageIndices = &this->_imageIndex;
+
+		VkResult presentResult = vkQueuePresentKHR(this->_vkGraphicsQueue, &presentinfo);
+		if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR || resizeRequested) {
+			this->resizeRequested = true;
+			if (presentResult == VK_ERROR_OUT_OF_DATE_KHR) return;
+		}
+		this->_frameNum++;
+	}
+
+	// -- HELPER FUNCTIONS -- //
 
 	void VulkanEngine::Immediate_Submit(std::function<void(VkCommandBuffer cmd)> &&function) {
 		VK_CHECK(vkResetFences(_vkDevice, 1, &_immFence));
@@ -414,7 +478,7 @@ namespace Slate {
 
 		// submit command buffer to the queue and execute it.
 		//  _renderFence will now block until the graphic commands finish execution
-		VK_CHECK(vkext::vkQueueSubmit2(_vkGraphicsQueue, 1, &submit, _immFence));
+		VK_CHECK(vkQueueSubmit2KHR(_vkGraphicsQueue, 1, &submit, _immFence));
 
 		VK_CHECK(vkWaitForFences(_vkDevice, 1, &_immFence, true, 9999999999));
 	}
@@ -434,6 +498,21 @@ namespace Slate {
 		return newBuffer;
 	}
 
+	vktypes::AllocatedImage VulkanEngine::CreateImage(const std::filesystem::path& file_path, VkFormat format, VkImageUsageFlags usage, bool mipmapped) {
+		vktypes::AllocatedImage newImage = {};
+
+		int width, height, nrChannels;
+		void* data = stbi_load(Filesystem::ToDirectory(file_path).c_str(), &width, &height, &nrChannels, STBI_rgb_alpha);
+		VkExtent3D extent = { static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1 };
+		if (data) {
+			newImage = this->CreateImage(data, extent, format, usage, mipmapped);
+		} else {
+			fmt::print(stderr, "Failed to load image\n");
+		}
+		stbi_image_free(data);
+
+		return newImage;
+	}
 	vktypes::AllocatedImage VulkanEngine::CreateImage(VkExtent2D extent, VkFormat format, VkImageUsageFlags usages, VkSampleCountFlags samples, bool mipmapped) const {
 		VkExtent3D extent3D = {
 			.width = extent.width,
@@ -447,14 +526,13 @@ namespace Slate {
 		newImage.imageFormat = format;
 		newImage.imageExtent = extent;
 
-		VkImageCreateInfo img_info = vkinfo::CreateImageInfo(extent, format, usages, 1, static_cast<VkSampleCountFlagBits>(samples));
-		if (mipmapped) {
-			img_info.mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(extent.width, extent.height)))) + 1;
-		}
+		// small checking if mipmapping was true, than so some fancy math to get the levels we need
+		uint32_t miplevels = 1;
+		if (mipmapped) miplevels = static_cast<uint32_t>(std::floor(std::log2(std::max(extent.width, extent.height)))) + 1;
+		VkImageCreateInfo img_info = vkinfo::CreateImageInfo(extent, format, usages, miplevels, samples);
 
-		// always allocate images on dedicated GPU memory
 		VmaAllocationCreateInfo allocinfo = {};
-		allocinfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+		allocinfo.usage = VMA_MEMORY_USAGE_AUTO; // was gpu only mem but changed to auto
 		allocinfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 		VK_CHECK(vmaCreateImage(_allocator, &img_info, &allocinfo, &newImage.image, &newImage.allocation, &newImage.allocationInfo));
 
@@ -464,6 +542,40 @@ namespace Slate {
 
 		return newImage;
 	}
+	vktypes::AllocatedImage VulkanEngine::CreateImage(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped) {
+		size_t data_size = size.depth * size.width * size.height * 4;
+		vktypes::AllocatedBuffer uploadbuffer = this->CreateBuffer(data_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+		memcpy(uploadbuffer.info.pMappedData, data, data_size);
+
+		vktypes::AllocatedImage new_image = this->CreateImage(size, format, usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_SAMPLE_COUNT_1_BIT, mipmapped);
+
+		this->Immediate_Submit([&](VkCommandBuffer cmd) {
+			vkutil::TransitionImageLayout(cmd, new_image.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+			VkBufferImageCopy copyRegion = {};
+			copyRegion.bufferOffset = 0;
+			copyRegion.bufferRowLength = 0;
+			copyRegion.bufferImageHeight = 0;
+
+			copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			copyRegion.imageSubresource.mipLevel = 0;
+			copyRegion.imageSubresource.baseArrayLayer = 0;
+			copyRegion.imageSubresource.layerCount = 1;
+			copyRegion.imageExtent = size;
+
+			// copy the buffer into the image
+			vkCmdCopyBufferToImage(cmd, uploadbuffer.buffer, new_image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+
+			if (mipmapped) {
+				vkutil::GenerateMipmaps(cmd, new_image.image, VkExtent2D{new_image.imageExtent.width,new_image.imageExtent.height});
+			} else {
+				vkutil::TransitionImageLayout(cmd, new_image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+			}
+		});
+		this->DestroyBuffer(uploadbuffer);
+		return new_image;
+	}
 
 	vktypes::MeshData VulkanEngine::CreateMesh(std::vector<Vertex_Standard> vertices) {
 		// just calculate sizes of our parameters
@@ -471,8 +583,8 @@ namespace Slate {
 
 		vktypes::MeshData mesh = {};
 		mesh.vertexCount = vertices.size();
-		vktypes::GPUMeshBuffers surfaceBuffer = {};
 
+		vktypes::StagingMeshBuffers surfaceBuffer = {};
 		// create vertex buffer
 		surfaceBuffer.vertexBuffer = this->CreateBuffer(vertexBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 
@@ -509,7 +621,7 @@ namespace Slate {
 
 		vktypes::MeshData mesh = {};
 		mesh.indexCount = indices.size();
-		vktypes::GPUMeshBuffers surfaceBuffer = {};
+		vktypes::StagingMeshBuffers surfaceBuffer = {};
 
 		// create vertex buffer
 		surfaceBuffer.vertexBuffer = this->CreateBuffer(vertexBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
@@ -559,18 +671,8 @@ namespace Slate {
 		vkDestroyImageView(_vkDevice, allocatedImage.imageView, nullptr);
 		vmaDestroyImage(_allocator, allocatedImage.image, allocatedImage.allocation);
 	}
-	void VulkanEngine::DestroyPipeline(const vktypes::PipelineObject& pipelineObject) const {
-		vkDestroyPipelineLayout(_vkDevice, pipelineObject.layout, nullptr);
-		vkDestroyPipeline(_vkDevice, pipelineObject.pipeline, nullptr);
-	}
 
-	void VulkanEngine::DrawMeshData(vktypes::MeshData data, VkPipelineLayout layout) {
-		vktypes::GPUDrawPushConstants pushConstants = {};
-		pushConstants.vertexBufferAddress = data.constants.vertexBufferAddress;
-		pushConstants.modelMatrix = data.constants.modelMatrix;
-		pushConstants.id = data.constants.id; // how this knows not to include unintialized values i have no idea
-		vkCmdPushConstants(this->getCurrentFrameData()._commandBuffer, layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(vktypes::GPUDrawPushConstants), &pushConstants);
-
+	void VulkanEngine::DrawMeshData(const vktypes::MeshData& data) {
 		if (data.IsIndexed()) {
 			vkCmdBindIndexBuffer(this->getCurrentFrameData()._commandBuffer, data.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 			vkCmdDrawIndexed(this->getCurrentFrameData()._commandBuffer, data.indexCount, 1, 0, 0, 0);
@@ -578,60 +680,29 @@ namespace Slate {
 			vkCmdDraw(this->getCurrentFrameData()._commandBuffer, data.vertexCount, 1, 0, 0);
 		}
 	}
+	void VulkanEngine::SetupImGui() {
+		// imgui requires pool
+		//  the size of the pool is very oversize, but it's copied from imgui demo
+		VkDescriptorPoolSize pool_sizes[] = {{VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
+											 {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
+											 {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000},
+											 {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000},
+											 {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000},
+											 {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000},
+											 {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000},
+											 {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000},
+											 {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000},
+											 {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000},
+											 {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000}};
 
-	void VulkanEngine::Aquire() {
-		VK_CHECK(vkWaitForFences(this->_vkDevice, 1, &this->getCurrentFrameData()._renderFence, VK_TRUE, UINT64_MAX));
-		this->getCurrentFrameData()._frameDescriptors.ClearPools(_vkDevice);
+		VkDescriptorPoolCreateInfo pool_info = {};
+		pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+		pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+		pool_info.maxSets = 1000;
+		pool_info.poolSizeCount = static_cast<uint32_t>(std::size(pool_sizes));
+		pool_info.pPoolSizes = pool_sizes;
 
-		VkResult aquireResult = vkAcquireNextImageKHR(
-				this->_vkDevice,
-				this->_vkSwapchain,
-				UINT64_MAX,
-				this->getCurrentFrameData()._swapchainSemaphore,
-				nullptr,
-				&this->_imageIndex);
-		if (aquireResult == VK_ERROR_OUT_OF_DATE_KHR || aquireResult == VK_SUBOPTIMAL_KHR || resizeRequested) {
-			this->resizeRequested = true;
-			if (aquireResult == VK_ERROR_OUT_OF_DATE_KHR) return;
-		}
-		VK_CHECK(vkResetFences(this->_vkDevice, 1, &this->getCurrentFrameData()._renderFence));
-		VK_CHECK(vkResetCommandPool(this->_vkDevice, this->getCurrentFrameData()._commandPool, 0));
-	}
-
-	void VulkanEngine::Present() {
-		VkCommandBufferSubmitInfo cmdinfo = vkinfo::CreateCommandBufferSubmitInfo(this->getCurrentFrameData()._commandBuffer);
-		VkSemaphoreSubmitInfo waitInfo = vkinfo::CreateSemaphoreSubmitInfo(VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR, this->getCurrentFrameData()._swapchainSemaphore);
-		VkSemaphoreSubmitInfo signalInfo = vkinfo::CreateSemaphoreSubmitInfo(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, this->getCurrentFrameData()._renderSemaphore);
-
-		VkSubmitInfo2 submitInfo = vkinfo::CreateSubmitInfo(&cmdinfo, &signalInfo, &waitInfo);
-		vkext::vkQueueSubmit2(this->_vkGraphicsQueue, 1, &submitInfo, this->getCurrentFrameData()._renderFence);
-
-
-		VkPresentInfoKHR presentinfo = { .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR, .pNext = nullptr };
-		presentinfo.pSwapchains = &this->_vkSwapchain;
-		presentinfo.swapchainCount = 1;
-		presentinfo.pWaitSemaphores = &this->getCurrentFrameData()._renderSemaphore;
-		presentinfo.waitSemaphoreCount = 1;
-		presentinfo.pImageIndices = &this->_imageIndex;
-
-		VkResult presentResult = vkQueuePresentKHR(this->_vkGraphicsQueue, &presentinfo);
-		if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR || resizeRequested) {
-			this->resizeRequested = true;
-			if (presentResult == VK_ERROR_OUT_OF_DATE_KHR) return;
-		}
-		this->_frameNum++;
-	}
-
-	void VulkanEngine::UpdateDescriptorSets(const vktypes::GPUSceneData& scene_data) {
-		//write the buffer
-		auto* sceneUniformData = static_cast<vktypes::GPUSceneData*>(this->_gpuSceneDataBuffer.allocation->GetMappedData());
-		*sceneUniformData = scene_data;
-
-		VkDescriptorSet globalDescriptor = this->getCurrentFrameData()._frameDescriptors.Allocate(_vkDevice, _gpuDescriptorSetLayout);
-
-		DescriptorWriter writer {};
-		writer.WriteBuffer(0, this->_gpuSceneDataBuffer.buffer, sizeof(vktypes::GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-		writer.UpdateSet(_vkDevice, globalDescriptor);
+		VK_CHECK(vkCreateDescriptorPool(this->_vkDevice, &pool_info, nullptr, &this->_imguiDescriptorPool));
 	}
 }
 

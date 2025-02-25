@@ -15,6 +15,7 @@ namespace Slate {
 
 	void Application::BaseSlateApp_Start() {
 		Time::Initialize();
+		InputSystem::Initialize();
 		this->Initialize(); // user start func
 	}
 	void Application::BaseSlateApp_Loop() {
@@ -25,6 +26,7 @@ namespace Slate {
 	}
 	void Application::BaseSlateApp_End() {
 		this->Shutdown(); // user end func
+		InputSystem::Shutdown();
 		Time::Shutdown();
 	}
 }

@@ -18,10 +18,13 @@ project(Slate
         DESCRIPTION "Slate Editor & Engine"
 )
 
+# Slate Options
+option(SLATE_USE_SLANG "Use Slang shaders instead of glsl" ON)
+
 # add defines
 helper_detectOS()
 helper_addGlobalDefines()
-helper_addGLMDefines()
+helper_addExternalDefines()
 
 add_subdirectory("${SLATE_BASE_FOLDER}/engine")
 add_subdirectory("${SLATE_BASE_FOLDER}/editor")

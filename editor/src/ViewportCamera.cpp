@@ -12,9 +12,7 @@
 
 
 namespace Slate {
-	void ViewportCamera::OnResize(int width, int height) {
-		_aspectRatio = static_cast<float>(width) / static_cast<float>(height);
-	}
+
 	void ViewportCamera::OnResize(float width, float height) {
 		if (width/height <= 0) return;
 		_aspectRatio = width/height;
@@ -22,7 +20,7 @@ namespace Slate {
 	void ViewportCamera::ProcessKeys() {
 
 		float realSpeed;
-		if (InputSystem::IsKeyPressed(GLFW_KEY_LEFT_SHIFT)) realSpeed = cameraSpeed * 1.5f;
+		if (InputSystem::IsKeyPressed(GLFW_KEY_LEFT_SHIFT)) realSpeed = cameraSpeed * 1.75f;
 		else realSpeed = cameraSpeed;
 
 		float adjustedSpeed = realSpeed * static_cast<float>(Time::GetDeltaTime());
@@ -71,9 +69,8 @@ namespace Slate {
 		_front = glm::normalize(direction);
 	}
 	void ViewportCamera::Update() {
-		glm::mat4 proj = glm::perspective(glm::radians(_fov), _aspectRatio, _zNear, _zFar);
+		_projectionMatrix = glm::perspective(glm::radians(_fov), _aspectRatio, _zNear, _zFar);
 //		proj[1][1] *= -1; // inverts the y axis
-		_projectionMatrix = proj;
 
 		_viewMatrix = glm::lookAt(_position, _position + _front, _up);
 	}

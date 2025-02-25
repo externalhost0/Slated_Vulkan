@@ -2,12 +2,14 @@
 // Created by Hayden Rivas on 1/27/25.
 //
 #include <vector>
+#include <glm/ext/scalar_constants.hpp>
 
 #include "Slate/VK/vktypes.h"
 
+#include "Slate/MeshGenerators.h"
 namespace Slate {
-	std::vector<Vertex_Standard> GenerateGridVertices(float size, unsigned int numLines) {
-		std::vector<Vertex_Standard> vertices; // tempy for return and loop
+	void GenerateGridEXT(std::vector<Vertex_Standard>& vertices, float size, unsigned int numLines) {
+		vertices.clear();
 		// auto calc spacing
 		float spacing = size / static_cast<float>(numLines);
 		// lines along x and z
@@ -15,35 +17,270 @@ namespace Slate {
 			float pos = -size / 2.0f + i * spacing;  // line position
 
 			// x-axis
-			Vertex_Standard xPoint = {};
-
+			Vertex_Standard xPoint {};
 			xPoint.position.x = (-size / 2.0f);
 			xPoint.position.y = (0.0f);
 			xPoint.position.z = (pos);
 			vertices.push_back(xPoint);
 
-			Vertex_Standard yPoint = {};
-
+			Vertex_Standard yPoint {};
 			yPoint.position.x = (size / 2.0f);
 			yPoint.position.y = 0.0f;
 			yPoint.position.z = pos;
 			vertices.push_back(yPoint);
 
-			Vertex_Standard zPoint = {};
-
 			// z-axis
+			Vertex_Standard zPoint {};
 			zPoint.position.x = pos;
 			zPoint.position.y = 0.0f;
 			zPoint.position.z = -size / 2.0f;
 			vertices.push_back(zPoint);
 
-			Vertex_Standard extraPoint = {};
-
+			// loop back point
+			Vertex_Standard extraPoint {};
 			extraPoint.position.x = pos;
 			extraPoint.position.y = 0.0f;
 			extraPoint.position.z = size / 2.0f;
 			vertices.push_back(extraPoint);
 		}
-		return vertices;
+	}
+	void GenerateGrid(std::vector<Vertex_Standard>& vertices, float size, unsigned int numLines) {
+		vertices.clear();
+		float spacing = size / static_cast<float>(numLines);
+		float halfSize = size / 2.0f;
+
+		for (unsigned int i = 0; i < numLines; ++i) {
+			float z = -halfSize + i * spacing;
+
+			if (i % 2 == 0) {
+				// left to right
+				vertices.push_back({ {-halfSize, 0.0f, z} });
+				vertices.push_back({ {halfSize, 0.0f, z} });
+			} else {
+				// right to left (trace back)
+				vertices.push_back({ {halfSize, 0.0f, z} });
+				(vertices.push_back({ {-halfSize, 0.0f, z} }));
+			}
+		}
+
+		for (unsigned int i = 0; i < numLines+1; ++i) {
+			float x = -halfSize + i * spacing;
+
+			if (i % 2 == 0) {
+				// bottom to top
+				vertices.push_back({ {x, 0.0f, -halfSize} });
+				vertices.push_back({ {x, 0.0f, halfSize} });
+			} else {
+				// top to bottom (trace back)
+				vertices.push_back({ {x, 0.0f, halfSize} });
+				vertices.push_back({ {x, 0.0f, -halfSize} });
+			}
+		}
+		vertices.push_back({ { -halfSize, 0.0f, halfSize }});
+	}
+
+
+
+	void GenerateSphere(std::vector<Vertex_Standard>& vertices, std::vector<uint32_t>& indices, float radius, int stacks, int slices) {
+		vertices.clear();
+		indices.clear();
+
+		// vertices
+		for (int i = 0; i <= stacks; ++i) {
+			float phi = glm::pi<float>() * i / stacks;  // Latitude angle [0, pi]
+
+			for (int j = 0; j <= slices; ++j) {
+				float theta = 2.0f * glm::pi<float>() * j / slices; // Longitude angle [0, 2pi]
+
+				glm::vec3 pos = {
+						radius * sin(phi) * cos(theta), // x
+						radius * cos(phi),             // y
+						radius * sin(phi) * sin(theta)  // z
+				};
+
+				glm::vec3 normal = glm::normalize(pos);
+				glm::vec2 uv = { (float)j / slices, (float)i / stacks };
+
+				vertices.push_back({ pos, normal, uv });
+			}
+		}
+		// indices
+		for (int i = 0; i < stacks; ++i) {
+			for (int j = 0; j < slices; ++j) {
+				int first = i * (slices + 1) + j;
+				int second = first + slices + 1;
+
+				// first triangle
+				indices.push_back(first);
+				indices.push_back(first + 1);
+				indices.push_back(second);
+
+				// second triangle
+				indices.push_back(second);
+				indices.push_back(first + 1);
+				indices.push_back(second + 1);
+			}
+		}
+	}
+
+	void GenerateSimpleSphere(std::vector<Vertex_Standard>& vertices, unsigned int numSegments) {
+		vertices.clear();
+		float radius = 1.0f;
+
+		// require we have even segments
+		if (numSegments%2!=0) {
+			numSegments+=1;
+		}
+
+		float resolutionIncrement = 2.0f * (float) M_PI / (float) numSegments;
+
+		// first vertical
+		for (int i = 0; i < numSegments; i++) {
+			float increment = (float)i * resolutionIncrement;
+			float x = radius * cos(increment);
+			float y = radius * sin(increment);
+
+			Vertex_Standard point {};
+			point.position = {x, y, 0.f};
+			vertices.push_back(point);
+		}
+		// first horizontal
+		for (int i = 0; i < numSegments+(numSegments/4); i++) {
+			float increment = (float)i * resolutionIncrement;
+			float x = radius * cos(increment);
+			float z = radius * sin(increment);
+
+			Vertex_Standard point {};
+			point.position = {x, 0.f, z};
+			vertices.push_back(point);
+		}
+		// second vertical
+		for (int i = 0; i < numSegments+(numSegments/4); i++) {
+			float increment = (float)i * resolutionIncrement;
+			float x = radius * cos(increment);
+			float y = radius * sin(increment);
+
+			Vertex_Standard point {};
+			point.position = {0.f, y, x};
+			vertices.push_back(point);
+		}
+	}
+
+	// not a very good function, refine later
+	void GenerateSpot(std::vector<Vertex_Standard>& vertices, unsigned int numSegments) {
+		vertices.clear();
+
+		float radius = 0.18f;
+		float height = 10.0f;
+
+		float angleIncrement = 2.0f * static_cast<float>(M_PI) / static_cast<float>(numSegments);
+
+		// Generate base circle vertices
+		for (int i = 0; i < numSegments; ++i) {
+			float angle = static_cast<float>(i) * angleIncrement;
+			float x = radius * cos(angle);
+			float z = radius * sin(angle);
+
+			// Add base circle vertices
+			Vertex_Standard point {};
+			point.position = {x, -height, z};
+			vertices.push_back(point);
+		}
+		{
+			// Add apex of the cone (tip)
+			Vertex_Standard point{};
+			point.position = {0.f, 0.f, 0.f};
+			vertices.push_back(point);
+		}
+
+		// Generate side vertices (triangular faces)
+		for (int i = 0; i < numSegments; ++i) {
+			int nextIndex = (i + 1) % numSegments;
+
+			// Base vertices
+			vertices.push_back(vertices[i * 3]);
+			vertices.push_back(vertices[i * 3 + 1]);
+			vertices.push_back(vertices[i * 3 + 2]);
+
+			// Next base vertex
+			vertices.push_back(vertices[nextIndex * 3]);
+			vertices.push_back(vertices[nextIndex * 3 + 1]);
+			vertices.push_back(vertices[nextIndex * 3 + 2]);
+
+			// Apex vertex
+			Vertex_Standard point {};
+			point.position = {0.f, 0.f, 0.f};
+			vertices.push_back(point);
+		}
+	}
+
+	void GenerateArrow2DMesh(std::vector<Vertex_Standard>& vertices, float shaftLength, float shaftWidth, float tipWidth, float tipHeight) {
+		vertices.clear();
+		// bottom vertex
+		{
+			Vertex_Standard point{};
+			point.position = {0.f, 0.f, 0.f};
+			vertices.push_back(point);
+		}
+
+		// top vertex
+		{
+			Vertex_Standard point{};
+			point.position = {0.f, -shaftLength, 0.f};
+			vertices.push_back(point);
+		}
+
+		// triangle tip
+		{
+			Vertex_Standard point{};
+			point.position = {-tipWidth, -shaftLength, 0.f};
+			vertices.push_back(point);
+		}
+
+		// triangle tip
+		{
+			Vertex_Standard point{};
+			point.position = {0.f, -shaftLength - tipHeight, 0.f};
+			vertices.push_back(point);
+		}
+
+		{
+			Vertex_Standard point{};
+			point.position = {tipWidth, -shaftLength, 0.f};
+			vertices.push_back(point);
+		}
+
+		// and back to top vertex
+		{
+			Vertex_Standard point{};
+			point.position = {0.f, -shaftLength, 0.f};
+			vertices.push_back(point);
+		}
+
+		// now again but on the z axis so we have two arrow tips!
+		{
+			Vertex_Standard point{};
+			point.position = {0.f, -shaftLength, -tipWidth};
+			vertices.push_back(point);
+		}
+
+		{
+			Vertex_Standard point{};
+			point.position = {0.f, -shaftLength - tipHeight, 0.f};
+			vertices.push_back(point);
+		}
+
+		{
+			Vertex_Standard point{};
+			point.position = {0.f, -shaftLength, tipWidth};
+			vertices.push_back(point);
+		}
+
+		// and back again to top vertex
+		{
+			Vertex_Standard point{};
+			point.position = {0.f, -shaftLength, 0.f};
+			vertices.push_back(point);
+		}
 	}
 }

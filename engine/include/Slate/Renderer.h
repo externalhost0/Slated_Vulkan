@@ -3,15 +3,10 @@
 //
 #pragma once
 
-// external headers
-#include <vulkan/vulkan.h>
-#include <GLFW/glfw3.h>
-#include <VkBootstrap.h>
-#include <vk_mem_alloc.h>
 
 // Slate Headers
-#include "BaseSystem.h"
 #include "VulkanEngine.h"
+#include "BaseSystem.h"
 #include "Window.h"
 
 namespace Slate {

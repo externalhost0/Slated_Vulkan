@@ -2,20 +2,20 @@
 // Created by Hayden Rivas on 1/11/25.
 //
 
+// my headers
+#include <Slate/Filesystem.h>
+#include <Slate/Time.h>
+
+#include <volk.h>
+#include <Slate/VK/vkinfo.h>
+
 // external headers
-#include <vulkan/vulkan_core.h>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_vulkan.h>
 #include <imgui_internal.h>
 #include <ImGuizmo.h>
 
-// my headers
-#include <Slate/Debug.h>
-#include <Slate/Files.h>
-#include <Slate/Time.h>
-#include <Slate/VK/vkext.h>
-#include <Slate/VK/vkinfo.h>
 
 // also my headers
 #include "EditorGui.h"
@@ -46,35 +46,13 @@ namespace Slate {
 		io.ConfigDragClickToInputText = true;                // makes single click on sldiers
 		io.ConfigWindowsMoveFromTitleBarOnly = true;         // makes it so you can only move windows from the bar, required for viewport functionality when undocked
 		io.ConfigInputTextCursorBlink = true;                // enables blinking cursor in text boxes
-		#if defined(OS_MACOS)
+		#if defined(SLATE_OS_MACOS)
 			io.ConfigMacOSXBehaviors = true;// changes a ton of stuff, just click on it
 		#endif
 
-		// 1: create descriptor pool for IMGUI
-		//  the size of the pool is very oversize, but it's copied from imgui demo
-		VkDescriptorPoolSize pool_sizes[] = {{VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
-											 {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
-											 {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000},
-											 {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000},
-											 {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000},
-											 {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000},
-											 {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000},
-											 {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000},
-											 {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000},
-											 {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000},
-											 {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000}};
-
-		VkDescriptorPoolCreateInfo pool_info = {};
-		pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-		pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-		pool_info.maxSets = 1000;
-		pool_info.poolSizeCount = static_cast<uint32_t>(std::size(pool_sizes));
-		pool_info.pPoolSizes = pool_sizes;
-
-
-		VK_CHECK(vkCreateDescriptorPool(engine->_vkDevice, &pool_info, nullptr, &engine->imguiDescriptorPool));
 
 		// init imgui for glfw
+		engine->SetupImGui();
 		ImGui_ImplGlfw_InitForVulkan(pNativeWindow, false);
 
 		// vulkan render info from our rendersystem
@@ -84,11 +62,10 @@ namespace Slate {
 		initInfo.Device = engine->_vkDevice;
 		initInfo.Queue = engine->_vkGraphicsQueue;
 
-		// the pool we just created above on construction
-		initInfo.DescriptorPool = engine->imguiDescriptorPool;
+		initInfo.DescriptorPool = engine->_imguiDescriptorPool;
 
 		initInfo.MinImageCount = 2;
-		initInfo.ImageCount = 3;
+		initInfo.ImageCount = 2;
 		initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
 		// dyn rendering requirements
@@ -107,10 +84,10 @@ namespace Slate {
 		// personal initialization
 		// do our themes setting, imgui fonts and style
 		BuildStyle();
-
 		engine->Immediate_Submit([&](VkCommandBuffer cmd) {
-			ImGui_ImplVulkan_CreateFontsTexture();
+		  ImGui_ImplVulkan_CreateFontsTexture();
 		});
+
 
 		// panel attach organizations
 		{
@@ -124,16 +101,15 @@ namespace Slate {
 			ImGui_ImplVulkan_NewFrame();
 			ImGui_ImplGlfw_NewFrame();
 			ImGui::NewFrame();
-			// gizmo frame
-			ImGuizmo::BeginFrame();
 		}
+//		ImGui::SetMouseCursor(ImGuiMouseCursor_None);
 
 		// below is all dockspace setup
 		ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_NoWindowMenuButton;// flags for our Dockspace, which will be the whole screen
 
 		// set the parent window's position, m_Count, and viewport to match that of the main viewport. This is so the parent window
 		// completely covers the main viewport, giving it a "full-screen" feel.
-		const ImGuiViewport *viewport = ImGui::GetMainViewport();
+		const ImGuiViewport* viewport = ImGui::GetMainViewport();
 		ImGui::SetNextWindowPos(viewport->WorkPos);
 		ImGui::SetNextWindowSize(viewport->WorkSize);
 		ImGui::SetNextWindowViewport(viewport->ID);
@@ -204,7 +180,7 @@ namespace Slate {
 					ImGui::Text("Hovered Entity: 'NONE'");
 				ImGui::End();
 			}
-			ImGui::End();
+			ImGui::End(); // last end statement, dont put more imgui calls after this
 		}
 		// required imgui ending
 		{
@@ -231,7 +207,7 @@ namespace Slate {
 		float fontSize = 17.f;
 
 		// for crisp text on mac retina displays
-		#if defined(OS_MACOS)
+		#if defined(SLATE_OS_MACOS)
 			fontSize *= 2.f;
 			io.FontGlobalScale = 1.0f / 2.0f;
 		#else
@@ -260,7 +236,7 @@ namespace Slate {
 		static const ImWchar ILC_Range[] = {ICON_MIN_LC, ICON_MAX_16_LC, 0};
 
 		// the path in which all the fonts are located, figure out a better way to set this later
-		const std::string path = ToDirectory("fonts/");
+		const std::string path = Filesystem::ToDirectory("fonts/");
 		// main font, also merged with below icons
 		io.Fonts->AddFontFromFileTTF((path + "NotoSans-Regular.ttf").c_str(), fontSize, &fontCfg);
 		io.Fonts->AddFontFromFileTTF((path + FONT_ICON_FILE_NAME_LC).c_str(), iconSize, &iconFontCfg, ILC_Range);
@@ -272,7 +248,6 @@ namespace Slate {
 		float largeSize = 10.0f;
 		Fonts::iconLargeFont = io.Fonts->AddFontFromFileTTF((path + "NotoSans-Regular.ttf").c_str(), fontSize + largeSize, &fontCfg);
 		io.Fonts->AddFontFromFileTTF((path + FONT_ICON_FILE_NAME_LC).c_str(), iconSize + largeSize, &iconFontCfg, ILC_Range);
-
 
 		// variants of the NotoSans main font
 		// must be after the main font as we merge the fonts with the last font that is added to the io
@@ -291,6 +266,7 @@ namespace Slate {
 			style->DockingSeparatorSize = 1.0f;
 			style->FrameBorderSize = 1.0f;
 			style->FramePadding = ImVec2(10.0f, 4.0f);
+
 			style->TabBarBorderSize = 2.0f;
 			style->TabBarOverlineSize = 1.0f;
 			style->WindowBorderSize = 1.0f; // for the thick borders on everything
@@ -323,7 +299,7 @@ namespace Slate {
 			colors[ImGuiCol_TitleBgActive] = ImVec4(0.06f, 0.06f, 0.06f, 1.00f);
 			colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
 
-			colors[ImGuiCol_MenuBarBg] = colors[ImGuiCol_WindowBg];
+			colors[ImGuiCol_MenuBarBg] = ImVec4(0.10f, 0.10f, 0.10f, 1.00f);
 
 			// lesser colors
 			colors[ImGuiCol_ScrollbarBg] = ImVec4(0.05f, 0.05f, 0.05f, 0.54f);
@@ -334,11 +310,12 @@ namespace Slate {
 			colors[ImGuiCol_SliderGrab] = ImVec4(0.34f, 0.34f, 0.34f, 0.54f);
 			colors[ImGuiCol_SliderGrabActive] = ImVec4(0.56f, 0.56f, 0.56f, 0.54f);
 			colors[ImGuiCol_Button] = ImVec4(0.05f, 0.05f, 0.05f, 0.54f);
-			colors[ImGuiCol_ButtonHovered] = ImVec4(0.19f, 0.19f, 0.19f, 0.54f);
+			colors[ImGuiCol_ButtonHovered] = ImVec4(0.19f, 0.19f, 0.19f, 0.74f);
 			colors[ImGuiCol_ButtonActive] = ImVec4(0.20f, 0.22f, 0.23f, 1.00f);
 
+			// menu bar stuff
 			colors[ImGuiCol_Header] = ImVec4(0.03f, 0.03f, 0.03f, 0.72f);
-			colors[ImGuiCol_HeaderHovered] = ImVec4(0.20f, 0.22f, 0.23f, 0.6f);
+			colors[ImGuiCol_HeaderHovered] = ImVec4(0.20f, 0.22f, 0.23f, 0.8f); // important
 			colors[ImGuiCol_HeaderActive] = ImVec4(0.20f, 0.22f, 0.23f, 0.53f);
 
 			colors[ImGuiCol_Separator] = ImVec4(0.28f, 0.28f, 0.28f, 0.49f);
@@ -349,9 +326,10 @@ namespace Slate {
 			colors[ImGuiCol_ResizeGripActive] = ImVec4(0.40f, 0.44f, 0.47f, 1.00f);
 			colors[ImGuiCol_Tab] = ImVec4(0.00f, 0.00f, 0.00f, 0.52f);
 			colors[ImGuiCol_TabHovered] = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
-			colors[ImGuiCol_TabActive] = ImVec4(0.20f, 0.20f, 0.20f, 0.36f);
-			colors[ImGuiCol_TabUnfocused] = ImVec4(0.00f, 0.00f, 0.00f, 0.52f);
-			colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
+			colors[ImGuiCol_TabSelectedOverline] = ImVec4(0.1f, 0.15f, 0.55f, 1.00f);
+//			colors[ImGuiCol_TabActive] = ImVec4(0.20f, 0.20f, 0.20f, 0.36f);
+//			colors[ImGuiCol_TabUnfocused] = ImVec4(0.00f, 0.00f, 0.00f, 0.52f);
+//			colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
 			colors[ImGuiCol_PlotLines] = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
 			colors[ImGuiCol_PlotLinesHovered] = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
 			colors[ImGuiCol_PlotHistogram] = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
@@ -363,7 +341,7 @@ namespace Slate {
 			colors[ImGuiCol_TableRowBgAlt] = ImVec4(1.00f, 1.00f, 1.00f, 0.06f);
 			colors[ImGuiCol_TextSelectedBg] = ImVec4(0.20f, 0.22f, 0.23f, 1.00f);
 
-			colors[ImGuiCol_NavHighlight] = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
+//			colors[ImGuiCol_NavHighlight] = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
 			colors[ImGuiCol_NavWindowingDimBg] = ImVec4(1.00f, 0.00f, 0.00f, 0.20f);
 			colors[ImGuiCol_ModalWindowDimBg] = ImVec4(1.00f, 0.00f, 0.00f, 0.35f);
 
@@ -375,7 +353,6 @@ namespace Slate {
 
 			colors[ImGuiCol_CheckMark] = ImVec4(0.10f, 1.0f, 0.60f, 1.00f);
 
-			colors[ImGuiCol_TabSelectedOverline] = ImVec4(0.10f, 1.0f, 0.60f, 1.00f);
 		}
 		ImGuizmo::Style* guizmostyle = &ImGuizmo::GetStyle();
 		float thickness = 4.0f;
@@ -387,7 +364,6 @@ namespace Slate {
 			guizmostyle->RotationOuterLineThickness = thickness - 1.0f;
 			guizmostyle->HatchedAxisLineThickness = 1.0f;
 		}
-
 		ImVec4* guizmocolors = guizmostyle->Colors;
 		{
 			guizmocolors[ImGuizmo::DIRECTION_X] = ImVec4(0.858f, 0.243f, 0.113f, 0.929f);

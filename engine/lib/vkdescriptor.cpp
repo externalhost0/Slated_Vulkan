@@ -1,6 +1,9 @@
 //
 // Created by Hayden Rivas on 1/29/25.
 //
+
+#include <volk.h>
+
 #include "Slate/VK/vkdescriptor.h"
 #include "Slate/Debug.h"
 
@@ -54,7 +57,7 @@ namespace Slate {
 		VkDescriptorSet descriptor_set;
 		VkResult result = vkAllocateDescriptorSets(device, &allocInfo, &descriptor_set);
 
-		//allocation failed. Try again
+		//allocation failed. try again
 		if (result == VK_ERROR_OUT_OF_POOL_MEMORY || result == VK_ERROR_FRAGMENTED_POOL) {
 
 			_fullPools.push_back(poolToUse);
@@ -129,7 +132,7 @@ namespace Slate {
 		for (PoolSizeRatio ratio : poolRatios) {
 			poolSizes.push_back(VkDescriptorPoolSize{
 					.type = ratio.type,
-					.descriptorCount = static_cast<uint32_t>(ratio.ratio * setCount)
+					.descriptorCount = static_cast<uint32_t>(ratio.ratio * (float)setCount)
 			});
 		}
 
@@ -137,7 +140,7 @@ namespace Slate {
 		pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 		pool_info.flags = 0;
 		pool_info.maxSets = setCount;
-		pool_info.poolSizeCount = (uint32_t)poolSizes.size();
+		pool_info.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
 		pool_info.pPoolSizes = poolSizes.data();
 
 		VkDescriptorPool newPool;
@@ -158,7 +161,7 @@ namespace Slate {
 
 		VkWriteDescriptorSet write = { .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 		write.dstBinding = binding;
-		write.dstSet = VK_NULL_HANDLE; //left empty for now until we need to write it
+		write.dstSet = VK_NULL_HANDLE; // left empty for now until we need to write it
 		write.descriptorCount = 1;
 		write.descriptorType = type;
 		write.pBufferInfo = &info;
@@ -174,7 +177,7 @@ namespace Slate {
 
 		VkWriteDescriptorSet write = { .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 		write.dstBinding = binding;
-		write.dstSet = VK_NULL_HANDLE; //left empty for now until we need to write it
+		write.dstSet = VK_NULL_HANDLE; // left empty for now until we need to write it
 		write.descriptorCount = 1;
 		write.descriptorType = type;
 		write.pImageInfo = &info;

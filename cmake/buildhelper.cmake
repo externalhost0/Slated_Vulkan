@@ -2,24 +2,24 @@ include(FetchContent)
 
 macro(helper_detectOS)
     if (WIN32)
-        add_compile_definitions(OS_WINDOWS)
+        add_compile_definitions(SLATE_OS_WINDOWS)
         set(CMAKE_INSTALL_BINDIR ".")
         set(CMAKE_INSTALL_LIBDIR ".")
         set(PLUGINS_INSTALL_LOCATION "plugins")
         add_compile_definitions(UNICODE)
     elseif (APPLE)
-        add_compile_definitions(OS_MACOS)
+        add_compile_definitions(SLATE_OS_MACOS)
         set(CMAKE_INSTALL_BINDIR ".")
         set(CMAKE_INSTALL_LIBDIR ".")
         set(PLUGINS_INSTALL_LOCATION "plugins")
         enable_language(OBJC)
         enable_language(OBJCXX)
     elseif (EMSCRIPTEN)
-        add_compile_definitions(OS_WEB)
+        add_compile_definitions(SLATE_OS_WEB)
     elseif (UNIX AND NOT APPLE)
-        add_compile_definitions(OS_LINUX)
+        add_compile_definitions(SLATE_OS_LINUX)
         if (BSD AND BSD STREQUAL "FreeBSD")
-            add_compile_definitions(OS_FREEBSD)
+            add_compile_definitions(SLATE_OS_FREEBSD)
         endif()
         include(GNUInstallDirs)
     else ()
@@ -48,12 +48,15 @@ macro(helper_addGlobalDefines)
     endif()
 endmacro()
 
-macro(helper_addGLMDefines)
+macro(helper_addExternalDefines)
+    # GLN
     add_compile_definitions(GLM_FORCE_DEPTH_ZERO_TO_ONE)
     add_compile_definitions(GLM_ENABLE_EXPERIMENTAL)
+    # IMGUI
+    add_compile_definitions(IMGUI_DISABLE_OBSOLETE_FUNCTIONS)
 endmacro()
 
-macro(helper_compileShaders)
+macro(helper_compileGLSLShaders)
     set(SHADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/shaders)
 
     file(GLOB SHADERS
@@ -75,7 +78,61 @@ macro(helper_compileShaders)
                 OUTPUT ${SHADER_DIR}/compiled_shaders/${FILENAME}.spv
                 COMMAND ${Vulkan_GLSLC_EXECUTABLE} ${SHADER} -o ${SHADER_DIR}/compiled_shaders/${FILENAME}.spv
                 DEPENDS ${SHADER}
-                COMMENT "Compiling: ${FILENAME}"
+                COMMENT "Compiling GLSL: ${FILENAME}"
+        )
+        list(APPEND SPV_SHADERS ${SHADER_DIR}/compiled_shaders/${FILENAME}.spv)
+    endforeach ()
+
+    add_custom_target(shaders ALL DEPENDS ${SPV_SHADERS})
+endmacro()
+
+macro(helper_compileSlangShaders)
+    # set shader asset dir
+    set(SHADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/shaders)
+
+    # output flags
+    set(_SLANG_FLAGS
+            -profile spirv_1_6
+            -capability spvInt64Atomics
+            -target spirv
+            -emit-spirv-directly
+            -fvk-use-entrypoint-name
+            -fvk-use-gl-layout
+            -matrix-layout-column-major
+            -O2 # optimize 0-3
+    )
+
+    # gather .slang shaders and compile
+    file(GLOB SHADERS
+            ${SHADER_DIR}/*.slang
+    )
+    foreach (SHADER IN LISTS SHADERS)
+        get_filename_component(FILENAME ${SHADER} NAME)
+        add_custom_command(
+                OUTPUT ${SHADER_DIR}/compiled_shaders/${FILENAME}.spv
+                COMMAND ${Vulkan_SLANGC_EXECUTABLE} ${_SLANG_FLAGS} ${SHADER} -o ${SHADER_DIR}/compiled_shaders/${FILENAME}.spv -reflection-json ${SHADER_DIR}/compiled_shaders/reflection/${FILENAME}.json
+                DEPENDS ${SHADER}
+                COMMENT "Compiling Slang shader: ${FILENAME}"
+        )
+        list(APPEND SPV_SHADERS ${SHADER_DIR}/compiled_shaders/${FILENAME}.spv)
+    endforeach ()
+
+    add_custom_target(shaders ALL DEPENDS ${SPV_SHADERS})
+endmacro()
+
+macro(helper_compileHLSLShaders)
+    set(SHADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/shaders)
+
+    file(GLOB SHADERS
+            ${SHADER_DIR}/*.hlsl
+    )
+    foreach (SHADER IN LISTS SHADERS)
+        get_filename_component(FILENAME ${SHADER} NAME)
+        add_custom_command(
+                OUTPUT ${SHADER_DIR}/compiled_shaders/${FILENAME}.spv
+                COMMAND ${Vulkan_GLSLC_EXECUTABLE} ${SHADER} -o ${SHADER_DIR}/compiled_shaders/${FILENAME}.spv
+                DEPENDS ${SHADER}
+                COMMENT "Compiling HLSL: ${FILENAME}"
         )
         list(APPEND SPV_SHADERS ${SHADER_DIR}/compiled_shaders/${FILENAME}.spv)
     endforeach ()

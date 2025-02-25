@@ -1,12 +1,12 @@
 //
 // Created by Hayden Rivas on 1/29/25.
 //
-
 #pragma once
 #include <vector>
 #include <span>
 #include <deque>
 #include <vulkan/vulkan.h>
+
 namespace Slate {
 	struct DescriptorLayoutBuilder {
 

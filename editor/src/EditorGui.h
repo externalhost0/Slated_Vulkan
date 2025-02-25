@@ -7,15 +7,25 @@
 #include <Slate/Window.h>
 #include <Slate/Renderer.h>
 
-
-#include <vulkan/vulkan.h>
-#include <imgui_impl_vulkan.h>
+#include <imgui.h>
 #include <ImGuizmo.h>
 
 #include "ViewportCamera.h"
 #include "Context.h"
 
 namespace Slate {
+	enum struct ViewportModes {
+		SHADED,
+		UNSHADED,
+		WIREFRAME,
+		SOLID_WIREFRAME
+	};
+	enum struct HoverWindow {
+		ViewportWindow,
+		PropertiesWindow,
+		ScenePanel,
+		AssetsPanel
+	};
 	class EditorGui {
 	public:
 		void OnAttach(GLFWwindow* pNativeWindow);
@@ -25,27 +35,27 @@ namespace Slate {
 		void Render() const;
 		bool gridIsEnabled = true;
 
-		vktypes::MeshData gridmesh;
-
 		glm::vec2 _viewportBounds[2] {};
 
 		bool IsMouseInViewportBounds();
 
-	private:
 		bool _isCameraControlActive = false;
 	public: // imgui vk resources
 		ImTextureID sceneTexture{};
+		ViewportModes _viewportMode = ViewportModes::SHADED;
+		HoverWindow _currenthovered;
 
 
 
 		VulkanEngine* engine = nullptr;
 		Context* pActiveContext = nullptr;
 		ViewportCamera* pCamera = nullptr;
-	private:
-		std::optional<Entity> hoveredEntity;
 
 		ImGuizmo::MODE _guizmoSpace = ImGuizmo::MODE::WORLD;
 		ImGuizmo::OPERATION _guizmoOperation = ImGuizmo::OPERATION::TRANSLATE;
+	private:
+		std::optional<Entity> hoveredEntity;
+
 	private:
 		glm::vec2 _viewportSize {};
 

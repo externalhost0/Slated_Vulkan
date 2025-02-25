@@ -7,10 +7,9 @@
 #include <span>
 #include <vector>
 #include <filesystem>
+#include <functional>
 
-#include <vulkan/vulkan.h>
 #include <VkBootstrap.h>
-
 #include "VK/vkdescriptor.h"
 #include "VK/vktypes.h"
 
@@ -65,15 +64,16 @@ namespace Slate {
 		void CreateQueues();
 		void CreateCommands();
 		void CreateSyncStructures();
-		void CreateStandardSamplers();
+		void CreateDefaultData();
 
-		void CreateDescriptors();
+		void CreateFrameDescriptors();
 		void CreateDefaultImages();
-		void CreateDefaultBuffers();
 	public:
 		void Aquire(); // opening
 		void Present(); // closing
-		void DestroyEngine();
+		void DestroyEngine(); // final termination of vulkan
+
+		void SetupImGui(); // helper initialization for imgui
 
 		// runtime functions
 		void OnResizeWindow(GLFWwindow *pWindow);
@@ -81,6 +81,8 @@ namespace Slate {
 	public:
 		vktypes::AllocatedImage CreateImage(VkExtent2D extent, VkFormat format, VkImageUsageFlags usages, VkSampleCountFlags samples = VK_SAMPLE_COUNT_1_BIT, bool mipmapped = false) const;
 		vktypes::AllocatedImage CreateImage(VkExtent3D extent, VkFormat format, VkImageUsageFlags usages, VkSampleCountFlags samples = VK_SAMPLE_COUNT_1_BIT, bool mipmapped = false) const;
+		vktypes::AllocatedImage CreateImage(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
+		vktypes::AllocatedImage CreateImage(const std::filesystem::path& file_path, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
 
 		vktypes::AllocatedBuffer CreateBuffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage, VmaAllocationCreateFlags flags = 0) const;
 
@@ -90,13 +92,11 @@ namespace Slate {
 //		vktypes::MeshData CreateMesh(const std::filesystem::path& file_path);
 
 		void Immediate_Submit(std::function<void(VkCommandBuffer cmd)>&& function);
-		void DrawMeshData(vktypes::MeshData data, VkPipelineLayout layout);
+		void DrawMeshData(const vktypes::MeshData& data);
 
 		void DestroyBuffer(const vktypes::AllocatedBuffer& allocatedBuffer) const;
 		void DestroyImage(const vktypes::AllocatedImage& allocatedImage) const;
-		void DestroyPipeline(const vktypes::PipelineObject& pipelineObject) const;
 
-		void UpdateDescriptorSets(const vktypes::GPUSceneData& scene_data);
 	private:
 		void DestroySwapchain();
 		// needed for some initializing logic when using vkBootstrap
@@ -124,7 +124,7 @@ namespace Slate {
 		// draw resources
 		uint32_t _imageIndex = static_cast<uint32_t>(-1);
 		// all images
-		vktypes::AllocatedImage _drawImage             = {};
+		vktypes::AllocatedImage _colorResolveImage     = {};
 		vktypes::AllocatedImage _colorMSAAImage        = {};
 		vktypes::AllocatedImage _depthStencilMSAAImage = {};
 		vktypes::AllocatedImage _entityImage           = {};
@@ -136,9 +136,6 @@ namespace Slate {
 	private:
 		FrameData _frames[FRAME_OVERLAP];
 	public:
-		vktypes::PipelineObject _standardPipeline;
-		vktypes::PipelineObject _gridPipeline;
-	public:
 		// immediate submit structures
 		VkFence _immFence                 = VK_NULL_HANDLE;
 		VkCommandBuffer _immCommandBuffer = VK_NULL_HANDLE;
@@ -146,20 +143,26 @@ namespace Slate {
 	public:
 		VkSampler default_LinearSampler  = VK_NULL_HANDLE;
 		VkSampler default_NearestSampler = VK_NULL_HANDLE;
+
+	public: // user specific things
+		VkPipeline _standardPipeline;
+		VkPipeline _plaincolorTrianglePipeline;
+		VkPipeline _plaincolorLinePipeline;
+		VkPipeline _imagePipeline;
+
+		VkPipelineLayout _standardPL;
+		VkPipelineLayout _imagePL;
 	public:
-		VkClearColorValue clearColorValue = { 0.2f, 0.4f, 0.65f, 1.0f };
-
-		// required to move our descriptor data
-
-		VkDescriptorSet _gpuDescriptorSet;
-		VkDescriptorSetLayout _gpuDescriptorSetLayout;
-		vktypes::AllocatedBuffer _gpuSceneDataBuffer;
-
+		VkClearColorValue clearColorValue = { 0.1f, 0.1f, 0.1f, 1.0f };
 		// currently used by imgui:
-		VkDescriptorPool imguiDescriptorPool   = VK_NULL_HANDLE;
+		VkDescriptorPool _imguiDescriptorPool = VK_NULL_HANDLE;
 		VkDescriptorSet _viewportImageDescriptorSet = {};
 
-		// currently not used yet!
-		DescriptorAllocatorGrowable _globalDescriptorAllocator;
+		VkDescriptorSetLayout _centralDescriptorSetLayout;
+		VkDescriptorSetLayout _imageDescriptorSetLayout;
+
+		vktypes::AllocatedBuffer _lightingDataBuffer;
+		vktypes::AllocatedBuffer _cameraDataBuffer;
+		vktypes::AllocatedBuffer _colorBuffer;
 	};
 }

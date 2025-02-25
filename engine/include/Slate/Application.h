@@ -9,7 +9,6 @@
 #include "SmartPointers.h"
 
 #include <memory>
-#include <unordered_map>
 
 namespace Slate {
 	// application, topmost system of Slate engine

@@ -5,6 +5,7 @@
 
 #include <IconFontCppHeaders/IconsLucide.h>
 
+#include <span>
 #include <imgui.h>
 #include <imgui_internal.h>
 
@@ -12,6 +13,7 @@
 #include "EditorGui.h"
 #include "Fonts.h"
 #include "ImGuiSnippets.h"
+#include "ImGuiComponents.h"
 
 namespace Slate {
 	void ComponentCore(Entity& entity) {
@@ -31,10 +33,9 @@ namespace Slate {
 			entity.GetComponent<CoreComponent>().name = buffer;
 		}
 		ImGui::PopFont();
-		ImGui::Text("%u", (uint32_t)entity.GetHandle());
 	}
 	void ComponentTransform(Entity* entity) {
-		auto &transform = entity->GetComponent<TransformComponent>();
+		auto& transform = entity->GetComponent<TransformComponent>();
 
 		Vector3Drag("Position", transform.Position, "%.2f", 0.0f, 0.01f);
 
@@ -45,11 +46,93 @@ namespace Slate {
 		Vector3Drag("Scale", transform.Scale, "%.3f", 1.0f, 0.01f);
 	}
 	void ComponentMesh(Entity* entity) {
+		auto& component = entity->GetComponent<MeshComponent>();
+
+		ImGui::Text("%s", component.shaderProgram.filename.c_str());
+
+//		SlateGui::ColorField();
+		for (const auto& block : component.shaderProgram.uniformBlockObjects) {
+			ImGui::PushFont(Fonts::boldFont);
+			ImGui::Text("%s", block.name.c_str());
+			ImGui::PopFont();
+
+			for (const auto& member : block.members) {
+				if (std::holds_alternative<CustomType>(member)) {
+					CustomType type = std::get<CustomType>(member);
+
+					ImGui::Text("Name: %s", type.name.c_str());
+					ImGui::Text("Type: %s", type.usertype.c_str());
+
+				} else {
+					PlainType type = std::get<PlainType>(member);
+
+					ImGui::Text("Name: %s", type.name.c_str());
+					ImGui::Text("Type: %s", Util::StringFromEngineType(type.glsltype).c_str());
+				}
+				ImGui::NewLine();
+			}
+		}
 
 	}
 	void ComponentScript(Entity* entity) {
 
 	}
+
+	ImVec4 BlackbodyToRGB(float temperature) {
+		float t = temperature / 1000.0f; // Normalize to range
+
+		float r, g, b;
+
+		// Red Channel
+		if (t <= 1.0f) r = 1.0f;
+		else if (t < 2.0f) r = 1.0f;
+		else r = 1.0f, r = 329.698727446 * pow(t - 1.0, -0.1332047592);
+		r = std::clamp(r / 255.0f, 0.0f, 1.0f);
+
+		// Green Channel
+		if (t <= 0.66f) g = 0.0f;
+		else if (t <= 2.0f) g = 99.4708025861 * log(t) - 161.1195681661;
+		else g = 288.1221695283 * pow(t - 0.6, -0.0755148492);
+		g = std::clamp(g / 255.0f, 0.0f, 1.0f);
+
+		// Blue Channel
+		if (t >= 0.66f) b = 1.0f;
+		else if (t <= 0.19f) b = 0.0f;
+		else b = 138.5177312231 * log(t - 0.1) - 305.0447927307;
+		b = std::clamp(b / 255.0f, 0.0f, 1.0f);
+
+		return {r, g, b, 1.0};
+	}
+
+	void ComponentPointLight(Entity* entity) {
+		auto& light = entity->GetComponent<PointLightComponent>();
+
+		SlateGui::ColorField(light.point.Color);
+		ImGui::DragFloat("Intensity", &light.point.Intensity, 0.05f, 0.0f, 1000.0f);
+		ImGui::DragFloat("Range", &light.point.Range, 0.5f, 0.0f, 100.0f);
+	}
+	void ComponentSpotLight(Entity* entity) {
+		auto& light = entity->GetComponent<SpotLightComponent>();
+
+		SlateGui::ColorField(light.spot.Color);
+		ImGui::DragFloat("Intensity", &light.spot.Intensity, 0.05f, 0.0f, 1000.0f);
+	}
+
+	void ComponentDirectionalLight(Entity* entity) {
+		auto& light = entity->GetComponent<DirectionalLightComponent>();
+
+		SlateGui::ColorField(light.directional.Color);
+		ImGui::DragFloat("Intensity", &light.directional.Intensity, 0.05f, 0.0f, 1000.0f);
+	}
+	void ComponentEnvironmentLight(Entity* entity) {
+		// ambient point source changes
+		auto& light = entity->GetComponent<EnvironmentComponent>();
+
+		SlateGui::ColorField(light.ambient.Color);
+		ImGui::DragFloat("Intensity", &light.ambient.Intensity, 0.05f, 0.0f, 1000.0f);
+	}
+
+
 	template <typename T>
 	struct ComponentMetadata { static_assert(sizeof(T) == 0); };
 
@@ -76,7 +159,7 @@ namespace Slate {
 
 		// some flags we want for the following imgui elements
 		ImGuiChildFlags childFlags = ImGuiChildFlags_AutoResizeY;
-		ImGuiTreeNodeFlags nodeFlags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_AllowItemOverlap;
+		ImGuiTreeNodeFlags nodeFlags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_AllowOverlap;
 
 		// generate a unique id for the child window
 		std::string uniqueId = "Child" + std::to_string(typeid(ComponentType).hash_code()) + std::to_string(static_cast<uint32_t>(entity->GetHandle()));
@@ -138,9 +221,9 @@ namespace Slate {
 
 	void EditorGui::OnPropertiesPanelUpdate() {
 		ImGui::Begin("Properties");
-		if (pActiveContext->entity) {
+		if (pActiveContext->entity.has_value()) {
 
-			Entity& entity = *pActiveContext->entity;// alias active entity
+			Entity& entity = pActiveContext->entity.value();// alias active entity
 			ComponentCore(entity);
 			ImGui::Separator();
 			ImGui::Spacing();
@@ -180,6 +263,30 @@ namespace Slate {
 		static constexpr const char* name = "Mesh";
 		static constexpr const char* icon = ICON_LC_BLOCKS;
 		static constexpr auto handler = ComponentMesh;
+	};
+	template <>
+	struct ComponentMetadata<PointLightComponent> {
+		static constexpr const char* name = "Point Light";
+		static constexpr const char* icon = ICON_LC_LIGHTBULB;
+		static constexpr auto handler = ComponentPointLight;
+	};
+	template <>
+	struct ComponentMetadata<DirectionalLightComponent> {
+		static constexpr const char* name = "Directional Light";
+		static constexpr const char* icon = ICON_LC_SUN;
+		static constexpr auto handler = ComponentDirectionalLight;
+	};
+	template <>
+	struct ComponentMetadata<EnvironmentComponent> {
+		static constexpr const char* name = "Environment Light";
+		static constexpr const char* icon = ICON_LC_GLOBE;
+		static constexpr auto handler = ComponentEnvironmentLight;
+	};
+	template <>
+	struct ComponentMetadata<SpotLightComponent> {
+		static constexpr const char* name = "Spot Light";
+		static constexpr const char* icon = ICON_LC_LAMP_CEILING;
+		static constexpr auto handler = ComponentSpotLight;
 	};
 
 }

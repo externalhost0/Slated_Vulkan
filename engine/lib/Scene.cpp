@@ -14,9 +14,12 @@ namespace Slate {
 		return CreateEntity("Unnamed Entity");
 	}
 	Entity Scene::CreateEntity(const std::string& name) {
-		Entity entity = { _entityRegistry.create(), this };
+		Entity entity = { _entityRegistry.create(), _entityRegistry };
 		entity.AddComponent<CoreComponent>(name);
 		return entity;
+	}
+	void Scene::DestroyEntity(const Entity& entity) {
+		_entityRegistry.destroy(entity.GetHandle());
 	}
 
 	template<typename... Component>
@@ -37,13 +40,12 @@ namespace Slate {
 		std::smatch match;
 
 		if (std::regex_match(baseName, match, regex)) {
-			std::string namePart = match[1].str();
-			std::string numberPart = match[3].str();
+			std::string name_segment = match[1].str();
+			std::string number_segment = match[3].str();
 
-			int number = numberPart.empty() ? 1 : std::stoi(numberPart) + 1;
-			return namePart + " " + std::to_string(number);
+			int newnumber = number_segment.empty() ? 1 : std::stoi(number_segment) + 1;
+			return name_segment + " " + std::to_string(newnumber);
 		}
-
 		return baseName + " 2";
 	}
 	Entity Scene::DuplicateEntity(Entity entity) {
@@ -55,20 +57,18 @@ namespace Slate {
 		return newEntity;
 	}
 
-	void Scene::DestroyEntity(const Entity& entity) {
-		_entityRegistry.destroy(entity.GetHandle());
-	}
+
 
 
 
 
 
 	template<typename T>
-	void Scene::OnComponentAdded(Slate::Entity entity, T &component) {
+	void Scene::OnComponentAdded(Entity entity, T &component) {
 		static_assert(sizeof(T) == 0); // we want every templated component to have its own addition function
 	}
 	template<>
-	void Scene::OnComponentAdded<CoreComponent>(Slate::Entity entity, CoreComponent &component) {
+	void Scene::OnComponentAdded<CoreComponent>(Entity entity, CoreComponent &component) {
 
 	}
 	template<>
@@ -81,6 +81,14 @@ namespace Slate {
 	}
 	template<>
 	void Scene::OnComponentAdded<ScriptComponent>(Entity entity, ScriptComponent& component) {
+
+	}
+	template<>
+	void Scene::OnComponentAdded<PointLightComponent>(Entity entity, PointLightComponent& component) {
+
+	}
+	template<>
+	void Scene::OnComponentAdded(Slate::Entity entity, EnvironmentComponent& component) {
 
 	}
 

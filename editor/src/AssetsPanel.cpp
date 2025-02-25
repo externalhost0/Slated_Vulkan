@@ -3,6 +3,7 @@
 //
 #include "EditorGui.h"
 #include "Context.h"
+
 namespace Slate {
 	void EditorGui::OnAssetPanelUpdate() {
 

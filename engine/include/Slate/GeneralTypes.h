@@ -3,6 +3,7 @@
 //
 #pragma once
 #include <cstdint>
+#include <cstdio>
 namespace Slate {
 	struct Version {
 		uint8_t major = 0;

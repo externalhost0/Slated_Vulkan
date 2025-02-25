@@ -22,21 +22,15 @@ namespace Slate {
 		ImGui::Begin("Scene Hierarchy");
 		{
 			// if we click on any empty space, unselect the entity
-			if (ImGui::IsMouseDoubleClicked(0) && ImGui::IsWindowHovered())
+			if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && ImGui::IsWindowHovered())
 				pActiveContext->entity = std::nullopt;
 
-			// scene needs to be choosen!
-//			if (!pActiveContext->scene) {
-//				ImGui::Text("No Active Scene!");
-//				ImGui::End();
-//				return;
-//			}
 
 			// right click menu on window
 			if (ImGui::BeginPopupContextWindow()) {
 				ImGui::PushStyleColor(ImGuiCol_HeaderHovered, Brighten(ImGui::GetStyleColorVec4(ImGuiCol_HeaderHovered), 0.2f));
 				if (ImGui::Selectable("New Entity"))
-					pActiveContext->entity = pActiveContext->scene.CreateEntity("Unnamed Entity");
+					pActiveContext->entity.emplace(pActiveContext->scene.CreateEntity("Unnamed Entity"));
 				ImGui::PopStyleColor();
 				ImGui::EndPopup();
 			}
@@ -53,15 +47,21 @@ namespace Slate {
 			int toDeleteIndex = -1;
 			// ENTITY LIST
 			for (int i = 0; i < entity_order_vector.size(); ++i) {
-				ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen |
-										   ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanFullWidth;
+				ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_Leaf |
+										   ImGuiTreeNodeFlags_NoTreePushOnOpen |
+										   ImGuiTreeNodeFlags_FramePadding |
+										   ImGuiTreeNodeFlags_SpanFullWidth;
 				// from order vector get our entity
-				Entity entity = {entity_order_vector[i], &pActiveContext->scene};
+				Entity entity = {entity_order_vector[i], pActiveContext->scene.GetRegistry()};
 				// scene panel actual content
 				float ypad = ImGui::GetFontSize() * 0.35f;
+
+				// current entity in vector needs to be the active entity
 				bool isSelected = entity.GetHandle() == pActiveContext->entity->GetHandle();
-				if (isSelected)
+				// if entity is also valid
+				if (isSelected && pActiveContext->entity.has_value()) {
 					flags |= ImGuiTreeNodeFlags_Selected;
+				}
 
 				ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.0f, ypad));
 				ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
@@ -111,10 +111,10 @@ namespace Slate {
 
 				// on normal click
 				if (ImGui::IsItemClicked())
-					pActiveContext->entity = entity;
+					pActiveContext->entity.emplace(entity);
 				// right click menu on item, also use the entity id as a id for the popup
 				if (ImGui::BeginPopupContextItem(std::to_string((uint64_t) entity.GetHandle()).c_str())) {
-					pActiveContext->entity = entity;
+					pActiveContext->entity.emplace(entity);
 					// name header
 					ImGui::PushFont(Fonts::boldFont);
 					ImGui::Text("%s", entity.GetComponent<CoreComponent>().name.c_str());
@@ -124,7 +124,7 @@ namespace Slate {
 					ImGui::PushStyleColor(ImGuiCol_HeaderHovered,
 										  Brighten(ImGui::GetStyleColorVec4(ImGuiCol_HeaderHovered), 0.2f));
 					// rename functionality
-					if (ImGui::Selectable("Rename", false, ImGuiSelectableFlags_DontClosePopups))
+					if (ImGui::Selectable("Rename", false, ImGuiSelectableFlags_NoAutoClosePopups))
 						ImGui::OpenPopup("RenamePopup"); // Open the popup when button is clicked
 
 					if (ImGui::BeginPopup("RenamePopup")) {
@@ -145,7 +145,7 @@ namespace Slate {
 					if (ImGui::Selectable("Duplicate")) {
 						if (pActiveContext->entity) {
 							Entity newEntity = pActiveContext->scene.DuplicateEntity(pActiveContext->entity.value());
-							pActiveContext->entity = newEntity; // set newly duplicated entity as active
+							pActiveContext->entity.emplace(newEntity); // set newly duplicated entity as active
 						}
 					}
 					ImGui::Selectable("Copy NW");
@@ -163,7 +163,7 @@ namespace Slate {
 			}
 			if (toDeleteIndex != -1) {
 				pActiveContext->entity = std::nullopt;
-				pActiveContext->scene.DestroyEntity(Entity(entity_order_vector[toDeleteIndex], &pActiveContext->scene));
+				pActiveContext->scene.DestroyEntity(Entity(entity_order_vector[toDeleteIndex], pActiveContext->scene.GetRegistry()));
 				entity_order_vector.erase(entity_order_vector.begin() + toDeleteIndex);
 			}
 			// end of list

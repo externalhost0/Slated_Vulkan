@@ -16,12 +16,12 @@ namespace Slate {
 
 	void Loader::loadGTLF(const std::filesystem::path& file_path) {
 		constexpr fastgltf::Extensions supported_extensions =
-				fastgltf::Extensions::KHR_mesh_quantization |
-				fastgltf::Extensions::KHR_texture_transform |
-				fastgltf::Extensions::KHR_materials_clearcoat |
-				fastgltf::Extensions::KHR_materials_specular |
+				fastgltf::Extensions::KHR_mesh_quantization      |
+				fastgltf::Extensions::KHR_texture_transform      |
+				fastgltf::Extensions::KHR_materials_clearcoat    |
+				fastgltf::Extensions::KHR_materials_specular     |
 				fastgltf::Extensions::KHR_materials_transmission |
-				fastgltf::Extensions::KHR_materials_variants |
+				fastgltf::Extensions::KHR_materials_variants     |
 				fastgltf::Extensions::KHR_lights_punctual;
 
 		constexpr fastgltf::Options options =
@@ -30,7 +30,7 @@ namespace Slate {
 				fastgltf::Options::AllowDouble;
 
 
-		// data
+		// meshData
 		auto data_result = fastgltf::GltfDataBuffer::FromPath(file_path);
 		EXPECT(data_result.error() != fastgltf::Error::None, "Data load from path ({}) failed!", file_path.c_str());
 		fastgltf::GltfDataBuffer data = std::move(data_result.get());

@@ -1,2 +1,4 @@
 .idea
 cmake-build-debug
+.clang-format
+/editor/shaders/compiled_shaders/

@@ -16,9 +16,12 @@ namespace Slate {
 	std::vector<Entity> Scene::GetAllEntitiesWith() {
 		auto ids = this->GetAllIDsWith<Components...>();
 		std::vector<Entity> result;
-		for (entt::entity id : ids) {
-			result.emplace_back(id, this);
+		result.reserve(static_cast<size_t>(std::distance(ids.begin(), ids.end()))); // not going to work, delete
+		for (const entt::entity& id : ids) {
+			result.emplace_back(id, this->_entityRegistry);
 		}
 		return result;
 	}
+
+
 }

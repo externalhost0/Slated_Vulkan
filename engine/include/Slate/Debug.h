@@ -9,10 +9,6 @@
 
 #include <fmt/format.h>
 
-#include <vulkan/vulkan.h>
-#include <vulkan/vulkan_core.h>
-
-
 namespace Slate {
 
 #ifdef SLATE_DEBUG
@@ -29,12 +25,12 @@ namespace Slate {
 #endif
 
 #ifdef SLATE_DEBUG
-#define EXPECT(ERROR, FORMAT, ...) {                                                                                                            \
-    int macroErrorCode = static_cast<int>(ERROR);                                                                                               \
-    if (!macroErrorCode) {                                                                                                                      \
-        fmt::print(stderr, "EXPECT: {}:{} -> {} -> Error({}):\n\t" FORMAT "\n", __FILE__, __LINE__, __func__, macroErrorCode, ##__VA_ARGS__);   \
-        std::raise(SIGABRT);                                                                                                                    \
-    }                                                                                                                                           \
+#define EXPECT(ERROR, FORMAT, ...) {                                                                                                            		   \
+    int macroErrorCode = static_cast<int>(ERROR);                                                                                               		   \
+    if (!macroErrorCode) {                                                                                                                   		 	   \
+        fmt::print(stderr, "EXPECT: {}:{} -> {} -> Error({}):\n\t" FORMAT "\n", __FILE__, __LINE__, __func__, macroErrorCode __VA_OPT__(, __VA_ARGS__));   \
+        std::raise(SIGABRT);                                                                                                                    		   \
+    }                                                                                                                                           		   \
 }
 #else
 #define EXPECT(ERROR, FORMAT)

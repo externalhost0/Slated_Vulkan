@@ -4,7 +4,6 @@ project(${PROJECT_NAME}
         LANGUAGES C CXX
 )
 
-
 add_executable(${PROJECT_NAME}
         ${SHADERS}
         src/main.cpp
@@ -16,15 +15,47 @@ add_executable(${PROJECT_NAME}
         src/ScenePanel.cpp
         src/ViewportCamera.cpp
         src/ImGuiSnippets.cpp
-        src/ImGuiSnippets.h
-        src/Context.h
+        src/ImGuiComponents.cpp
+        src/Utilities.cpp
+        src/Utilities.h
 )
 # for compiling shaders
-helper_compileShaders()
+#helper_compileGLSLShaders()
+helper_compileSlangShaders()
 add_dependencies(${PROJECT_NAME} shaders)
 
-find_package(imgui CONFIG REQUIRED)
-find_package(ImGuizmo CONFIG REQUIRED)
+# // ----- ImGui Setup ---- //
+set(IMGUI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui")
+set(IMGUI_SOURCES
+        "${IMGUI_DIR}/imgui.cpp"
+        "${IMGUI_DIR}/imgui_demo.cpp"
+        "${IMGUI_DIR}/imgui_draw.cpp"
+        "${IMGUI_DIR}/imgui_widgets.cpp"
+        "${IMGUI_DIR}/imgui_tables.cpp"
+        "${IMGUI_DIR}/backends/imgui_impl_glfw.cpp"
+        "${IMGUI_DIR}/backends/imgui_impl_vulkan.cpp"
+)
+add_library(imgui STATIC ${IMGUI_SOURCES})
+target_include_directories(imgui PUBLIC
+        ${IMGUI_DIR}
+        ${IMGUI_DIR}/backends
+)
+target_compile_definitions(imgui PUBLIC IMGUI_IMPL_VULKAN_USE_VOLK)
+target_link_libraries(imgui PUBLIC SlateEngine)
+# // ----- ImGuizmo Setup ---- //
+set(IMGUIZMO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/ImGuizmo")
+set(IMGUIZMO_SOURCES
+        "${IMGUIZMO_DIR}/ImGuizmo.cpp"
+        "${IMGUIZMO_DIR}/ImGradient.cpp"
+)
+add_library(imguizmo STATIC ${IMGUIZMO_SOURCES})
+target_include_directories(imguizmo PUBLIC
+    ${IMGUIZMO_DIR}
+)
+target_link_libraries(imguizmo PUBLIC imgui)
+target_compile_options(imguizmo PRIVATE -Wno-nested-anon-types)
+# // --- DONE ----- //
+
 find_package(nfd CONFIG REQUIRED)
 
 target_include_directories(${PROJECT_NAME}
@@ -35,9 +66,7 @@ target_include_directories(${PROJECT_NAME}
 )
 target_link_libraries(${PROJECT_NAME}
         PUBLIC
-        SlateEngine
-        imgui::imgui
-        imguizmo::imguizmo
+        imguizmo # includes imgui
         nfd::nfd
 )
 

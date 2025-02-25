@@ -1,10 +1,12 @@
 //
 // Created by Hayden Rivas on 1/15/25.
 //
-#include <algorithm>
+#include <cmath>
 #include <span>
-#include <vulkan/vulkan.h>
+
+#include <volk.h>
 #include "Slate/VK/vkinfo.h"
+#include "Slate/VK/vktypes.h"
 
 namespace Slate::vkinfo {
 
@@ -47,7 +49,7 @@ namespace Slate::vkinfo {
 		colorAttachment.imageView = view;
 		colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-		colorAttachment.loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+		colorAttachment.loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		if (clear) colorAttachment.clearValue.color = *clear;
 		colorAttachment.storeOp = resolveView ? VK_ATTACHMENT_STORE_OP_DONT_CARE : VK_ATTACHMENT_STORE_OP_STORE;
 
@@ -65,7 +67,7 @@ namespace Slate::vkinfo {
 
 		depthAttachment.imageView = view;
 		depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
-		depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		depthAttachment.loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		if (clear) depthAttachment.clearValue.depthStencil = *clear;
 		return depthAttachment;
@@ -175,10 +177,35 @@ namespace Slate::vkinfo {
 		info.pNext = nullptr;
 		// empty defaults
 		info.flags = 0;
-		info.setLayoutCount = 0;
-		info.pSetLayouts = nullptr;
-		info.pushConstantRangeCount = 0;
 		info.pPushConstantRanges = nullptr;
+		info.pushConstantRangeCount = 0;
+		info.pSetLayouts = nullptr;
+		info.setLayoutCount = 0;
+		return info;
+	}
+	VkPipelineLayoutCreateInfo CreatePipelineLayoutInfo(VkPushConstantRange* push_constants, VkDescriptorSetLayout* descriptor_layouts) {
+		VkPipelineLayoutCreateInfo info = {};
+		info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+		info.pNext = nullptr;
+		info.flags = 0;
+
+		info.pPushConstantRanges = push_constants;
+		info.pushConstantRangeCount = 1;
+
+		info.pSetLayouts = descriptor_layouts;
+		info.setLayoutCount = 1;
+		return info;
+	}
+	VkPipelineLayoutCreateInfo CreatePipelineLayoutInfo(std::span<VkPushConstantRange> push_constants, std::span<VkDescriptorSetLayout> descriptor_layouts) {
+		VkPipelineLayoutCreateInfo info = {};
+		info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+		info.pNext = nullptr;
+		info.flags = 0;
+
+		info.pPushConstantRanges = push_constants.data();
+		info.pushConstantRangeCount = push_constants.size();
+		info.pSetLayouts = descriptor_layouts.data();
+		info.setLayoutCount = descriptor_layouts.size();
 		return info;
 	}
 	VkPipelineShaderStageCreateInfo CreatePipelineShaderStageInfo(VkShaderStageFlagBits stage, VkShaderModule shaderModule, const char* entry) {
@@ -188,7 +215,7 @@ namespace Slate::vkinfo {
 
 		info.stage = stage;
 		info.module = shaderModule;
-		info.pName = entry; // entry point will basically be 'main' most of the time
+		info.pName = entry; // entry point default to "main"
 		return info;
 	}
 	VkPipelineDynamicStateCreateInfo CreatePipelineDynamicStateInfo(const VkDynamicState* states, uint32_t statescount, VkPipelineDynamicStateCreateFlags flags) {
@@ -201,23 +228,20 @@ namespace Slate::vkinfo {
 		info.dynamicStateCount = statescount;
 		return info;
 	}
-	VkImageCreateInfo CreateImageInfo(VkExtent3D extent, VkFormat format, VkImageUsageFlags usage_flags, uint32_t mipmap_levels, VkSampleCountFlagBits sample_flag) {
+	VkImageCreateInfo CreateImageInfo(VkExtent3D extent, VkFormat format, VkImageUsageFlags usage_flags, uint32_t mipmap_levels, VkSampleCountFlags sample_flag) {
 		VkImageCreateInfo info = {};
 		info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 		info.pNext = nullptr;
 
 		info.format = format;
 		info.extent = extent;
-		info.samples = sample_flag;
+		info.samples = static_cast<VkSampleCountFlagBits>(sample_flag); // from flags to bits
 		info.usage = usage_flags;
 
 		info.imageType = VK_IMAGE_TYPE_2D;
 
-		if (mipmap_levels > 1) {
-			info.mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(extent.width, extent.height)))) + 1;
-		} else {
-			info.mipLevels = mipmap_levels;
-		}
+		info.mipLevels = mipmap_levels; // default to 1
+
 		info.arrayLayers = 1;
 		info.tiling = VK_IMAGE_TILING_OPTIMAL; // auto decide best format
 		info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;

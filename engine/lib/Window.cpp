@@ -18,8 +18,6 @@ namespace Slate {
 //	}
 
 	void Window::Build() {
-		EXPECT(glfwVulkanSupported(), "[GLFW] Vulkan Not Supported!")
-
 		// get some properties of user monitor
 		GLFWmonitor* monitor = glfwGetPrimaryMonitor();
 		const GLFWvidmode* mode = glfwGetVideoMode(monitor);
@@ -34,6 +32,7 @@ namespace Slate {
 
 			// variable hints
 			glfwWindowHint(GLFW_RESIZABLE, m_Spec.IsResizeable);
+
 		}
 
 

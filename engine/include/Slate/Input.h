@@ -9,24 +9,35 @@
 #include "BaseSystem.h"
 
 namespace Slate {
-	class InputSystem : BaseSystem {
+	enum struct MouseShape {
+		CROSSHAIR,
+		CENTER
+	};
+	class InputSystem {
 	public:
 
 		static bool IsKeyPressed(int key, int keystate = GLFW_PRESS);
 		static bool IsMouseButtonPressed(int button);
-		static glm::ivec2 GetMousePosition();
+		static std::pair<float, float> GetMousePosition();
 
 		static void SetInputMode(int mode);
 		static int GetInputMode();
+		static void SetCursor(MouseShape shape);
 
 	public:
 		static void InjectWindow(GLFWwindow* window) { _pNativeWindow = window; }
 	private:
 		inline static GLFWwindow* _pNativeWindow = nullptr;
+
+		inline static GLFWcursor* cross_hair_cursor = nullptr;
+		inline static GLFWcursor* center_cursor = nullptr;
 	private:
-		void Initialize() override;
-		void Shutdown() override;
+		static void Initialize();
+		static void Shutdown();
+		inline static bool _isInitialized = false;
+
 		friend class Application;
+		static GLFWcursor *GetCursorFromShape(MouseShape shape);
 	};
 
 }
