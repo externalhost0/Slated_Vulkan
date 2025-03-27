@@ -8,7 +8,7 @@
 
 #include "Slate/MeshGenerators.h"
 namespace Slate {
-	void GenerateGridEXT(std::vector<Vertex_Standard>& vertices, float size, unsigned int numLines) {
+	void GenerateGridEXT(std::vector<Vertex>& vertices, float size, unsigned int numLines) {
 		vertices.clear();
 		// auto calc spacing
 		float spacing = size / static_cast<float>(numLines);
@@ -17,34 +17,34 @@ namespace Slate {
 			float pos = -size / 2.0f + i * spacing;  // line position
 
 			// x-axis
-			Vertex_Standard xPoint {};
+			Vertex xPoint {};
 			xPoint.position.x = (-size / 2.0f);
 			xPoint.position.y = (0.0f);
 			xPoint.position.z = (pos);
 			vertices.push_back(xPoint);
 
-			Vertex_Standard yPoint {};
+			Vertex yPoint {};
 			yPoint.position.x = (size / 2.0f);
 			yPoint.position.y = 0.0f;
 			yPoint.position.z = pos;
 			vertices.push_back(yPoint);
 
 			// z-axis
-			Vertex_Standard zPoint {};
+			Vertex zPoint {};
 			zPoint.position.x = pos;
 			zPoint.position.y = 0.0f;
 			zPoint.position.z = -size / 2.0f;
 			vertices.push_back(zPoint);
 
 			// loop back point
-			Vertex_Standard extraPoint {};
+			Vertex extraPoint {};
 			extraPoint.position.x = pos;
 			extraPoint.position.y = 0.0f;
 			extraPoint.position.z = size / 2.0f;
 			vertices.push_back(extraPoint);
 		}
 	}
-	void GenerateGrid(std::vector<Vertex_Standard>& vertices, float size, unsigned int numLines) {
+	void GenerateGrid(std::vector<Vertex>& vertices, float size, unsigned int numLines) {
 		vertices.clear();
 		float spacing = size / static_cast<float>(numLines);
 		float halfSize = size / 2.0f;
@@ -79,9 +79,7 @@ namespace Slate {
 		vertices.push_back({ { -halfSize, 0.0f, halfSize }});
 	}
 
-
-
-	void GenerateSphere(std::vector<Vertex_Standard>& vertices, std::vector<uint32_t>& indices, float radius, int stacks, int slices) {
+	void GenerateSphere(std::vector<Vertex>& vertices, std::vector<uint32_t>& indices, float radius, int stacks, int slices) {
 		vertices.clear();
 		indices.clear();
 
@@ -123,7 +121,7 @@ namespace Slate {
 		}
 	}
 
-	void GenerateSimpleSphere(std::vector<Vertex_Standard>& vertices, unsigned int numSegments) {
+	void GenerateSimpleSphere(std::vector<Vertex>& vertices, unsigned int numSegments) {
 		vertices.clear();
 		float radius = 1.0f;
 
@@ -140,7 +138,7 @@ namespace Slate {
 			float x = radius * cos(increment);
 			float y = radius * sin(increment);
 
-			Vertex_Standard point {};
+			Vertex point {};
 			point.position = {x, y, 0.f};
 			vertices.push_back(point);
 		}
@@ -150,7 +148,7 @@ namespace Slate {
 			float x = radius * cos(increment);
 			float z = radius * sin(increment);
 
-			Vertex_Standard point {};
+			Vertex point {};
 			point.position = {x, 0.f, z};
 			vertices.push_back(point);
 		}
@@ -160,125 +158,117 @@ namespace Slate {
 			float x = radius * cos(increment);
 			float y = radius * sin(increment);
 
-			Vertex_Standard point {};
+			Vertex point {};
 			point.position = {0.f, y, x};
 			vertices.push_back(point);
 		}
 	}
 
-	// not a very good function, refine later
-	void GenerateSpot(std::vector<Vertex_Standard>& vertices, unsigned int numSegments) {
+	void GenerateSpot(std::vector<Vertex>& vertices, unsigned int numSegments) {
 		vertices.clear();
 
-		float radius = 0.18f;
-		float height = 10.0f;
+		float radius = 0.5f;
+		float height = radius;
 
 		float angleIncrement = 2.0f * static_cast<float>(M_PI) / static_cast<float>(numSegments);
 
-		// Generate base circle vertices
-		for (int i = 0; i < numSegments; ++i) {
-			float angle = static_cast<float>(i) * angleIncrement;
+		std::vector<Vertex> baseVertices;
+		for (unsigned int i = 0; i < numSegments; ++i) {
+			float angle = i * angleIncrement;
 			float x = radius * cos(angle);
 			float z = radius * sin(angle);
 
-			// Add base circle vertices
-			Vertex_Standard point {};
+			Vertex point{};
 			point.position = {x, -height, z};
-			vertices.push_back(point);
-		}
-		{
-			// Add apex of the cone (tip)
-			Vertex_Standard point{};
-			point.position = {0.f, 0.f, 0.f};
-			vertices.push_back(point);
+			baseVertices.push_back(point);
 		}
 
-		// Generate side vertices (triangular faces)
-		for (int i = 0; i < numSegments; ++i) {
-			int nextIndex = (i + 1) % numSegments;
+		// add tip
+		Vertex apex{};
+		apex.position = {0.f, 0.f, 0.f};
+		vertices.push_back(apex);
+		unsigned int apexIndex = 0;
 
-			// Base vertices
-			vertices.push_back(vertices[i * 3]);
-			vertices.push_back(vertices[i * 3 + 1]);
-			vertices.push_back(vertices[i * 3 + 2]);
+		// base circle
+		unsigned int baseStartIndex = vertices.size();
+		vertices.insert(vertices.end(), baseVertices.begin(), baseVertices.end());
 
-			// Next base vertex
-			vertices.push_back(vertices[nextIndex * 3]);
-			vertices.push_back(vertices[nextIndex * 3 + 1]);
-			vertices.push_back(vertices[nextIndex * 3 + 2]);
+		// sides
+		for (unsigned int i = 0; i < numSegments; ++i) {
+			unsigned int nextIndex = (i + 1) % numSegments + baseStartIndex;
 
-			// Apex vertex
-			Vertex_Standard point {};
-			point.position = {0.f, 0.f, 0.f};
-			vertices.push_back(point);
+			vertices.push_back(vertices[apexIndex]);
+			vertices.push_back(vertices[i + baseStartIndex]);
+			vertices.push_back(vertices[nextIndex]);
 		}
 	}
 
-	void GenerateArrow2DMesh(std::vector<Vertex_Standard>& vertices, float shaftLength, float shaftWidth, float tipWidth, float tipHeight) {
+
+	void GenerateArrow2DMesh(std::vector<Vertex>& vertices, float shaftLength, float shaftWidth, float tipWidth, float tipHeight) {
 		vertices.clear();
 		// bottom vertex
 		{
-			Vertex_Standard point{};
+			Vertex point{};
 			point.position = {0.f, 0.f, 0.f};
 			vertices.push_back(point);
 		}
 
 		// top vertex
 		{
-			Vertex_Standard point{};
+			Vertex point{};
 			point.position = {0.f, -shaftLength, 0.f};
 			vertices.push_back(point);
 		}
 
 		// triangle tip
 		{
-			Vertex_Standard point{};
+			Vertex point{};
 			point.position = {-tipWidth, -shaftLength, 0.f};
 			vertices.push_back(point);
 		}
 
 		// triangle tip
 		{
-			Vertex_Standard point{};
+			Vertex point{};
 			point.position = {0.f, -shaftLength - tipHeight, 0.f};
 			vertices.push_back(point);
 		}
 
 		{
-			Vertex_Standard point{};
+			Vertex point{};
 			point.position = {tipWidth, -shaftLength, 0.f};
 			vertices.push_back(point);
 		}
 
 		// and back to top vertex
 		{
-			Vertex_Standard point{};
+			Vertex point{};
 			point.position = {0.f, -shaftLength, 0.f};
 			vertices.push_back(point);
 		}
 
 		// now again but on the z axis so we have two arrow tips!
 		{
-			Vertex_Standard point{};
+			Vertex point{};
 			point.position = {0.f, -shaftLength, -tipWidth};
 			vertices.push_back(point);
 		}
 
 		{
-			Vertex_Standard point{};
+			Vertex point{};
 			point.position = {0.f, -shaftLength - tipHeight, 0.f};
 			vertices.push_back(point);
 		}
 
 		{
-			Vertex_Standard point{};
+			Vertex point{};
 			point.position = {0.f, -shaftLength, tipWidth};
 			vertices.push_back(point);
 		}
 
 		// and back again to top vertex
 		{
-			Vertex_Standard point{};
+			Vertex point{};
 			point.position = {0.f, -shaftLength, 0.f};
 			vertices.push_back(point);
 		}

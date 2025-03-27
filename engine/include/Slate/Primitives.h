@@ -7,13 +7,13 @@
 
 namespace Slate::Primitives {
 
-	const std::vector<Vertex_Standard> quadVertices = {
+	const std::vector<Vertex> quadVertices = {
 			{{-1.0f,  1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}}, // top left
 			{{-1.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}}, // bottom left
 			{{ 1.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}}, // bottom right
 			{{ 1.0f,  1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}}  // top right
 	};
-	const std::vector<Vertex_Standard> planeVertices = {
+	const std::vector<Vertex> planeVertices = {
 			{{-1.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f}}, // top left
 			{{-1.0f, 0.0f,  1.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}}, // bottom left
 			{{ 1.0f, 0.0f,  1.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}}, // bottom right
@@ -24,7 +24,7 @@ namespace Slate::Primitives {
 			0, 1, 3,
 			1, 2, 3
 	};
-	const std::vector<Vertex_Standard> cubeVertices = {
+	const std::vector<Vertex> cubeVertices = {
 			// front face
 			{{-1.f, -1.f, -1.f}, {0.f, 0.f, -1.f}, {0.0f, 0.0f}}, // A 0
 			{{ 1.f, -1.f, -1.f}, {0.f, 0.f, -1.f}, {1.0f, 0.0f}}, // B 1

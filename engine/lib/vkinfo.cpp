@@ -1,7 +1,6 @@
 //
 // Created by Hayden Rivas on 1/15/25.
 //
-#include <cmath>
 #include <span>
 
 #include <volk.h>
@@ -49,11 +48,14 @@ namespace Slate::vkinfo {
 		colorAttachment.imageView = view;
 		colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-		colorAttachment.loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		if (clear) colorAttachment.clearValue.color = *clear;
-		colorAttachment.storeOp = resolveView ? VK_ATTACHMENT_STORE_OP_DONT_CARE : VK_ATTACHMENT_STORE_OP_STORE;
-
+		colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		if (clear) {
+			colorAttachment.clearValue.color = *clear;
+			colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		}
+		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 		if (resolveView) {
+			colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 			colorAttachment.resolveImageView = resolveView;
 			colorAttachment.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 			colorAttachment.resolveMode = static_cast<VkResolveModeFlagBits>(resolveFlags);
@@ -67,9 +69,12 @@ namespace Slate::vkinfo {
 
 		depthAttachment.imageView = view;
 		depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
-		depthAttachment.loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		if (clear) depthAttachment.clearValue.depthStencil = *clear;
+		if (clear) {
+			depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+			depthAttachment.clearValue.depthStencil = *clear;
+		}
 		return depthAttachment;
 	}
 	VkRenderingAttachmentInfo CreateDepthStencilAttachmentInfo(VkImageView view, VkClearDepthStencilValue* clear) {
@@ -79,9 +84,12 @@ namespace Slate::vkinfo {
 
 		depthAttachment.imageView = view;
 		depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-		depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		if (clear) depthAttachment.clearValue.depthStencil = *clear;
+		if (clear) {
+			depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+			depthAttachment.clearValue.depthStencil = *clear;
+		}
 		return depthAttachment;
 	}
 
@@ -191,7 +199,30 @@ namespace Slate::vkinfo {
 
 		info.pPushConstantRanges = push_constants;
 		info.pushConstantRangeCount = 1;
+		info.pSetLayouts = descriptor_layouts;
+		info.setLayoutCount = 1;
+		return info;
+	}
+	VkPipelineLayoutCreateInfo CreatePipelineLayoutInfo(VkPushConstantRange* push_constants, std::span<VkDescriptorSetLayout> descriptor_layouts) {
+		VkPipelineLayoutCreateInfo info = {};
+		info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+		info.pNext = nullptr;
+		info.flags = 0;
 
+		info.pPushConstantRanges = push_constants;
+		info.pushConstantRangeCount = 1;
+		info.pSetLayouts = descriptor_layouts.data();
+		info.setLayoutCount = descriptor_layouts.size();
+		return info;
+	}
+	VkPipelineLayoutCreateInfo CreatePipelineLayoutInfo(std::span<VkPushConstantRange> push_constants, VkDescriptorSetLayout* descriptor_layouts) {
+		VkPipelineLayoutCreateInfo info = {};
+		info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+		info.pNext = nullptr;
+		info.flags = 0;
+
+		info.pPushConstantRanges = push_constants.data();
+		info.pushConstantRangeCount = push_constants.size();
 		info.pSetLayouts = descriptor_layouts;
 		info.setLayoutCount = 1;
 		return info;
@@ -239,13 +270,11 @@ namespace Slate::vkinfo {
 		info.usage = usage_flags;
 
 		info.imageType = VK_IMAGE_TYPE_2D;
-
 		info.mipLevels = mipmap_levels; // default to 1
 
 		info.arrayLayers = 1;
 		info.tiling = VK_IMAGE_TILING_OPTIMAL; // auto decide best format
 		info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
 		return info;
 	}
 	VkImageViewCreateInfo CreateImageViewInfo(VkFormat format, VkImage image, VkImageAspectFlags aspectFlags) {
@@ -262,7 +291,6 @@ namespace Slate::vkinfo {
 		info.subresourceRange.baseArrayLayer = 0;
 		info.subresourceRange.layerCount = 1;
 		info.subresourceRange.aspectMask = aspectFlags;
-
 		return info;
 	}
 }

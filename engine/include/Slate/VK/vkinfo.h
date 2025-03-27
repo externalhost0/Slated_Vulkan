@@ -19,6 +19,8 @@ namespace Slate::vkinfo {
 	// two versions, same thing
 	VkPipelineLayoutCreateInfo CreatePipelineLayoutInfo();
 	VkPipelineLayoutCreateInfo CreatePipelineLayoutInfo(VkPushConstantRange* push_constant, VkDescriptorSetLayout* descriptor_layout);
+	VkPipelineLayoutCreateInfo CreatePipelineLayoutInfo(VkPushConstantRange* push_constants, std::span<VkDescriptorSetLayout> descriptor_layout);
+	VkPipelineLayoutCreateInfo CreatePipelineLayoutInfo(std::span<VkPushConstantRange> push_constants, VkDescriptorSetLayout* descriptor_layout);
 	VkPipelineLayoutCreateInfo CreatePipelineLayoutInfo(std::span<VkPushConstantRange> push_constants, std::span<VkDescriptorSetLayout> descriptor_layouts);
 
 	VkRenderingAttachmentInfo CreateColorAttachmentInfo(VkImageView view, VkClearColorValue* clear, VkImageView resolveView = nullptr, VkResolveModeFlags resolveFlags = VK_RESOLVE_MODE_AVERAGE_BIT);

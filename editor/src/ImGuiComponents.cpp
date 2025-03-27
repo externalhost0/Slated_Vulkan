@@ -10,8 +10,6 @@
 #include <fmt/base.h>
 #include <cmath>
 
-#include <Slate/Input.h>
-
 #include "ImGuiComponents.h"
 #include "Utilities.h"
 
@@ -60,7 +58,7 @@ namespace SlateGui {
 		}
 		if (toggle) {
 			// FIXME: for some reasonwe have to repeatedly set this, the cursor flickers, reseting back to the arrow!!
-			Slate::InputSystem::SetCursor(Slate::MouseShape::CROSSHAIR);
+//			Slate::InputSystem::SetCursor(Slate::MouseShape::CROSSHAIR);
 		}
 		if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
 			toggle = false;

@@ -5,41 +5,33 @@
 #include <GLFW/glfw3.h>
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_transform.hpp>
-
-#include <Slate/Input.h>
-#include <Slate/Time.h>
 #include "ViewportCamera.h"
 
-
 namespace Slate {
-
-	void ViewportCamera::OnResize(float width, float height) {
-		if (width/height <= 0) return;
-		_aspectRatio = width/height;
+	bool ispressed(GLFWwindow* window, int key) {
+		return glfwGetKey(window, key) == GLFW_PRESS;
 	}
-	void ViewportCamera::ProcessKeys() {
-
+	void ViewportCamera::ProcessKeys(GLFWwindow* window, double deltaTime) {
 		float realSpeed;
-		if (InputSystem::IsKeyPressed(GLFW_KEY_LEFT_SHIFT)) realSpeed = cameraSpeed * 1.75f;
+
+		if (ispressed(window, GLFW_KEY_LEFT_SHIFT)) realSpeed = cameraSpeed * 1.75f;
 		else realSpeed = cameraSpeed;
 
-		float adjustedSpeed = realSpeed * static_cast<float>(Time::GetDeltaTime());
+		float adjustedSpeed = realSpeed * static_cast<float>(deltaTime);
 
-		if (InputSystem::IsKeyPressed(GLFW_KEY_W))
-			_position += adjustedSpeed * _front;
-		if (InputSystem::IsKeyPressed(GLFW_KEY_S))
-			_position -= adjustedSpeed * _front;
-		if (InputSystem::IsKeyPressed(GLFW_KEY_A))
-			_position -= glm::normalize(glm::cross(_front, _up)) * adjustedSpeed;
-		if (InputSystem::IsKeyPressed(GLFW_KEY_D))
-			_position += glm::normalize(glm::cross(_front, _up)) * adjustedSpeed;
-		if (InputSystem::IsKeyPressed(GLFW_KEY_SPACE))
-			_position += adjustedSpeed * _up;
-		if (InputSystem::IsKeyPressed(GLFW_KEY_LEFT_CONTROL))
-			_position -= adjustedSpeed * _up;
+		if (ispressed(window, GLFW_KEY_W))
+			position += adjustedSpeed * frontVector;
+		if (ispressed(window, GLFW_KEY_S))
+			position -= adjustedSpeed * frontVector;
+		if (ispressed(window, GLFW_KEY_A))
+			position -= glm::normalize(glm::cross(frontVector, upVector)) * adjustedSpeed;
+		if (ispressed(window, GLFW_KEY_D))
+			position += glm::normalize(glm::cross(frontVector, upVector)) * adjustedSpeed;
+		if (ispressed(window, GLFW_KEY_SPACE))
+			position += adjustedSpeed * upVector;
+		if (ispressed(window, GLFW_KEY_LEFT_CONTROL))
+			position -= adjustedSpeed * upVector;
 	}
-
-
 	void ViewportCamera::ProcessMouse(int xpos, int ypos) {
 		// first part: resolve mouse movement
 		if (isFirstMouse) {
@@ -66,12 +58,20 @@ namespace Slate {
 		direction.z = -cosf(glm::radians(yaw)) * cosf(glm::radians(pitch));
 		direction.y = sinf(glm::radians(pitch));
 		direction.x = sinf(glm::radians(yaw)) * cosf(glm::radians(pitch));
-		_front = glm::normalize(direction);
-	}
-	void ViewportCamera::Update() {
-		_projectionMatrix = glm::perspective(glm::radians(_fov), _aspectRatio, _zNear, _zFar);
-//		proj[1][1] *= -1; // inverts the y axis
-
-		_viewMatrix = glm::lookAt(_position, _position + _front, _up);
+		frontVector = glm::normalize(direction);
 	}
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -5,14 +5,6 @@
 
 #include <volk.h>
 #include <fmt/core.h>
-#include <iostream>
-
-#include "Slate/Filesystem.h"
-#include "Slate/Shader.h"
-
-// shader headers
-#include <nlohmann/json.hpp>
-
 
 #include "Slate/VK/vkinfo.h"
 #include "Slate/VK/vkutil.h"
@@ -51,183 +43,6 @@ namespace Slate::vkutil {
 		info.imageMemoryBarrierCount = 1;
 		info.pImageMemoryBarriers = &barrier;
 		vkCmdPipelineBarrier2KHR(cmd, &info);
-	}
-	std::vector<UBO> glslReflection(const std::string& filename);
-
-	ShaderProgram CreateShaderProgram(VkDevice device, const std::filesystem::path& path) {
-		ShaderProgram program;
-		// read file
-		const std::vector<uint32_t> result = Filesystem::ReadSpvFile("shaders/compiled_shaders" / path);
-		// attach vkshadermodules
-		auto temp = CreateShaderModule(device, result);
-		program.vertModule = temp;
-		program.fragModule = temp;
-
-		// get filename
-		program.filename = path.filename().stem();
-
-		program.uniformBlockObjects = glslReflection(program.filename + ".json");
-
-		return program;
-	}
-
-//	std::vector<Resource> slangReflection(const std::vector<uint32_t>& result) {
-//
-//		slang::IGlobalSession* globalSession;
-//		slang::createGlobalSession(&globalSession);
-//
-//		std::vector<slang::TargetDesc> targetDescs;
-//		for (auto target : kTargets)
-//		{
-//			auto profile = globalSession->findProfile(target.profile);
-//
-//			slang::TargetDesc targetDesc;
-//			targetDesc.format = target.format;
-//			targetDesc.profile = profile;
-//			targetDescs.add(targetDesc);
-//		}
-//
-//		slang::SessionDesc sessionDesc;
-//		sessionDesc.targetCount = (SlangInt) targetDescs.size();
-//		sessionDesc.targets = targetDescs.data();
-//
-//		slang::ISession* session = nullptr;
-//		globalSession->createSession(sessionDesc, &session);
-//
-//		slang::IBlob* diagnostics;
-//		slang::IModule* module = session->loadModule(reinterpret_cast<const char*>(result.data()), &diagnostics);
-////		if (!module) return SLANG_FAIL;
-//
-//	}
-
-	std::string GetGLSLTypeString(const spirv_cross::SPIRType& type) {
-		if (type.columns > 1) { // Matrices
-			return "mat" + std::to_string(type.columns) + "x" + std::to_string(type.vecsize);
-		}
-
-		if (type.vecsize > 1) { // Vectors
-			return "vec" + std::to_string(type.vecsize);
-		}
-
-		switch (type.basetype) { // Scalars
-			case spirv_cross::SPIRType::BaseType::Float:   return "float";
-			case spirv_cross::SPIRType::BaseType::Int:     return "int";
-			case spirv_cross::SPIRType::BaseType::Boolean: return "bool";
-			case spirv_cross::SPIRType::BaseType::Double:  return "double";
-			case spirv_cross::SPIRType::BaseType::Struct:  return "struct";
-			case spirv_cross::SPIRType::BaseType::Image:   return "image";
-			case spirv_cross::SPIRType::BaseType::Sampler: return "sampler";
-			default: return "unknown";
-		}
-	}
-	std::string GetGLSLType(const nlohmann::json& type) {
-		std::string kind = type.value("kind", "");
-
-		if (kind == "scalar") {
-			return type.value("scalarType", "unknown");
-		}
-		if (kind == "vector") {
-			return "vec" + std::to_string(type.value("elementCount", 0)) + "<" +
-				   type["elementType"].value("scalarType", "unknown") + ">";
-		}
-		if (kind == "matrix") {
-			return "mat" + std::to_string(type.value("rowCount", 0)) + "x" +
-				   std::to_string(type.value("columnCount", 0)) + "<" +
-				   type["elementType"].value("scalarType", "unknown") + ">";
-		}
-		if (kind == "struct") {
-			return type.value("name", "struct");
-		}
-		if (kind == "array") {
-			return "array[" + std::to_string(type.value("elementCount", 0)) + "]<" +
-				   GetGLSLType(type["elementType"]) + ">";
-		}
-
-		return "unknown";
-	}
-
-//	CustomType ParseUniformBlock(const nlohmann::json& json) {
-//		CustomType rootBlock{};
-//		rootBlock.name = json.value("name", "root");
-//		rootBlock.usertype = json["type"].value("name", "");
-//		rootBlock.id = 300;
-//
-//		for (const auto& member : json["type"]["fields"]) {
-//			ParseUniformMember(member);
-//		}
-//
-//		return rootBlock;
-//	}
-	std::vector<UBO> glslReflection(const std::string& filename) {
-		std::filesystem::path basepath("shaders/compiled_shaders/reflection");
-		std::filesystem::path path = basepath / filename;
-		nlohmann::json json_data = Filesystem::ReadJsonFile(path);
-
-		if (!json_data.contains("parameters")) return {};
-
-		std::vector<UBO> result_vector;
-
-		for (const auto& parameter : json_data["parameters"]) {
-			// require its a buffer/struct
-			if (!parameter["type"].contains("elementType")) continue;
-
-			UBO block {};
-			block.name = parameter.value("name", "unknown");
-			block.usertype = parameter["type"]["elementType"].value("name", "unknown");
-			// make sure its a struct or constantbuffer
-			for (const auto &member: parameter["type"]["elementType"]["fields"]) {
-				// if its a custom type (struct on gpu)
-				if (member["type"].contains("fields")) {
-					CustomType customMember {};
-					customMember.name = member.value("name", "unknown");
-					customMember.usertype = member["type"].value("name", "");
-					customMember.id = 200;
-//					for (const auto& inner_member : member["type"]["fields"]) {
-//						customMember.members.push_back(ParseUniformMember(inner_member, rootBlock));
-//					}
-					block.members.push_back(customMember);
-				} else {
-					PlainType plainMember {};
-					plainMember.name = member.value("name", "unknown");
-					plainMember.glsltype = Util::EngineTypeFromJsonType(member["type"]);
-					plainMember.id = 100;
-
-					block.members.push_back(plainMember);
-				}
-			}
-			// append
-			result_vector.push_back(block);
-		}
-		return result_vector;
-	}
-
-
-
-	void DestroyShaderProgramModules(VkDevice device, const ShaderProgram& program) {
-		// because we are refrencing the same module we only have to delete the first one
-		vkDestroyShaderModule(device, program.vertModule, nullptr);
-	}
-
-
-
-
-	// TODO: make this concrete later
-	// ONLY FOR EDITOR USAGE, no games should use this
-	VkShaderModule CreateShaderModuleEXT(VkDevice device, const std::filesystem::path& path) {
-		const std::vector<uint32_t> result = Filesystem::ReadSpvFile("shaders/compiled_shaders" / path);
-		return CreateShaderModule(device, result);
-	}
-
-	static VkShaderModule CreateShaderModule(VkDevice device, const std::vector<uint32_t>& code) {
-		VkShaderModuleCreateInfo create_info = { .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
-		create_info.codeSize = code.size() * sizeof (uint32_t);
-		create_info.pCode = reinterpret_cast<const uint32_t*>(code.data());
-
-		VkShaderModule shaderModule;
-		if (vkCreateShaderModule(device, &create_info, nullptr, &shaderModule) != VK_SUCCESS) {
-			return VK_NULL_HANDLE;
-		}
-		return shaderModule;
 	}
 
 
@@ -271,13 +86,16 @@ namespace Slate::vkutil {
 		viewport.y = static_cast<float>(extent2D.height);
 		viewport.width = static_cast<float>(extent2D.width);
 		viewport.height = -static_cast<float>(extent2D.height);
+//		viewport.y = 0;
+//		viewport.width = extent2D.width;
+//		viewport.height = extent2D.height;
 		viewport.minDepth = 0.f;
 		viewport.maxDepth = 1.f;
 		vkCmdSetViewport(cmd, 0, 1, &viewport);
 	}
 	void SetScissor(VkCommandBuffer cmd, VkExtent2D extent2D, VkOffset2D offset2D) {
 		VkRect2D scissor = {};
-		scissor.offset.x = offset2D.x;
+		scissor.offset.x = offset2D.x; // default 0 for both
 		scissor.offset.y = offset2D.y;
 		scissor.extent = extent2D;
 		vkCmdSetScissor(cmd, 0, 1, &scissor);

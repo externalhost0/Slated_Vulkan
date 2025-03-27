@@ -28,7 +28,7 @@ namespace Slate {
 #define EXPECT(ERROR, FORMAT, ...) {                                                                                                            		   \
     int macroErrorCode = static_cast<int>(ERROR);                                                                                               		   \
     if (!macroErrorCode) {                                                                                                                   		 	   \
-        fmt::print(stderr, "EXPECT: {}:{} -> {} -> Error({}):\n\t" FORMAT "\n", __FILE__, __LINE__, __func__, macroErrorCode __VA_OPT__(, __VA_ARGS__));   \
+        fmt::print(stderr, "[EXPECT] Failed assertion: {}:{} -> {} -> Error({}):\n\t" FORMAT "\n", __FILE__, __LINE__, __func__, macroErrorCode __VA_OPT__(, __VA_ARGS__));   \
         std::raise(SIGABRT);                                                                                                                    		   \
     }                                                                                                                                           		   \
 }

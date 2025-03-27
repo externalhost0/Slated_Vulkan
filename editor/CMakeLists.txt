@@ -7,22 +7,16 @@ project(${PROJECT_NAME}
 add_executable(${PROJECT_NAME}
         ${SHADERS}
         src/main.cpp
-        src/EditorApplication.cpp
-        src/EditorGui.cpp
-        src/PropertiesPanel.cpp
-        src/ViewportPanel.cpp
-        src/AssetsPanel.cpp
-        src/ScenePanel.cpp
+        src/Editor.cpp
+        src/Panels/PropertiesPanel.cpp
+        src/Panels/ViewportPanel.cpp
+        src/Panels/AssetsPanel.cpp
+        src/Panels/ScenePanel.cpp
         src/ViewportCamera.cpp
         src/ImGuiSnippets.cpp
         src/ImGuiComponents.cpp
         src/Utilities.cpp
-        src/Utilities.h
 )
-# for compiling shaders
-#helper_compileGLSLShaders()
-helper_compileSlangShaders()
-add_dependencies(${PROJECT_NAME} shaders)
 
 # // ----- ImGui Setup ---- //
 set(IMGUI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui")

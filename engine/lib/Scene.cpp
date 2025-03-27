@@ -10,27 +10,57 @@
 
 namespace Slate {
 
-	Entity Scene::CreateEntity() {
-		return CreateEntity("Unnamed Entity");
+	// TODO: make helper function or map for this sorta thing
+	Scene::Scene() {
+		this->registry.on_construct<MeshPrimitiveComponent>().connect<&entt::registry::get_or_emplace<TransformComponent>>();
+		this->registry.on_destroy<TransformComponent>().connect<&entt::registry::remove<MeshPrimitiveComponent>>();
+
+		this->registry.on_construct<MeshGLTFComponent>().connect<&entt::registry::get_or_emplace<TransformComponent>>();
+		this->registry.on_destroy<TransformComponent>().connect<&entt::registry::remove<MeshGLTFComponent>>();
+
+		this->registry.on_construct<PointLightComponent>().connect<&entt::registry::get_or_emplace<TransformComponent>>();
+		this->registry.on_destroy<TransformComponent>().connect<&entt::registry::remove<PointLightComponent>>();
+
+		this->registry.on_construct<DirectionalLightComponent>().connect<&entt::registry::get_or_emplace<TransformComponent>>();
+		this->registry.on_destroy<TransformComponent>().connect<&entt::registry::remove<DirectionalLightComponent>>();
+
+		this->registry.on_construct<SpotLightComponent>().connect<&entt::registry::get_or_emplace<TransformComponent>>();
+		this->registry.on_destroy<TransformComponent>().connect<&entt::registry::remove<SpotLightComponent>>();
 	}
-	Entity Scene::CreateEntity(const std::string& name) {
-		Entity entity = { _entityRegistry.create(), _entityRegistry };
-		entity.AddComponent<CoreComponent>(name);
-		return entity;
-	}
-	void Scene::DestroyEntity(const Entity& entity) {
-		_entityRegistry.destroy(entity.GetHandle());
+	void Scene::Clear() {
+		this->registry.clear<entt::entity>();
+//		this->entityMap.clear();
 	}
 
-	template<typename... Component>
-	static void CopyComponentIfExists(ComponentGroup<Component...>, Entity dst, Entity src) {
-		CopyComponentIfExists<Component...>(dst, src);
+	Shared<Entity> Scene::CreateEntity() {
+		return CreateEntity("Unnamed Entity");
 	}
-	template<typename... Component>
-	static void CopyComponentIfExists(Entity dst, Entity src) {
+	Shared<Entity> Scene::CreateEntity(const std::string& name) {
+		entt::entity handle = this->registry.create();
+		Shared<Entity> entity = CreateShared<Entity>(handle, this->shared_from_this());
+		entity->name = name;
+		this->entityMap[handle] = entity;
+		return entity;
+	}
+	void Scene::DestroyEntityById(const entt::entity& id) {
+		this->entityMap.erase(id);
+		this->registry.destroy(id);
+	}
+	void Scene::DestroyEntity(const Shared<Entity>& entity) {
+		auto handle = entity->GetHandle();
+		this->entityMap.erase(handle);
+		this->registry.destroy(handle);
+	}
+
+	template<typename... T>
+	static void CopyComponentIfExists(ComponentGroup<T...>, Shared<Entity> dst, Shared<Entity> src) {
+		CopyComponentIfExists<T...>(dst, src);
+	}
+	template<typename... T>
+	static void CopyComponentIfExists(Shared<Entity> dst, Shared<Entity> src) {
 		([&]() {
-			if (src.HasComponent<Component>())
-				dst.AddComponent<Component>(src.GetComponent<Component>());
+			if (src->HasComponent<T>())
+				dst->AddComponent<T>(src->GetImmutableComponent<T>());
 		}(), ...);
 	}
 
@@ -48,18 +78,35 @@ namespace Slate {
 		}
 		return baseName + " 2";
 	}
-	Entity Scene::DuplicateEntity(Entity entity) {
-		const std::string name = entity.GetComponent<CoreComponent>().name;
-
-		const std::string newName = GenerateUniqueName(name); // just 1++ to the back of the name
-		Entity newEntity = CreateEntity(newName);
-		CopyComponentIfExists(AllComponents{}, newEntity, entity);
-		return newEntity;
+	Shared<Entity> Scene::DuplicateEntity(const Shared<Entity>& entity) {
+		const std::string name = entity->GetName();
+		const std::string new_name = GenerateUniqueName(name); // just 1++ to the back of the name
+		Shared<Entity> new_entity = CreateEntity(new_name);
+		CopyComponentIfExists(AllComponents{}, new_entity, entity);
+		return new_entity;
+	}
+	Shared<Entity> Scene::GetEntityById(const entt::entity& id) {
+		return this->entityMap[id];
 	}
 
-
-
-
+	std::vector<Shared<Entity>> Scene::GetAllEntities() {
+		std::vector<Shared<Entity>> entities_to_grab;
+		for (const entt::entity& handle : this->registry.view<entt::entity>()) {
+			entities_to_grab.emplace_back(this->entityMap[handle]);
+		}
+		return entities_to_grab;
+	}
+	std::vector<Shared<Entity>> Scene::GetTopLevelEntities() {
+		std::vector<Shared<Entity>> entities_to_grab;
+		for (const entt::entity& handle : this->registry.view<entt::entity>()) {
+			Shared<Entity> entity = this->entityMap[handle];
+			if (entity->HasParent()) {
+				continue;
+			}
+			entities_to_grab.emplace_back(entity);
+		}
+		return entities_to_grab;
+	}
 
 
 
@@ -68,15 +115,15 @@ namespace Slate {
 		static_assert(sizeof(T) == 0); // we want every templated component to have its own addition function
 	}
 	template<>
-	void Scene::OnComponentAdded<CoreComponent>(Entity entity, CoreComponent &component) {
-
-	}
-	template<>
 	void Scene::OnComponentAdded<TransformComponent>(Entity entity, TransformComponent& component) {
 
 	}
 	template<>
-	void Scene::OnComponentAdded<MeshComponent>(Entity entity, MeshComponent& component) {
+	void Scene::OnComponentAdded<MeshPrimitiveComponent>(Entity entity, MeshPrimitiveComponent& component) {
+
+	}
+	template<>
+	void Scene::OnComponentAdded<MeshGLTFComponent>(Entity entity, MeshGLTFComponent& component) {
 
 	}
 	template<>
@@ -88,7 +135,15 @@ namespace Slate {
 
 	}
 	template<>
-	void Scene::OnComponentAdded(Slate::Entity entity, EnvironmentComponent& component) {
+	void Scene::OnComponentAdded<SpotLightComponent>(Entity entity, SpotLightComponent& component) {
+
+	}
+	template<>
+	void Scene::OnComponentAdded<DirectionalLightComponent>(Entity entity, DirectionalLightComponent& component) {
+
+	}
+	template<>
+	void Scene::OnComponentAdded<EnvironmentComponent>(Entity entity, EnvironmentComponent& component) {
 
 	}
 

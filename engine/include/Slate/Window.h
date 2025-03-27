@@ -8,65 +8,41 @@
 
 
 namespace Slate {
-	enum class VIDEO_MODE : unsigned char {
+	enum class VideoMode : unsigned char {
 		FULLSCREEN,
 		BORDERLESS_FULLSCREEN,
 		WINDOWED,
 	};
 
+	// lets design important classes with [type]specification
 	struct WindowSpecification {
-		bool IsResizeable {false};
-		unsigned int WindowWidth {1280}, WindowHeight {720};
-		std::string WindowTitle {"Untitled Window"};
-		VIDEO_MODE VideoMode {VIDEO_MODE::WINDOWED};
+		VideoMode videomode = VideoMode::WINDOWED;
+		std::string title = "Untitled Window";
+		bool resizeable = false;
+		unsigned int width = 1280, height = 720;
 	};
 
 	class Window {
 	public:
 		Window() = default;
-		~Window() = default;
-		explicit Window(WindowSpecification spec) : m_Spec(std::move(spec)) {}
+		explicit Window(WindowSpecification init_specification) : specification(std::move(init_specification)) {};
 
-		explicit operator bool() const {
-			return (m_NativeWindow != nullptr);
-		}
+		void Initialize();
+		void Shutdown();
 	public:
-		void Build();
-		void Destroy();
+		GLFWwindow* GetGlfwWindow()  { return this->glfwWindow; }
+		std::string GetTitle() const { return this->specification.title; }
+		unsigned int GetWidth() const { return this->specification.width; }
+		unsigned int GetHeight() const { return this->specification.height; }
 
-		GLFWwindow* GetNativeWindow() const {
-			if (m_NativeWindow)
-				return m_NativeWindow;
-			else
-				fprintf(stderr, "Window has not been built!\n");
-			return nullptr;
-		}
+		void SetWindowSize(unsigned int new_width, unsigned int new_height) { this->specification.width = new_width, this->specification.height = new_height; }
+		void SetWindowMode(VideoMode new_videomode) { this->specification.videomode = new_videomode; }
+		void SetTitle(const std::string& new_title) { this->specification.title = new_title; }
 
-		WindowSpecification GetSpec() {
-			return m_Spec;
-		}
-		void SetSpecification(WindowSpecification spec) {
-			m_Spec = std::move(spec);
-		}
+		bool isMinimized() const { return glfwGetWindowAttrib(this->glfwWindow, GLFW_ICONIFIED); }
 	private:
-		WindowSpecification m_Spec {};
-		GLFWwindow* m_NativeWindow {nullptr};
+		WindowSpecification specification;
+		GLFWwindow* glfwWindow = nullptr;
 	};
-
-//	class WindowSystem : BaseSystem {
-//	public:
-//		Window* GetMainWindow() {
-//			if (_pWindow) return _pWindow;
-//			EXPECT(false, "A main window has not been injected!")
-//			return nullptr;
-//		}
-//	public:
-//		void InjectWindow(Window* window) { _pWindow = window; };
-//	private:
-//		Window* _pWindow = nullptr;
-//	private:
-//		void Initialize() override;
-//		void Shutdown() override;
-//		friend class Application;
-//	};
 }
+

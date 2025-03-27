@@ -226,7 +226,7 @@ namespace Slate {
 		float rect_max_x = cursor_pos.x + text_size.x + padding.x;
 		float rect_max_y = cursor_pos.y + text_size.y + padding.y;
 
-		// DrawMeshData the background rectangle
+		// DrawMeshData_EXT the background rectangle
 		ImDrawList* draw_list = ImGui::GetWindowDrawList();
 		draw_list->AddRectFilled(
 				ImVec2(rect_min_x, rect_min_y),

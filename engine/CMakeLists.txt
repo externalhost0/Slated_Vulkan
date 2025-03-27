@@ -5,30 +5,37 @@ project(${PROJECT_NAME}
 )
 
 add_library(${PROJECT_NAME}
-        lib/Application.cpp
+        lib/IApplication.cpp
         lib/Window.cpp
-        lib/Time.cpp
-        lib/Input.cpp
-        lib/Renderer.cpp
         lib/Filesystem.cpp
 
-        lib/Shader.cpp
-        lib/VulkanEngine.cpp
         lib/vkinfo.cpp
         lib/vkutil.cpp
         lib/vkdescriptor.cpp
         lib/PipelineBuilder.cpp
         lib/Scene.cpp
         lib/MeshGenerators.cpp
-        lib/Loader.cpp
+        lib/Loaders/GLTFLoader.cpp
+        lib/ShaderPass.cpp
+        lib/Entity.cpp
+        lib/Loaders/ShaderLoader.cpp
+
+        lib/Resources/IResource.cpp
+        lib/Resources/ShaderResource.cpp
+        lib/Resources/MeshResource.cpp
+        lib/Resources/ScriptResource.cpp
+        lib/RenderEngineStartup.cpp
+        lib/Systems/InputSystem.cpp
+        lib/Systems/TimeSystem.cpp
+        lib/Systems/WindowSystem.cpp
+        lib/Systems/RenderSystem.cpp
+        lib/RenderEngineOps.cpp
 )
 
 # git submodules
 add_subdirectory(third_party/volk)
 add_subdirectory(third_party/vk-bootstrap)
 add_subdirectory(third_party/SPIRV-Cross)
-#find_package(spirv_cross_core CONFIG REQUIRED)
-#find_package(spirv_cross_reflect CONFIG REQUIRED)
 
 # locate packages
 find_package(glfw3 REQUIRED)
@@ -36,16 +43,21 @@ set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
-find_package(Vulkan REQUIRED)
+find_package(Vulkan REQUIRED COMPONENTS)
 if(NOT VULKAN_FOUND)
     message(FATAL_ERROR "Vulkan SDK not installed.")
 endif()
-if(NOT Vulkan_SLANGC_EXECUTABLE)
-    get_filename_component(_Vulkan_LIB_DIR ${Vulkan_LIBRARY} DIRECTORY)
-    find_program(Vulkan_SLANGC_EXECUTABLE
-            NAMES slangc
-            HINTS ${_Vulkan_LIB_DIR}/../Bin
-    )
+# good
+
+# bad
+get_filename_component(_Vulkan_LIB_DIR ${Vulkan_LIBRARY} DIRECTORY)
+
+find_library(SLANG_LIB
+        NAMES slang
+        HINTS ${_Vulkan_LIB_DIR}
+)
+if(NOT SLANG_LIB)
+    message(FATAL_ERROR "Slang Lib not found!")
 endif()
 
 
@@ -81,8 +93,7 @@ target_link_libraries(${PROJECT_NAME}
         vk-bootstrap::vk-bootstrap
         EnTT::EnTT
         PRIVATE # can only be found in engine source files
-        spirv-cross-reflect
-        spirv-cross-core
+        ${SLANG_LIB} # i really need a cmake master to help me organize libraries and their target installation
         Vulkan::Vulkan
         glfw
         fmt::fmt

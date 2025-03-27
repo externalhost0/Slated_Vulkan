@@ -7,17 +7,7 @@
 #include "Slate/Debug.h"
 
 namespace Slate {
-
-//	void WindowSystem::Initialize() {
-//		_isInitialized = true;
-//	}
-//	void WindowSystem::Shutdown() {
-//		EXPECT(_isInitialized, "WindowSystem has not been initialized.")
-//		// glfw cleanup
-//		glfwTerminate();
-//	}
-
-	void Window::Build() {
+	void Window::Initialize() {
 		// get some properties of user monitor
 		GLFWmonitor* monitor = glfwGetPrimaryMonitor();
 		const GLFWvidmode* mode = glfwGetVideoMode(monitor);
@@ -31,25 +21,23 @@ namespace Slate {
 			glfwWindowHint(GLFW_BLUE_BITS, mode->blueBits);
 
 			// variable hints
-			glfwWindowHint(GLFW_RESIZABLE, m_Spec.IsResizeable);
+			glfwWindowHint(GLFW_RESIZABLE, this->specification.resizeable);
 
 		}
-
 
 		// video mode setting logic
-		int width = mode->width;
-		int height = mode->height;
-		if (m_Spec.VideoMode == VIDEO_MODE::BORDERLESS_FULLSCREEN) {
+		int w = mode->width;
+		int h = mode->height;
+		if (this->specification.videomode == VideoMode::BORDERLESS_FULLSCREEN) {
 			monitor = nullptr;
-		} else if (m_Spec.VideoMode == VIDEO_MODE::WINDOWED) {
+		} else if (this->specification.videomode == VideoMode::WINDOWED) {
 			monitor = nullptr;
-			width = static_cast<int>(m_Spec.WindowWidth);
-			height = static_cast<int>(m_Spec.WindowHeight);
+			w = static_cast<int>(this->specification.width);
+			h = static_cast<int>(this->specification.height);
 		}
-
-		m_NativeWindow = glfwCreateWindow(width, height, m_Spec.WindowTitle.c_str(), monitor, nullptr);
+		this->glfwWindow = glfwCreateWindow(w, h, this->specification.title.c_str(), monitor, nullptr);
 	}
-	void Window::Destroy() {
-		glfwDestroyWindow(m_NativeWindow);
+	void Window::Shutdown() {
+		glfwDestroyWindow(this->glfwWindow);
 	}
 }

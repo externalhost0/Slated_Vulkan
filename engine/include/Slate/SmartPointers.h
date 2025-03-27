@@ -4,6 +4,7 @@
 
 #pragma once
 #include <memory>
+#include <optional>
 namespace Slate {
 	// alias for std::shared_ptr
 	template<typename T>
@@ -24,4 +25,15 @@ namespace Slate {
 	constexpr Unique<T> CreateUnique(Args &&... args) {
 		return std::make_unique<T>(std::forward<Args>(args)...);
 	}
+
+	// alias for std::optional
+	template<typename T>
+	using Optional = std::optional<T>;
+
+	// for populating the unique_ptr
+	template<typename T, typename ... Args>
+	constexpr Optional<T> CreateOptional(Args &&... args) {
+		return std::make_optional<T>(std::forward<Args>(args)...);
+	}
+
 }

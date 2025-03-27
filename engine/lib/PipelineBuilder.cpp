@@ -3,10 +3,10 @@
 //
 #include "Slate/Debug.h"
 
-#include "Slate/PipelineBuilder.h"
-#include "Slate/Shader.h"
-#include "Slate/VK/vkinfo.h"
 #include <volk.h>
+#include "Slate/PipelineBuilder.h"
+#include "Slate/VK/vkinfo.h"
+
 namespace Slate {
 	bool isIntegarFormat(VkFormat format) {
 		return (format == VK_FORMAT_R8_UINT || format == VK_FORMAT_R16_UINT || format == VK_FORMAT_R32_UINT ||
@@ -59,11 +59,11 @@ namespace Slate {
 		new_pipeline_info.pColorBlendState = &colorBlending;
 
 		// ----- dynamic states ----- //
-		VkDynamicState state[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR, VK_DYNAMIC_STATE_POLYGON_MODE_EXT };
-		VkPipelineDynamicStateCreateInfo dynamicInfo = vkinfo::CreatePipelineDynamicStateInfo(state, 3);
+		VkDynamicState state[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+		VkPipelineDynamicStateCreateInfo dynamicInfo = vkinfo::CreatePipelineDynamicStateInfo(state, 2);
 		new_pipeline_info.pDynamicState = &dynamicInfo;
 
-		// ------ vertex input ig doesnt matter ----- //
+		// ------ vertex input ig doesnt matter because we are using (push constants + device address) ----- //
 		VkPipelineVertexInputStateCreateInfo _vertexInputInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO, .pNext = nullptr };
 		new_pipeline_info.pVertexInputState = &_vertexInputInfo;
 
@@ -87,29 +87,23 @@ namespace Slate {
 		this->Clear(); // clear the entire pipeline struct to reuse the PipelineBuilder
 		return newPipeline;
 	}
-	PipelineBuilder& PipelineBuilder::set_program(const ShaderProgram& program) {
+	PipelineBuilder& PipelineBuilder::set_module(const VkShaderModule& module) {
 		_shaderStages.clear();
 
-		_shaderStages.push_back(vkinfo::CreatePipelineShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT, program.vertModule, "vs_main"));
-		_shaderStages.push_back(vkinfo::CreatePipelineShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT, program.fragModule, "fs_main"));
+		_shaderStages.push_back(vkinfo::CreatePipelineShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT, module, "vs_main"));
+		_shaderStages.push_back(vkinfo::CreatePipelineShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT, module, "fs_main"));
 
 		return *this;
 	}
-	PipelineBuilder& PipelineBuilder::set_shadersEXT(VkShaderModule vertexShader, VkShaderModule fragmentShader) {
-		_shaderStages.clear();
 
-		_shaderStages.push_back(vkinfo::CreatePipelineShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT, vertexShader));
-		_shaderStages.push_back(vkinfo::CreatePipelineShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT, fragmentShader));
-
-		return *this;
-	}
-	PipelineBuilder& PipelineBuilder::set_default_polygon_mode(VkPolygonMode mode) {
-		_rasterizer.polygonMode = mode;
+	PipelineBuilder& PipelineBuilder::set_polygon_mode(PolygonMode polygonMode) {
+		_rasterizer.polygonMode = PolygonModeVkPolygonMap.at(polygonMode);
 		_rasterizer.lineWidth = 1.0f; // we cant change width, metal doesnt support wide lines
 
 		return *this;
 	}
-	PipelineBuilder& PipelineBuilder::set_default_topology_mode(VkPrimitiveTopology topology) {
+	PipelineBuilder& PipelineBuilder::set_topology_mode(TopologyMode topoMode) {
+		VkPrimitiveTopology topology = TopologyModeVkPrimitiveTopologyMap.at(topoMode);
 		_inputAssembly.topology = topology;
 		_inputAssembly.primitiveRestartEnable = VK_TRUE;
 		if (topology == VK_PRIMITIVE_TOPOLOGY_POINT_LIST 				||
@@ -120,15 +114,15 @@ namespace Slate {
 
 		return *this;
 	}
-	PipelineBuilder& PipelineBuilder::set_cull_mode(VkCullModeFlags cullMode, VkFrontFace frontFace) {
-		_rasterizer.cullMode = cullMode;
-		_rasterizer.frontFace = frontFace;
+	PipelineBuilder& PipelineBuilder::set_cull_mode(CullMode cullMode) {
+		_rasterizer.cullMode = CullModeVkCullModeFlagMap.at(cullMode);
+		_rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 
 		return *this;
 	}
-	PipelineBuilder& PipelineBuilder::set_multisampling_mode(VkSampleCountFlagBits sampleCount) {
+	PipelineBuilder& PipelineBuilder::set_multisampling_mode(MultisampleMode sampleMode) {
 		_multisampling.sampleShadingEnable = VK_FALSE;
-		_multisampling.rasterizationSamples = sampleCount;
+		_multisampling.rasterizationSamples = MultisampleModeVkSampleCountFlagMap.at(sampleMode);
 		_multisampling.minSampleShading = 1.0f;
 		_multisampling.pSampleMask = nullptr;
 		_multisampling.alphaToCoverageEnable = VK_FALSE;
@@ -136,69 +130,8 @@ namespace Slate {
 
 		return *this;
 	}
-	PipelineBuilder& PipelineBuilder::disable_blending() {
-		// default write mask
-		// we want to write to rgba
-		_colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-		_colorBlendAttachment.blendEnable = VK_FALSE;
-
-		return *this;
-	}
-	PipelineBuilder& PipelineBuilder::enable_blending_additive() {
-		_colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-		_colorBlendAttachment.blendEnable = VK_TRUE;
-		_colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-
-		_colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE; // diff
-
-		_colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
-		_colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-		_colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-		_colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
-
-		return *this;
-	}
-	PipelineBuilder& PipelineBuilder::enable_blending_alphablend() {
-		_colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-		_colorBlendAttachment.blendEnable = VK_TRUE;
-		_colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-
-		_colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA; // diff
-		// ok yeah i have no idea what the point of one minus is, figure out later
-		// ok so that doesnt fix it, turns out you need to multiply rgb and than invert that for alpha
-		// TODO: leaving this to tell myself to do better research into alpha operations and shaders
-
-		_colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
-		_colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-		_colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-		_colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
-
-		return *this;
-	}
-	PipelineBuilder& PipelineBuilder::enable_blending_premultiplied() {
-		_colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-		_colorBlendAttachment.blendEnable = VK_TRUE;
-		_colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-
-		_colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA; // diff
-
-		_colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
-		_colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-		_colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-		_colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
-
-		return *this;
-	}
-	PipelineBuilder& PipelineBuilder::set_color_attachment_format(VkFormat format) {
-		_colorAttachmentFormats.push_back(format);
-
-		_renderInfo.colorAttachmentCount = 1;
-		_renderInfo.pColorAttachmentFormats = &_colorAttachmentFormats.front();
-
-		return *this;
-	}
 	// for multiple formats
-	PipelineBuilder& PipelineBuilder::set_color_attachment_format(std::span<VkFormat> formats) {
+	PipelineBuilder& PipelineBuilder::set_color_formats(std::span<VkFormat> formats) {
 		for (const VkFormat& format : formats) {
 			_colorAttachmentFormats.push_back(format);
 		}
@@ -213,12 +146,8 @@ namespace Slate {
 
 		return *this;
 	}
-	PipelineBuilder& PipelineBuilder::disable_depthtest() {
-		// diffs
-		_depthStencil.depthTestEnable = VK_FALSE;
-		_depthStencil.depthWriteEnable = VK_FALSE;
-		_depthStencil.depthCompareOp = VK_COMPARE_OP_NEVER;
-
+	PipelineBuilder& PipelineBuilder::set_depthtest(DepthMode mode) {
+		// variables that remain the same regardless of mode
 		_depthStencil.depthBoundsTestEnable = VK_FALSE;
 		_depthStencil.stencilTestEnable = VK_FALSE;
 		_depthStencil.front = {};
@@ -226,23 +155,79 @@ namespace Slate {
 		_depthStencil.minDepthBounds = 0.f;
 		_depthStencil.maxDepthBounds = 1.f;
 
+		switch (mode) {
+			case DepthMode::NONE:
+				_depthStencil.depthTestEnable = VK_FALSE;
+				_depthStencil.depthWriteEnable = VK_FALSE;
+				_depthStencil.depthCompareOp = VK_COMPARE_OP_NEVER;
+				break;
+			case DepthMode::LESS:
+				_depthStencil.depthTestEnable = VK_TRUE;
+				_depthStencil.depthWriteEnable = VK_TRUE;
+				_depthStencil.depthCompareOp = VK_COMPARE_OP_LESS; // was .. or equal
+				break;
+			case DepthMode::EQUAL:
+				_depthStencil.depthTestEnable = VK_TRUE;
+				_depthStencil.depthWriteEnable = VK_FALSE;
+				_depthStencil.depthCompareOp = VK_COMPARE_OP_EQUAL;
+				break;
+			case DepthMode::GREATER:
+				_depthStencil.depthTestEnable = VK_TRUE;
+				_depthStencil.depthWriteEnable = VK_TRUE;
+				_depthStencil.depthCompareOp = VK_COMPARE_OP_GREATER;
+				break;
+			case DepthMode::ALWAYS:
+				_depthStencil.depthTestEnable = VK_TRUE;
+				_depthStencil.depthWriteEnable = VK_TRUE;
+				_depthStencil.depthCompareOp = VK_COMPARE_OP_ALWAYS;
+				break;
+		}
 		return *this;
 	}
-	PipelineBuilder& PipelineBuilder::enable_depthtest(bool depthWriteEnable, VkCompareOp op) {
-		// diffs
-		_depthStencil.depthTestEnable = VK_TRUE;
-		_depthStencil.depthWriteEnable = depthWriteEnable;
-		_depthStencil.depthCompareOp = op;
+	void PipelineBuilder::_setBlendtoOff() {
+		_colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+		_colorBlendAttachment.blendEnable = VK_FALSE;
+	}
+	void PipelineBuilder::_setBlendtoAdditive() {
+		_colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+		_colorBlendAttachment.blendEnable = VK_TRUE;
+		_colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
 
-		_depthStencil.depthBoundsTestEnable = VK_FALSE;
-		_depthStencil.stencilTestEnable = VK_FALSE;
-		_depthStencil.front = {};
-		_depthStencil.back = {};
-		_depthStencil.minDepthBounds = 0.f;
-		_depthStencil.maxDepthBounds = 1.f;
+		_colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE; // diff
 
+		_colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+		_colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+		_colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+		_colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+	}
+	void PipelineBuilder::_setBlendtoAlphaBlend() {
+		_colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+		_colorBlendAttachment.blendEnable = VK_TRUE;
+		_colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+
+		_colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA; // diff
+
+		_colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+		_colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+		_colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA; // diff
+		_colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+	}
+
+	PipelineBuilder& PipelineBuilder::set_blending_mode(BlendingMode mode) {
+		switch (mode) {
+			case BlendingMode::OFF:
+				this->_setBlendtoOff();
+				break;
+			case BlendingMode::ADDITIVE:
+				this->_setBlendtoAdditive();
+				break;
+			case BlendingMode::ALPHA_BLEND:
+				this->_setBlendtoAlphaBlend();
+				break;
+		}
 		return *this;
 	}
+
 }
 
 

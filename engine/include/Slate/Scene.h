@@ -4,74 +4,69 @@
 
 #pragma once
 #include <vector>
+#include <unordered_map>
 
 #include <entt/entity/registry.hpp>
 #include <entt/entity/view.hpp>
 
 #include "Components.h"
+#include "SmartPointers.h"
 
 // templated functions are seperate to avoid cylic dependencies in their defintions, find them in "SceneTemplates.h"
 namespace Slate {
 	class Entity;
 
-	class Scene {
+	class Scene : public std::enable_shared_from_this<Scene> {
 	public:
-		Scene() {
-				_entityRegistry.on_construct<MeshComponent>().connect<&entt::registry::get_or_emplace<TransformComponent>>();
-				_entityRegistry.on_destroy<TransformComponent>().connect<&entt::registry::remove<MeshComponent>>();
-
-				_entityRegistry.on_construct<PointLightComponent>().connect<&entt::registry::get_or_emplace<TransformComponent>>();
-				_entityRegistry.on_destroy<TransformComponent>().connect<&entt::registry::remove<PointLightComponent>>();
-
-				_entityRegistry.on_construct<SpotLightComponent>().connect<&entt::registry::get_or_emplace<TransformComponent>>();
-				_entityRegistry.on_destroy<TransformComponent>().connect<&entt::registry::remove<SpotLightComponent>>();
-		};
+		Scene();
 		~Scene() = default;
 
-		Entity CreateEntity();
-		Entity CreateEntity(const std::string& name);
+		Shared<Entity> CreateEntity();
+		Shared<Entity> CreateEntity(const std::string& name);
 
-		Entity DuplicateEntity(Entity entity);
+		Shared<Entity> DuplicateEntity(const Shared<Entity>& entity);
 
-		void DestroyEntity(const Entity& entity);
+		void DestroyEntity(const Shared<Entity>& entity);
+		void DestroyEntityById(const entt::entity& id);
 
-		entt::registry& GetRegistry() { return _entityRegistry; };
+		Shared<Entity> GetEntityById(const entt::entity& id);
+		std::vector<Shared<Entity>> GetTopLevelEntities();
+		std::vector<Shared<Entity>> GetAllEntities();
+		template<class... T>
+		std::vector<Shared<Entity>> GetAllEntitiesWith();
+
+		entt::registry& GetRegistry() { return registry; };
+
+		void Clear();
 	public:
-		template<typename... Components>
-		auto GetAllIDsWith();
-
-		template<typename... Components>
-		std::vector<Entity> GetAllEntitiesWith();
-
-
 		EnvironmentComponent& GetEnvironment() {
-			auto view = _entityRegistry.view<EnvironmentComponent>();
+			auto view = registry.view<EnvironmentComponent>();
 			if (view->empty()) {
 				return this->_environment;
 			} else {
-				entt::entity temp = *_entityRegistry.view<EnvironmentComponent>().begin();
-				return _entityRegistry.get<EnvironmentComponent>(temp);
+				entt::entity temp = *registry.view<EnvironmentComponent>().begin();
+				return registry.get<EnvironmentComponent>(temp);
 			}
 		}
 		DirectionalLightComponent& GetDirectional() {
-			auto view = _entityRegistry.view<DirectionalLightComponent>();
+			auto view = registry.view<DirectionalLightComponent>();
 			if (view->empty()) {
 				return this->_directional;
 			} else {
-				entt::entity temp = *_entityRegistry.view<DirectionalLightComponent>().begin();
-				return _entityRegistry.get<DirectionalLightComponent>(temp);
+				entt::entity temp = *registry.view<DirectionalLightComponent>().begin();
+				return registry.get<DirectionalLightComponent>(temp);
 			}
 		}
-
-
 
 	private:
 		template<typename T>
 		void OnComponentAdded(Entity entity, T& component);
 	private:
+
 		DirectionalLightComponent _directional {};
 		EnvironmentComponent _environment {}; // use all default values of environment
-		entt::registry _entityRegistry;
-		friend class Entity;
+
+		entt::registry registry;
+		std::unordered_map<entt::entity, Shared<Entity>> entityMap;
 	};
 }

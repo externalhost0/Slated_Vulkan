@@ -7,21 +7,14 @@
 #include "Entity.h"
 
 namespace Slate {
-	template<typename... Components>
-	auto Scene::GetAllIDsWith() {
-		return _entityRegistry.view<Components...>();
-	}
-
-	template<typename... Components>
-	std::vector<Entity> Scene::GetAllEntitiesWith() {
-		auto ids = this->GetAllIDsWith<Components...>();
-		std::vector<Entity> result;
-		result.reserve(static_cast<size_t>(std::distance(ids.begin(), ids.end()))); // not going to work, delete
-		for (const entt::entity& id : ids) {
-			result.emplace_back(id, this->_entityRegistry);
+	template<typename... T>
+	std::vector<Shared<Entity>> Scene::GetAllEntitiesWith() {
+		const auto& ids = this->registry.view<T...>();
+		std::vector<Shared<Entity>> entites_to_grab;
+		entites_to_grab.reserve(static_cast<size_t>(std::distance(ids.begin(), ids.end()))); // not going to work, delete
+		for (const entt::entity& handle : ids) {
+			entites_to_grab.emplace_back(this->entityMap[handle]);
 		}
-		return result;
+		return entites_to_grab;
 	}
-
-
 }
