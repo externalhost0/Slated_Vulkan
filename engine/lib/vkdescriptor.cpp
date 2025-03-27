@@ -191,7 +191,7 @@ namespace Slate {
 		this->writes.clear();
 		this->bufferInfos.clear();
 	}
-	void DescriptorWriter::UpdateSet(VkDevice device, VkDescriptorSet set) {
+	void DescriptorWriter::UpdateGivenSet(VkDevice device, VkDescriptorSet set) {
 		for (VkWriteDescriptorSet& write : this->writes) {
 			write.dstSet = set;
 		}

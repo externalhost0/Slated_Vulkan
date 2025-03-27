@@ -116,8 +116,21 @@ namespace Slate {
 		auto& light = entity->GetMutableComponent<PointLightComponent>();
 
 		SlateGui::ColorField(light.point.Color);
-		ImGui::DragFloat("Intensity", &light.point.Intensity, 0.05f, 0.f, 1000.0f);
-		ImGui::DragFloat("Range", &light.point.Range, 0.5f, 0.f, 100.0f);
+
+		float largest_width = 95.f;
+		float sliderWidth = 150.f;
+
+		ImGui::Text("Intensity");
+		ImGui::SameLine(largest_width);
+		ImGui::PushItemWidth(sliderWidth);
+		ImGui::DragFloat("###hidden", &light.point.Intensity, 0.05f, 0.f, 1000.0f);
+		ImGui::PopItemWidth();
+
+		ImGui::Text("Range");
+		ImGui::SameLine(largest_width);
+		ImGui::PushItemWidth(sliderWidth);
+		ImGui::DragFloat("###hidden2", &light.point.Range, 0.5f, 0.f, 100.0f);
+		ImGui::PopItemWidth();
 	}
 	void ComponentSpotLight(Entity* entity) {
 		auto& light = entity->GetMutableComponent<SpotLightComponent>();

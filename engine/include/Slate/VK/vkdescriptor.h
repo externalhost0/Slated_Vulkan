@@ -47,6 +47,6 @@ namespace Slate {
 		void WriteBuffer(int binding, VkBuffer buffer, size_t size, size_t offset, VkDescriptorType type);
 
 		void Clear();
-		void UpdateSet(VkDevice device, VkDescriptorSet set);
+		void UpdateGivenSet(VkDevice device, VkDescriptorSet set);
 	};
 }

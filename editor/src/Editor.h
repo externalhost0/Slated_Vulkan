@@ -50,6 +50,8 @@ namespace Slate {
 
 		// just for organization
 		void Render();
+		void RenderVisualizers();
+		void RenderReal();
 		void GuiUpdate();
 
 		void OnPropertiesPanelUpdate();

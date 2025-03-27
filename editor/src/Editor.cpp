@@ -268,39 +268,6 @@ namespace Slate {
 		model[3] = glm::vec4(modelPosition, 1.0f);// preserve position
 		return model;
 	}
-	void RenderBuffer_LargeEXT(VkCommandBuffer cmd, const Shared<MeshBuffer>& buffer, const GPU::DrawPushConstants &pushConstants, VkPipelineLayout layout) {
-		GPU::DrawPushConstants push = pushConstants;
-		push.vertexBufferAddress = buffer->GetVBA();
-		push.modelMatrix = glm::scale(pushConstants.modelMatrix, glm::vec3(1.0005f));
-
-		vkCmdPushConstants(cmd, layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPU::DrawPushConstants), &push);
-		vkCmdBindIndexBuffer(cmd, buffer->GetIndexBuffer().getBuffer(), 0, VK_INDEX_TYPE_UINT32);
-		vkCmdDrawIndexed(cmd, buffer->GetIndexCount(), 1, 0, 0, 0);
-	}
-	// recursive
-	void DrawEntityLarge_EXT(VkCommandBuffer cmd, Entity &entity, VkPipelineLayout layout, const glm::mat4 &topMatrix = glm::mat4(1)) {
-		if (entity.HasComponent<MeshPrimitiveComponent>()) {
-			auto &mesh_component = entity.GetImmutableComponent<MeshPrimitiveComponent>();
-			GPU::DrawPushConstants push = {};
-			push.modelMatrix = TransformToModelMatrix(entity.GetImmutableComponent<TransformComponent>()) * topMatrix;
-
-			RenderBuffer_LargeEXT(cmd, mesh_component.GetMeshBuffer(), push, layout);
-		} else if (entity.HasComponent<MeshGLTFComponent>()) {
-			auto &mesh_component = entity.GetImmutableComponent<MeshGLTFComponent>();
-			GPU::DrawPushConstants push = {};
-			push.modelMatrix = TransformToModelMatrix(entity.GetImmutableComponent<TransformComponent>()) * topMatrix;
-
-			for (const auto &buffer: mesh_component.GetMesh()->GetMeshBuffers()) {
-				RenderBuffer_LargeEXT(cmd, buffer, push, layout);
-			}
-		}
-
-		// now recurse through all children if children are present
-		if (!entity.HasChildren()) return;
-		for (Entity child: entity.GetChildren()) {
-			DrawEntityLarge_EXT(cmd, child, layout, TransformToModelMatrix(entity.GetImmutableComponent<TransformComponent>()));
-		}
-	}
 	void RenderBuffer(VkCommandBuffer cmd, const Shared<MeshBuffer>& buffer, GPU::DrawPushConstants& pushConstants, VkPipelineLayout layout) {
 		pushConstants.vertexBufferAddress = buffer->GetVBA();
 
@@ -323,7 +290,7 @@ namespace Slate {
 			push.id = static_cast<uint32_t>(entity.GetHandle());
 			push.modelMatrix = TransformToModelMatrix(entity.GetImmutableComponent<TransformComponent>()) * topMatrix;
 
-			for (const auto &buffer: mesh_component.GetMesh()->GetMeshBuffers()) {
+			for (const Shared<MeshBuffer>& buffer: mesh_component.GetMesh()->GetMeshBuffers()) {
 				RenderBuffer(cmd, buffer, push, layout);
 			}
 		}
@@ -334,15 +301,75 @@ namespace Slate {
 			DrawEntity(cmd, child, layout, TransformToModelMatrix(entity.GetImmutableComponent<TransformComponent>()));
 		}
 	}
-	void DrawSolidAll(RenderEngine &engine, Shared<Scene>& scene, VkPipelineLayout pipelineLayout) {
-		for (const Shared<Entity>& entity: scene->GetTopLevelEntities()) {
-			DrawEntity(engine.GetCurrentFrameData()._commandBuffer, *entity.get(), pipelineLayout);
+
+
+	// recursive
+	void DrawEntityForEditorEXT(VkCommandBuffer cmd, Entity& entity, VkPipelineLayout layout, const glm::mat4& topMatrix = glm::mat4(1)) {
+		if (entity.HasComponent<MeshPrimitiveComponent>()) {
+			const MeshPrimitiveComponent& mesh_component = entity.GetImmutableComponent<MeshPrimitiveComponent>();
+			GPU::DrawPushConstantsEditorEXT push = {};
+			push.id = static_cast<uint32_t>(entity.GetHandle());
+			push.modelMatrix = TransformToModelMatrix(entity.GetImmutableComponent<TransformComponent>()) * topMatrix;
+			push.color = glm::vec3(0.9f);
+
+			const Shared<MeshBuffer>& buffer = mesh_component.GetMeshBuffer();
+			push.vertexBufferAddress = buffer->GetVBA();
+			vkCmdPushConstants(cmd, layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPU::DrawPushConstantsEditorEXT), &push);
+			vkCmdBindIndexBuffer(cmd, buffer->GetIndexBuffer().getBuffer(), 0, VK_INDEX_TYPE_UINT32);
+			vkCmdDrawIndexed(cmd, buffer->GetIndexCount(), 1, 0, 0, 0);
+		} else if (entity.HasComponent<MeshGLTFComponent>()) {
+			const MeshGLTFComponent& mesh_component = entity.GetImmutableComponent<MeshGLTFComponent>();
+			GPU::DrawPushConstantsEditorEXT push = {};
+			push.id = static_cast<uint32_t>(entity.GetHandle());
+			push.modelMatrix = TransformToModelMatrix(entity.GetImmutableComponent<TransformComponent>()) * topMatrix;
+			push.color = glm::vec3(0.9f);
+
+			for (const auto &buffer: mesh_component.GetMesh()->GetMeshBuffers()) {
+				push.vertexBufferAddress = buffer->GetVBA();
+				vkCmdPushConstants(cmd, layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPU::DrawPushConstantsEditorEXT), &push);
+				vkCmdBindIndexBuffer(cmd, buffer->GetIndexBuffer().getBuffer(), 0, VK_INDEX_TYPE_UINT32);
+				vkCmdDrawIndexed(cmd, buffer->GetIndexCount(), 1, 0, 0, 0);
+			}
+		}
+
+		// now recurse through all children if children are present
+		if (!entity.HasChildren()) return;
+		for (Entity& child: entity.GetChildren()) {
+			DrawEntity(cmd, child, layout, TransformToModelMatrix(entity.GetImmutableComponent<TransformComponent>()));
 		}
 	}
-	// only draws it as solid wireframe
-	void DrawSolidAllSlightlyBigger(RenderEngine &engine, Shared<Scene>& scene, VkPipelineLayout pipelinelayout) {
-		for (const Shared<Entity>& entity: scene->GetTopLevelEntities()) {
-			DrawEntityLarge_EXT(engine.GetCurrentFrameData()._commandBuffer, *entity.get(), pipelinelayout);
+	// recursive
+	void DrawEntityForEditorLarge_EXT(VkCommandBuffer cmd, Entity &entity, VkPipelineLayout layout, const glm::mat4 &topMatrix = glm::mat4(1)) {
+		if (entity.HasComponent<MeshPrimitiveComponent>()) {
+			auto &mesh_component = entity.GetImmutableComponent<MeshPrimitiveComponent>();
+			GPU::DrawPushConstantsEditorEXT push = {};
+			const Shared<MeshBuffer> buffer = mesh_component.GetMeshBuffer();
+			push.vertexBufferAddress = buffer->GetVBA();
+			push.modelMatrix = glm::scale(TransformToModelMatrix(entity.GetImmutableComponent<TransformComponent>()) * topMatrix, glm::vec3(1.0005f));
+			push.color = glm::vec3(0.9f);
+
+			vkCmdPushConstants(cmd, layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPU::DrawPushConstantsEditorEXT), &push);
+			vkCmdBindIndexBuffer(cmd, buffer->GetIndexBuffer().getBuffer(), 0, VK_INDEX_TYPE_UINT32);
+			vkCmdDrawIndexed(cmd, buffer->GetIndexCount(), 1, 0, 0, 0);
+		} else if (entity.HasComponent<MeshGLTFComponent>()) {
+			auto &mesh_component = entity.GetImmutableComponent<MeshGLTFComponent>();
+			GPU::DrawPushConstantsEditorEXT push = {};
+			glm::mat4 adjpos = TransformToModelMatrix(entity.GetImmutableComponent<TransformComponent>()) * topMatrix;
+			for (const auto &buffer: mesh_component.GetMesh()->GetMeshBuffers()) {
+				push.vertexBufferAddress = buffer->GetVBA();
+				push.modelMatrix = glm::scale(adjpos, glm::vec3(1.0005f));
+				push.color = glm::vec3(0.9f);
+
+				vkCmdPushConstants(cmd, layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPU::DrawPushConstantsEditorEXT), &push);
+				vkCmdBindIndexBuffer(cmd, buffer->GetIndexBuffer().getBuffer(), 0, VK_INDEX_TYPE_UINT32);
+				vkCmdDrawIndexed(cmd, buffer->GetIndexCount(), 1, 0, 0, 0);
+			}
+		}
+
+		// now recurse through all children if children are present
+		if (!entity.HasChildren()) return;
+		for (Entity child: entity.GetChildren()) {
+			DrawEntityForEditorLarge_EXT(cmd, child, layout, TransformToModelMatrix(entity.GetImmutableComponent<TransformComponent>()));
 		}
 	}
 
@@ -483,10 +510,6 @@ namespace Slate {
 //		builder.addBinding(1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER); // lighting
 //		this->_globalDS0Layout = builder.build(this->engine.GetDevice(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
 //
-		VkPushConstantRange range = {};
-		range.offset = 0;
-		range.size = sizeof(GPU::DrawPushConstants);
-		range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 //		VkPipelineLayoutCreateInfo pipeline_layout_info = vkinfo::CreatePipelineLayoutInfo(&range, &_globalDS0Layout);
 //		VK_CHECK(vkCreatePipelineLayout(this->engine.GetDevice(), &pipeline_layout_info, nullptr, &this->_globalPipeLayout));
 
@@ -522,12 +545,19 @@ namespace Slate {
 
 
 		// editor shaders should be hard coded, simplier honestly so i can focus on how actual game/user shaders can be optimized
-
+		VkPushConstantRange editorrange = {};
+		editorrange.offset = 0;
+		editorrange.size = sizeof(GPU::DrawPushConstantsEditorEXT);
+		editorrange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 		// editor primitves
 		// both editors use this as set 0
 		DescriptorLayoutBuilder layoutbuilder = {};
 		layoutbuilder.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER); // camera
 		this->_flatDS0Layout = layoutbuilder.build(this->engine.GetDevice(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+		VkDescriptorSetLayout descspan[] = { _flatDS0Layout };
+		VkPipelineLayoutCreateInfo pipeinfo = vkinfo::CreatePipelineLayoutInfo(&editorrange, std::span(descspan));
+		VK_CHECK(vkCreatePipelineLayout(this->engine.GetDevice(), &pipeinfo, nullptr, &this->_flatcolorPipeLayout));
+
 
 		ShaderResource flatcolorShader;
 		flatcolorShader.LoadResource(Filesystem::GetRelativePath("shaders/EditorEXT/editor_primitives.slang"));
@@ -537,17 +567,13 @@ namespace Slate {
 				.blendmode = BlendingMode::ALPHA_BLEND,
 				.depthmode = DepthMode::LESS,
 				.topologymode = TopologyMode::TRIANGLE,
-				.polygonmode = PolygonMode::FILL,
+				.polygonmode = PolygonMode::LINE,
 				.samplemode = MultisampleMode::X4,
 				.cullmode = CullMode::OFF,
 
 				.color_formats = colorFormats,
 				.depth_format = depthFormat
 		};
-		DescriptorLayoutBuilder layoutbuilder2 = {};
-		layoutbuilder.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER); // extra ubo
-		this->_flatcolorDS1Layout = layoutbuilder.build(this->engine.GetDevice(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
-		VkDescriptorSetLayout descspan[] = {_flatDS0Layout, _flatcolorDS1Layout};
 
 		PipelineBuilder pipebuilder = {};
 		pipebuilder.set_module(flatcolorShader.GetModule());
@@ -558,15 +584,13 @@ namespace Slate {
 		pipebuilder.set_polygon_mode(editorproperties.polygonmode);
 		pipebuilder.set_color_formats(std::span(editorproperties.color_formats));
 		pipebuilder.set_depth_format(editorproperties.depth_format);
-		VkPipelineLayoutCreateInfo pipeinfo = vkinfo::CreatePipelineLayoutInfo(&range, std::span(descspan));
-		VK_CHECK(vkCreatePipelineLayout(this->engine.GetDevice(), &pipeinfo, nullptr, &this->_flatcolorPipeLayout));
 		this->_flatcolorTriPipeline = pipebuilder.build(this->engine.GetDevice(), this->_flatcolorPipeLayout);
 		// copy most logic from the above pipeline, literally only changing the topology mode to topologymode::list
 		pipebuilder.set_module(flatcolorShader.GetModule());
 		pipebuilder.set_blending_mode(editorproperties.blendmode);
 		pipebuilder.set_depthtest(editorproperties.depthmode);
 		pipebuilder.set_multisampling_mode(editorproperties.samplemode);
-		pipebuilder.set_topology_mode(TopologyMode::LIST);
+		pipebuilder.set_topology_mode(TopologyMode::STRIP);
 		pipebuilder.set_polygon_mode(editorproperties.polygonmode);
 		pipebuilder.set_color_formats(std::span(editorproperties.color_formats));
 		pipebuilder.set_depth_format(editorproperties.depth_format);
@@ -577,8 +601,7 @@ namespace Slate {
 		flatimageShader.LoadResource(Filesystem::GetRelativePath("shaders/EditorEXT/editor_images.slang"));
 		flatimageShader.CompileToSpirv();
 		flatimageShader.CreateVkModule(this->engine.GetDevice());
-		layoutbuilder.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER); // extra ubo
-		layoutbuilder.addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER); // texture
+		layoutbuilder.addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER); // texture
 		this->_flatimageDS1Layout = layoutbuilder.build(this->engine.GetDevice(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
 		VkDescriptorSetLayout descspan2[] = {_flatDS0Layout, _flatimageDS1Layout};
 
@@ -587,10 +610,10 @@ namespace Slate {
 		pipebuilder.set_depthtest(editorproperties.depthmode);
 		pipebuilder.set_multisampling_mode(editorproperties.samplemode);
 		pipebuilder.set_topology_mode(editorproperties.topologymode);
-		pipebuilder.set_polygon_mode(editorproperties.polygonmode);
+		pipebuilder.set_polygon_mode(PolygonMode::FILL);
 		pipebuilder.set_color_formats(std::span(editorproperties.color_formats));
 		pipebuilder.set_depth_format(editorproperties.depth_format);
-		VkPipelineLayoutCreateInfo pipeinfo3 = vkinfo::CreatePipelineLayoutInfo(&range, std::span(descspan2));
+		VkPipelineLayoutCreateInfo pipeinfo3 = vkinfo::CreatePipelineLayoutInfo(&editorrange, std::span(descspan2));
 		VK_CHECK(vkCreatePipelineLayout(this->engine.GetDevice(), &pipeinfo3, nullptr, &this->_flatimagePipeLayout));
 		this->_flatimagePipeline = pipebuilder.build(this->engine.GetDevice(), this->_flatimagePipeLayout);
 		flatimageShader.DestroyVkModule(this->engine.GetDevice());
@@ -837,6 +860,190 @@ namespace Slate {
 		if (glfwWindowShouldClose(this->mainWindow.GetGlfwWindow())) { this->continueloop = false; }
 	}
 
+	void Editor::RenderVisualizers() {
+		// ============== //
+		// === EDITOR === //
+		// ============== //
+
+		// set camera uniform for my editor shaders
+		DescriptorWriter writer_0;
+		writer_0.WriteBuffer(0, this->_cameraDataBuffer.getBuffer(), sizeof(GPU::CameraUBO), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+		VkDescriptorSet c_descriptor_0 = engine.GetCurrentFrameData()._frameDescriptors.Allocate(engine.GetDevice(), this->_flatDS0Layout);
+		VkDescriptorSet i_descriptor_0 = engine.GetCurrentFrameData()._frameDescriptors.Allocate(engine.GetDevice(), this->_flatDS0Layout);
+		writer_0.UpdateGivenSet(engine.GetDevice(), c_descriptor_0);
+		writer_0.UpdateGivenSet(engine.GetDevice(), i_descriptor_0);
+		vkCmdBindDescriptorSets(engine.GetCurrentFrameData()._commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->_flatcolorPipeLayout, 0, 1, &c_descriptor_0, 0, nullptr);
+		vkCmdBindDescriptorSets(engine.GetCurrentFrameData()._commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->_flatimagePipeLayout, 0, 1, &i_descriptor_0, 0, nullptr);
+
+		// these are camera mdoes
+		if (this->_viewportMode == ViewportModes::WIREFRAME) {
+			vkCmdBindPipeline(engine.GetCurrentFrameData()._commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->_flatcolorTriPipeline);
+			for (const Shared<Entity> &entity: scene->GetTopLevelEntities()) {
+				DrawEntityForEditorEXT(engine.GetCurrentFrameData()._commandBuffer, *entity.get(), this->_flatcolorPipeLayout);
+			}
+		}
+		if (this->_viewportMode == ViewportModes::SOLID_WIREFRAME) {
+			vkCmdBindPipeline(engine.GetCurrentFrameData()._commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->_flatcolorTriPipeline);
+			for (const Shared<Entity> &entity: scene->GetTopLevelEntities()) {
+				DrawEntityForEditorLarge_EXT(engine.GetCurrentFrameData()._commandBuffer, *entity.get(), this->_flatcolorPipeLayout);
+			}
+		}
+
+		// draw some editor stuff
+		if (this->gridEnabled) {
+			vkCmdBindPipeline(engine.GetCurrentFrameData()._commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->_flatcolorLinePipeline);
+			{// just grid
+				GPU::DrawPushConstantsEditorEXT pushConstants = {};
+				pushConstants.modelMatrix = glm::translate(glm::mat4(1), {0.f, -0.009f, 0.f});
+				pushConstants.vertexBufferAddress = this->gridmesh.GetVBA();
+				pushConstants.color = {0.9f, 0.9f, 0.9f};
+				vkCmdPushConstants(engine.GetCurrentFrameData()._commandBuffer, this->_flatcolorPipeLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPU::DrawPushConstantsEditorEXT), &pushConstants);
+				engine.DrawMeshData_EXT(this->gridmesh);
+			}
+			// editor primitive visualizers
+			//========================//
+			// ----- WIREFRAMES ----- //
+			//========================//
+			{
+				for (const auto &entity: scene->GetAllEntitiesWith<PointLightComponent>()) {
+					glm::mat4 model = TransformToModelMatrix(entity->GetImmutableComponent<TransformComponent>(), false, false);
+					glm::mat4 spheremodel = glm::scale(model, glm::vec3(entity->GetImmutableComponent<PointLightComponent>().point.Range));
+
+					GPU::DrawPushConstantsEditorEXT pushConstants = {
+							.modelMatrix = spheremodel,
+							.color = {0.9f, 0.9f, 0.9f},
+							.vertexBufferAddress = this->simplespheremesh.GetVBA()};
+					vkCmdPushConstants(engine.GetCurrentFrameData()._commandBuffer, this->_flatcolorPipeLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPU::DrawPushConstantsEditorEXT), &pushConstants);
+					engine.DrawMeshData_EXT(this->simplespheremesh);
+				}
+				for (const auto &entity: scene->GetAllEntitiesWith<SpotLightComponent>()) {
+					glm::mat4 model = TransformToModelMatrix(entity->GetImmutableComponent<TransformComponent>(), false);
+					float size = entity->GetImmutableComponent<SpotLightComponent>().spot.Size;
+					float halfAngle = glm::radians(size * 0.5f);
+					float radius = sin(halfAngle) / sin(glm::radians(5.0f));
+					float height = radius / tan(halfAngle);
+					glm::mat4 spotmodel = glm::scale(model, glm::vec3{radius, height, radius});
+
+					GPU::DrawPushConstantsEditorEXT pushConstants = {
+							.modelMatrix = spotmodel,
+							.color = {0.9f, 0.9f, 0.9f},
+							.vertexBufferAddress = this->spotmesh.GetVBA()};
+					vkCmdPushConstants(engine.GetCurrentFrameData()._commandBuffer, this->_flatcolorPipeLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPU::DrawPushConstantsEditorEXT), &pushConstants);
+					engine.DrawMeshData_EXT(this->spotmesh);
+				}
+				for (const auto &entity: scene->GetAllEntitiesWith<DirectionalLightComponent>()) {
+					glm::mat4 model = TransformToModelMatrix(entity->GetImmutableComponent<TransformComponent>(), false);
+
+					GPU::DrawPushConstantsEditorEXT pushConstants = {
+							.modelMatrix = model,
+							.color = {0.9f, 0.9f, 0.9f},
+							.vertexBufferAddress = this->arrowmesh.GetVBA()};
+					vkCmdPushConstants(engine.GetCurrentFrameData()._commandBuffer, this->_flatcolorPipeLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPU::DrawPushConstantsEditorEXT), &pushConstants);
+					engine.DrawMeshData_EXT(this->arrowmesh);
+				}
+			}
+
+			DescriptorWriter writer3{};
+			writer3.WriteImage(0, this->lightbulb_image.getImageView(), engine.default_LinearSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+			VkDescriptorSet imageDescriptor = engine.GetCurrentFrameData()._frameDescriptors.Allocate(engine.GetDevice(), this->_flatimageDS1Layout);
+			writer3.UpdateGivenSet(engine.GetDevice(), imageDescriptor);
+			vkCmdBindDescriptorSets(engine.GetCurrentFrameData()._commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->_flatimagePipeLayout, 1, 1, &imageDescriptor, 0, nullptr);
+
+
+			vkCmdBindPipeline(engine.GetCurrentFrameData()._commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->_flatimagePipeline);
+			//=================//
+			// ---- ICONS ---- //
+			//=================//
+			{
+				int j = 1;
+				for (const auto &entity: scene->GetAllEntitiesWith<PointLightComponent>()) {
+					glm::mat4 model = TransformToModelMatrix(entity->GetImmutableComponent<TransformComponent>(), false, false);
+
+					// billboard logic
+					model = BillboardModelMatrix(model, camera);
+					model = glm::scale(model, glm::vec3{0.5f});
+
+					GPU::DrawPushConstantsEditorEXT pushConstantsPlane = {
+							.modelMatrix = model,
+							.color = entity->GetImmutableComponent<PointLightComponent>().point.Color,
+							.id = static_cast<uint32_t>(entity->GetHandle()),
+							.vertexBufferAddress = this->quadData.GetVBA(),
+					};
+					vkCmdPushConstants(engine.GetCurrentFrameData()._commandBuffer, this->_flatimagePipeLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPU::DrawPushConstantsEditorEXT), &pushConstantsPlane);
+					engine.DrawMeshData_EXT(this->quadData);
+					j++;
+				}
+
+
+				DescriptorWriter writer4{};
+				writer4.WriteImage(0, spotlight_image.getImageView(), engine.default_LinearSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+				VkDescriptorSet imageDescriptor2 = engine.GetCurrentFrameData()._frameDescriptors.Allocate(engine.GetDevice(), this->_flatimageDS1Layout);
+				writer4.UpdateGivenSet(engine.GetDevice(), imageDescriptor2);
+				vkCmdBindDescriptorSets(engine.GetCurrentFrameData()._commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->_flatimagePipeLayout, 1, 1, &imageDescriptor2, 0, nullptr);
+
+				for (const auto &entity: scene->GetAllEntitiesWith<SpotLightComponent>()) {
+					glm::mat4 model = TransformToModelMatrix(entity->GetImmutableComponent<TransformComponent>(), false, false);
+
+					// billboard logic
+					model = BillboardModelMatrix(model, camera);
+					model = glm::scale(model, glm::vec3{0.5f});
+
+					GPU::DrawPushConstantsEditorEXT pushConstantsPlane = {
+							.modelMatrix = model,
+							.color = entity->GetImmutableComponent<SpotLightComponent>().spot.Color,
+							.id = static_cast<uint32_t>(entity->GetHandle()),
+							.vertexBufferAddress = this->quadData.GetVBA()};
+					vkCmdPushConstants(engine.GetCurrentFrameData()._commandBuffer, this->_flatimagePipeLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPU::DrawPushConstantsEditorEXT), &pushConstantsPlane);
+					engine.DrawMeshData_EXT(this->quadData);
+				}
+
+				DescriptorWriter writer5{};
+				writer5.WriteImage(0, sun_image.getImageView(), engine.default_LinearSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+				VkDescriptorSet imageDescriptor3 = engine.GetCurrentFrameData()._frameDescriptors.Allocate(engine.GetDevice(), this->_flatimageDS1Layout);
+				writer5.UpdateGivenSet(engine.GetDevice(), imageDescriptor3);
+				vkCmdBindDescriptorSets(engine.GetCurrentFrameData()._commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->_flatimagePipeLayout, 1, 1, &imageDescriptor3, 0, nullptr);
+
+				for (const auto &entity: scene->GetAllEntitiesWith<DirectionalLightComponent>()) {
+					glm::mat4 model = TransformToModelMatrix(entity->GetImmutableComponent<TransformComponent>(), false);
+
+					// billboard logic
+					model = BillboardModelMatrix(model, camera);
+					model = glm::scale(model, glm::vec3{0.5f});
+
+					GPU::DrawPushConstantsEditorEXT pushConstantsPlane = {
+							.modelMatrix = model,
+							.color = entity->GetImmutableComponent<DirectionalLightComponent>().directional.Color,
+							.id = static_cast<uint32_t>(entity->GetHandle()),
+							.vertexBufferAddress = this->quadData.GetVBA(),
+					};
+					vkCmdPushConstants(engine.GetCurrentFrameData()._commandBuffer, this->_flatimagePipeLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPU::DrawPushConstantsEditorEXT), &pushConstantsPlane);
+					engine.DrawMeshData_EXT(this->quadData);
+				}
+			}
+		}
+	}
+	void Editor::RenderReal() {
+		// not user decided
+		DescriptorWriter gwriter{};
+		gwriter.WriteBuffer(0, this->_cameraDataBuffer.getBuffer(), sizeof(GPU::CameraUBO), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+		gwriter.WriteBuffer(1, this->_lightingDataBuffer.getBuffer(), sizeof(GPU::LightingUBO), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+		VkDescriptorSet engine_only_descriptor = engine.GetCurrentFrameData()._frameDescriptors.Allocate(engine.GetDevice(), this->_standardPass.set0Layout);
+		gwriter.UpdateGivenSet(engine.GetDevice(), engine_only_descriptor);
+		vkCmdBindDescriptorSets(engine.GetCurrentFrameData()._commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->_standardPass.getPipelineLayout(), 0, 1, &engine_only_descriptor, 0, nullptr);
+
+		// === MAIN === //
+		{
+			if (this->_viewportMode == ViewportModes::SHADED || this->_viewportMode == ViewportModes::SOLID_WIREFRAME) {
+				// main drawing of all entities!!!
+				vkCmdBindPipeline(engine.GetCurrentFrameData()._commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->_standardPass.getPipeline());
+				for (const Shared<Entity>& entity: this->scene->GetTopLevelEntities()) {
+					DrawEntity(engine.GetCurrentFrameData()._commandBuffer, *entity.get(), this->_standardPass.getPipelineLayout());
+				}
+			}
+
+		}
+	}
+
 	void Editor::Render() {
 		engine.AquireSwapchainFrame();
 
@@ -862,232 +1069,12 @@ namespace Slate {
 			VkRenderingAttachmentInfo color_attachments[] = {geometry_color_attachment, geometry_entity_attachment};
 			VkRenderingInfo geometry_render_info = vkinfo::CreateRenderingInfo(renderExtent, std::span(color_attachments), &geometry_depth_attachment);
 			vkCmdBeginRenderingKHR(engine.GetCurrentFrameData()._commandBuffer, &geometry_render_info);
-			vkutil::SetViewport(engine.GetCurrentFrameData()._commandBuffer, renderExtent);
-			vkutil::SetScissor(engine.GetCurrentFrameData()._commandBuffer, renderExtent);
-
-			// not user decided
-			DescriptorWriter gwriter{};
-			gwriter.WriteBuffer(0, this->_cameraDataBuffer.getBuffer(), sizeof(GPU::CameraUBO), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-			gwriter.WriteBuffer(1, this->_lightingDataBuffer.getBuffer(), sizeof(GPU::LightingUBO), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-			VkDescriptorSet engine_only_descriptor = engine.GetCurrentFrameData()._frameDescriptors.Allocate(engine.GetDevice(), this->_standardPass.set0Layout);
-			gwriter.UpdateSet(engine.GetDevice(), engine_only_descriptor);
-			vkCmdBindDescriptorSets(engine.GetCurrentFrameData()._commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->_standardPass.getPipelineLayout(), 0, 1, &engine_only_descriptor, 0, nullptr);
-
-			// === MAIN === //
 			{
-				if (this->_viewportMode == ViewportModes::SHADED || this->_viewportMode == ViewportModes::SOLID_WIREFRAME) {
-					// main drawing of all entities!!!
-					vkCmdBindPipeline(engine.GetCurrentFrameData()._commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->_standardPass.getPipeline());
-					for (const Shared<Entity>& entity: this->scene->GetTopLevelEntities()) {
-						DrawEntity(engine.GetCurrentFrameData()._commandBuffer, *entity.get(), this->_standardPass.getPipelineLayout());
-					}
+				vkutil::SetViewport(engine.GetCurrentFrameData()._commandBuffer, renderExtent);
+				vkutil::SetScissor(engine.GetCurrentFrameData()._commandBuffer, renderExtent);
 
-//					DescriptorWriter hwriter{};
-//					hwriter.WriteBuffer(0, this->_cameraDataBuffer.getBuffer(), sizeof(GPU::CameraUBO), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-//					VkDescriptorSet ds2 = engine.GetCurrentFrameData()._frameDescriptors.Allocate(engine.GetDevice(), this->_flatDS0Layout);
-//					hwriter.UpdateSet(engine.GetDevice(), ds2);
-//
-//					vkCmdBindDescriptorSets(engine.GetCurrentFrameData()._commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->_flatcolorPipeLayout, 0, 1, &ds2, 0, nullptr);
-//
-//					DescriptorWriter h2writer{};
-//					h2writer.WriteBuffer(0, this->_colorBuffer.getBuffer(), sizeof(GPU::ExtraUBO), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-//					VkDescriptorSet ds3 = engine.GetCurrentFrameData()._frameDescriptors.Allocate(engine.GetDevice(), this->_flatcolorDS1Layout);
-//					h2writer.UpdateSet(engine.GetDevice(), ds3);
-//
-//					vkCmdBindDescriptorSets(engine.GetCurrentFrameData()._commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->_flatcolorPipeLayout, 1, 1, &ds3, 0, nullptr);
-//
-//
-//					vkCmdBindPipeline(engine.GetCurrentFrameData()._commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->_flatcolorTriPipeline); // USE LINE ITS BETTER
-//					GPU::DrawPushConstants pushConstants = {};
-//					pushConstants.modelMatrix = TransformToModelMatrix(scene->GetAllEntities().front()->GetImmutableComponent<TransformComponent>());
-//					pushConstants.vertexBufferAddress = this->testmesh.vertexBufferAddress;
-//					vkCmdPushConstants(engine.GetCurrentFrameData()._commandBuffer, this->_flatcolorPipeLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPU::DrawPushConstants), &pushConstants);
-//					engine.DrawMeshData_EXT(this->testmesh);
-				}
-
-
-				// ============== //
-				// === EDITOR === //
-				// ============== //
-
-				// set camera uniform for my editor shaders
-				DescriptorWriter writer_0;
-				writer_0.WriteBuffer(0, this->_cameraDataBuffer.getBuffer(), sizeof(GPU::CameraUBO), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-				VkDescriptorSet c_descriptor_0 = engine.GetCurrentFrameData()._frameDescriptors.Allocate(engine.GetDevice(), this->_flatDS0Layout);
-				VkDescriptorSet i_descriptor_0 = engine.GetCurrentFrameData()._frameDescriptors.Allocate(engine.GetDevice(), this->_flatDS0Layout);
-				writer_0.UpdateSet(engine.GetDevice(), c_descriptor_0);
-				writer_0.UpdateSet(engine.GetDevice(), i_descriptor_0);
-
-				vkCmdBindDescriptorSets(engine.GetCurrentFrameData()._commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->_flatcolorPipeLayout, 0, 1, &c_descriptor_0, 0, nullptr);
-				vkCmdBindDescriptorSets(engine.GetCurrentFrameData()._commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->_flatimagePipeLayout, 0, 1, &i_descriptor_0, 0, nullptr);
-
-				// set color uniform for flat shader
-				GPU::ExtraUBO extra_wireframe{
-						.color = {1, 0.675, 0, 1.f}};
-				this->_colorBuffer.writeToBuffer(engine.GetAllocator(), &extra_wireframe, _colorBuffer.getBufferSize(), 0);
-
-				DescriptorWriter writer_1;
-				writer_1.WriteBuffer(0, this->_colorBuffer.getBuffer(), sizeof(GPU::ExtraUBO), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-				VkDescriptorSet c_descriptor_1 = engine.GetCurrentFrameData()._frameDescriptors.Allocate(engine.GetDevice(), this->_flatcolorDS1Layout);
-				writer_1.UpdateSet(engine.GetDevice(), c_descriptor_1);
-
-				vkCmdBindDescriptorSets(engine.GetCurrentFrameData()._commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->_flatcolorPipeLayout, 1, 1, &c_descriptor_1, 0, nullptr);
-
-				// these are camera mdoes
-				if (this->_viewportMode == ViewportModes::WIREFRAME) {
-					vkCmdBindPipeline(engine.GetCurrentFrameData()._commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->_flatcolorTriPipeline);
-					DrawSolidAll(this->engine, this->scene, this->_flatcolorPipeLayout);
-				}
-				if (this->_viewportMode == ViewportModes::SOLID_WIREFRAME) {
-					vkCmdBindPipeline(engine.GetCurrentFrameData()._commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->_flatcolorTriPipeline);
-					DrawSolidAllSlightlyBigger(this->engine, this->scene, this->_flatcolorPipeLayout);
-				}
-			}
-
-			GPU::ExtraUBO extra_vis{
-					.color = {0.9f, 0.9f, 0.9f, 1.f}};
-			this->_colorBuffer.writeToBuffer(engine.GetAllocator(), &extra_vis, _colorBuffer.getBufferSize(), 0);
-
-			DescriptorWriter writer_1;
-			writer_1.WriteBuffer(0, this->_colorBuffer.getBuffer(), sizeof(GPU::ExtraUBO), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-			VkDescriptorSet flatDescriptor = engine.GetCurrentFrameData()._frameDescriptors.Allocate(engine.GetDevice(), this->_flatcolorDS1Layout);
-			writer_1.UpdateSet(engine.GetDevice(), flatDescriptor);
-
-			vkCmdBindDescriptorSets(engine.GetCurrentFrameData()._commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->_flatcolorPipeLayout, 1, 1, &flatDescriptor, 0, nullptr);
-
-			// draw some editor stuff
-			if (this->gridEnabled) {
-				vkCmdBindPipeline(engine.GetCurrentFrameData()._commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->_flatcolorLinePipeline);
-				{// just grid
-					GPU::DrawPushConstants pushConstants = {};
-					pushConstants.modelMatrix = glm::translate(glm::mat4(1), {0.f, -0.009f, 0.f});
-					pushConstants.vertexBufferAddress = this->gridmesh.GetVBA();
-					vkCmdPushConstants(engine.GetCurrentFrameData()._commandBuffer, this->_flatcolorPipeLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPU::DrawPushConstants), &pushConstants);
-					engine.DrawMeshData_EXT(this->gridmesh);
-				}
-				// editor primitive visualizers
-				//========================//
-				// ----- WIREFRAMES ----- //
-				//========================//
-				{
-					for (const auto &entity: scene->GetAllEntitiesWith<PointLightComponent>()) {
-						glm::mat4 model = TransformToModelMatrix(entity->GetImmutableComponent<TransformComponent>(), false, false);
-						glm::mat4 spheremodel = glm::scale(model, glm::vec3(entity->GetImmutableComponent<PointLightComponent>().point.Range));
-
-						GPU::DrawPushConstants pushConstants = {
-								.modelMatrix = spheremodel,
-								.vertexBufferAddress = this->simplespheremesh.GetVBA()};
-						vkCmdPushConstants(engine.GetCurrentFrameData()._commandBuffer, this->_flatcolorPipeLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPU::DrawPushConstants), &pushConstants);
-						engine.DrawMeshData_EXT(this->simplespheremesh);
-					}
-					for (const auto &entity: scene->GetAllEntitiesWith<SpotLightComponent>()) {
-						glm::mat4 model = TransformToModelMatrix(entity->GetImmutableComponent<TransformComponent>(), false);
-						float size = entity->GetImmutableComponent<SpotLightComponent>().spot.Size;
-						float halfAngle = glm::radians(size * 0.5f);
-						float radius = sin(halfAngle) / sin(glm::radians(5.0f));
-						float height = radius / tan(halfAngle);
-						glm::mat4 spotmodel = glm::scale(model, glm::vec3{radius, height, radius});
-
-						GPU::DrawPushConstants pushConstants = {
-								.modelMatrix = spotmodel,
-								.vertexBufferAddress = this->spotmesh.GetVBA()};
-						vkCmdPushConstants(engine.GetCurrentFrameData()._commandBuffer, this->_flatcolorPipeLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPU::DrawPushConstants), &pushConstants);
-						engine.DrawMeshData_EXT(this->spotmesh);
-					}
-					for (const auto &entity: scene->GetAllEntitiesWith<DirectionalLightComponent>()) {
-						glm::mat4 model = TransformToModelMatrix(entity->GetImmutableComponent<TransformComponent>(), false);
-
-						GPU::DrawPushConstants pushConstants = {
-								.modelMatrix = model,
-								.vertexBufferAddress = this->arrowmesh.GetVBA()};
-						vkCmdPushConstants(engine.GetCurrentFrameData()._commandBuffer, this->_flatcolorPipeLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPU::DrawPushConstants), &pushConstants);
-						engine.DrawMeshData_EXT(this->arrowmesh);
-					}
-				}
-
-				GPU::ExtraUBO extra{.color = {0.f, 1.f, 0.f, 1.f}};
-				this->_colorBuffer.writeToBuffer(engine.GetAllocator(), &extra, _colorBuffer.getBufferSize(), 0);
-
-				DescriptorWriter writer3{};
-				writer3.WriteBuffer(0, this->_colorBuffer.getBuffer(), sizeof(GPU::ExtraUBO), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-				writer3.WriteImage(1, this->lightbulb_image.getImageView(), engine.default_LinearSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-				VkDescriptorSet imageDescriptor = engine.GetCurrentFrameData()._frameDescriptors.Allocate(engine.GetDevice(), this->_flatimageDS1Layout);
-				writer3.UpdateSet(engine.GetDevice(), imageDescriptor);
-
-				vkCmdBindDescriptorSets(engine.GetCurrentFrameData()._commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->_flatimagePipeLayout, 1, 1, &imageDescriptor, 0, nullptr);
-
-				vkCmdBindPipeline(engine.GetCurrentFrameData()._commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->_flatimagePipeline);
-				//=================//
-				// ---- ICONS ---- //
-				//=================//
-				{
-					for (const auto &entity: scene->GetAllEntitiesWith<PointLightComponent>()) {
-						glm::mat4 model = TransformToModelMatrix(entity->GetImmutableComponent<TransformComponent>(), false, false);
-
-						// billboard logic
-						model = BillboardModelMatrix(model, camera);
-						model = glm::scale(model, glm::vec3{0.5f});
-
-						GPU::DrawPushConstants pushConstantsPlane = {
-								.modelMatrix = model,
-								.vertexBufferAddress = this->quadData.GetVBA(),
-								.id = static_cast<uint32_t>(entity->GetHandle())};
-						vkCmdPushConstants(engine.GetCurrentFrameData()._commandBuffer, this->_flatimagePipeLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPU::DrawPushConstants), &pushConstantsPlane);
-						engine.DrawMeshData_EXT(this->quadData);
-					}
-
-					GPU::ExtraUBO extra {.color = {1.f, 1.f, 0.f, 1.f}};
-					this->_colorBuffer.writeToBuffer(engine.GetAllocator(), &extra, _colorBuffer.getBufferSize(), 0);
-
-					DescriptorWriter writer4{};
-					writer4.WriteBuffer(0, this->_colorBuffer.getBuffer(), sizeof(GPU::ExtraUBO), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-					writer4.WriteImage(1, spotlight_image.getImageView(), engine.default_LinearSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-					VkDescriptorSet imageDescriptor2 = engine.GetCurrentFrameData()._frameDescriptors.Allocate(engine.GetDevice(), this->_flatimageDS1Layout);
-					writer4.UpdateSet(engine.GetDevice(), imageDescriptor2);
-
-					vkCmdBindDescriptorSets(engine.GetCurrentFrameData()._commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->_flatimagePipeLayout, 1, 1, &imageDescriptor2, 0, nullptr);
-
-					for (const auto &entity: scene->GetAllEntitiesWith<SpotLightComponent>()) {
-						glm::mat4 model = TransformToModelMatrix(entity->GetImmutableComponent<TransformComponent>(), false, false);
-
-						// billboard logic
-						model = BillboardModelMatrix(model, camera);
-						model = glm::scale(model, glm::vec3{0.5f});
-
-						GPU::DrawPushConstants pushConstantsPlane = {
-								.modelMatrix = model,
-								.vertexBufferAddress = this->quadData.GetVBA(),
-								.id = static_cast<uint32_t>(entity->GetHandle())};
-						vkCmdPushConstants(engine.GetCurrentFrameData()._commandBuffer, this->_flatimagePipeLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPU::DrawPushConstants), &pushConstantsPlane);
-						engine.DrawMeshData_EXT(this->quadData);
-					}
-
-					extra = {.color = {1.f, 1.f, 0.f, 1.f}};
-					this->_colorBuffer.writeToBuffer(engine.GetAllocator(), &extra, _colorBuffer.getBufferSize(), 0);
-
-					DescriptorWriter writer5{};
-					writer5.WriteBuffer(0, this->_colorBuffer.getBuffer(), sizeof(GPU::ExtraUBO), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-					writer5.WriteImage(1, sun_image.getImageView(), engine.default_LinearSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-					VkDescriptorSet imageDescriptor3 = engine.GetCurrentFrameData()._frameDescriptors.Allocate(engine.GetDevice(), this->_flatimageDS1Layout);
-					writer5.UpdateSet(engine.GetDevice(), imageDescriptor3);
-
-					vkCmdBindDescriptorSets(engine.GetCurrentFrameData()._commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->_flatimagePipeLayout, 1, 1, &imageDescriptor3, 0, nullptr);
-
-					for (const auto &entity: scene->GetAllEntitiesWith<DirectionalLightComponent>()) {
-						glm::mat4 model = TransformToModelMatrix(entity->GetImmutableComponent<TransformComponent>(), false);
-
-						// billboard logic
-						model = BillboardModelMatrix(model, camera);
-						model = glm::scale(model, glm::vec3{0.5f});
-
-						GPU::DrawPushConstants pushConstantsPlane = {
-								.modelMatrix = model,
-								.vertexBufferAddress = this->quadData.GetVBA(),
-								.id = static_cast<uint32_t>(entity->GetHandle())};
-						vkCmdPushConstants(engine.GetCurrentFrameData()._commandBuffer, this->_flatimagePipeLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPU::DrawPushConstants), &pushConstantsPlane);
-						engine.DrawMeshData_EXT(this->quadData);
-					}
-				}
+				this->RenderReal();
+				this->RenderVisualizers();
 			}
 			vkCmdEndRenderingKHR(engine.GetCurrentFrameData()._commandBuffer);
 

@@ -40,7 +40,7 @@ namespace Slate {
 		// what we can use for reflection
 		// if it has INCLUDED defined, DONT reflect
 		const std::string content = Filesystem::ReadTextFile(location);
-		if (content.find("#define INCLUDED") == std::string::npos) {
+		if (content.find("#define NOREFLECT") == std::string::npos) {
 			this->reflectLayout(composedProgram->getLayout());
 		}
 
@@ -63,7 +63,6 @@ namespace Slate {
 	}
 	void ShaderResource::CreateVkModule(VkDevice device) {
 		VkShaderModuleCreateInfo create_info = { .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
-//		create_info.pCode = (uint32_t const*)spirv_code->getBufferPointer();
 		create_info.pCode = static_cast<uint32_t const*>(spirv_code->getBufferPointer());
 		create_info.codeSize = spirv_code->getBufferSize();
 		VkShaderModule shaderModule;
@@ -189,12 +188,15 @@ namespace Slate {
 	}
 
 	void ShaderResource::reflectLayout(slang::ProgramLayout* layout) {
-		int param_count = layout->getParameterCount();
-		for (int i = 0; i < param_count; i++) {
-			slang::VariableLayoutReflection* param = layout->getParameterByIndex(i);
-			slang::VariableReflection* var = param->getVariable();
+		unsigned int param_count = layout->getParameterCount();
+		for (unsigned int i = 0; i < param_count; i++) {
+			slang::VariableLayoutReflection* var_layout = layout->getParameterByIndex(i);
+
+			slang::VariableReflection* var = var_layout->getVariable();
 
 			fmt::print("{} {}\n", var->getName(), StringFromShaderType(TypefromSlangType(var->getType())));
+
+			
 		}
 	}
 }

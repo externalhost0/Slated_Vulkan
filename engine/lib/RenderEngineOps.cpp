@@ -57,6 +57,20 @@ namespace Slate {
 		VK_CHECK(vmaCreateBuffer(_allocator, &bufferInfo, &vmaallocInfo, &newBuffer.buffer, &newBuffer.allocation, &newBuffer.allocationInfo));
 		return newBuffer;
 	}
+
+	vktypes::AllocatedBuffer RenderEngine::CreateUniformBuffer(size_t size) {
+		VkBufferCreateInfo bufferInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+		bufferInfo.size = size;
+		bufferInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+
+		VmaAllocationCreateInfo allocInfo = {};
+		allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+
+		vktypes::AllocatedBuffer newBuffer = {};
+		newBuffer.minOffsetAlignment = this->_vkPhysDeviceProperties.limits.minUniformBufferOffsetAlignment;
+		VK_CHECK(vmaCreateBuffer(this->_allocator, &bufferInfo, &allocInfo, &newBuffer.buffer, &newBuffer.allocation, &newBuffer.allocationInfo));
+		return newBuffer;
+	}
 	vktypes::AllocatedImage RenderEngine::CreateImage(VkExtent2D extent, VkFormat format, VkImageUsageFlags usages, VkSampleCountFlags samples, bool mipmapped) const {
 		VkExtent3D extent3D = {
 				.width = extent.width,

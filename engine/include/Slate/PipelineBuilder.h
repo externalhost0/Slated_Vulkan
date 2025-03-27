@@ -30,8 +30,9 @@ namespace Slate {
 		LINE
 	};
 	enum class TopologyMode {
-		TRIANGLE, // (standard
-		LIST
+		TRIANGLE, // (standard)
+		LIST,
+		STRIP
 	};
 	enum class MultisampleMode {
 		OFF,
@@ -52,7 +53,8 @@ namespace Slate {
 	};
 	static std::unordered_map<TopologyMode, VkPrimitiveTopology> TopologyModeVkPrimitiveTopologyMap = {
 			{TopologyMode::TRIANGLE, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST},
-			{TopologyMode::LIST, VK_PRIMITIVE_TOPOLOGY_LINE_LIST}
+			{TopologyMode::LIST, VK_PRIMITIVE_TOPOLOGY_LINE_LIST},
+			{TopologyMode::STRIP, VK_PRIMITIVE_TOPOLOGY_LINE_STRIP}
 	};
 	static std::unordered_map<MultisampleMode, VkSampleCountFlagBits> MultisampleModeVkSampleCountFlagMap = {
 			{MultisampleMode::OFF, VK_SAMPLE_COUNT_1_BIT},

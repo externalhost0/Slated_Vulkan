@@ -14,7 +14,6 @@
 #include "../ImGuiSnippets.h"
 
 namespace Slate {
-
 	std::vector<entt::entity> entity_order_vector;
 	std::unordered_set<entt::entity> entitySet;
 

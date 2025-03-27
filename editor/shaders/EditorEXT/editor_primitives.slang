@@ -1,4 +1,6 @@
 // Standard Editor Wireframe Shader
+#define NOREFLECT
+
 struct CameraData {
     float4x4 proj;
     float4x4 view;
@@ -16,8 +18,9 @@ struct Vertex {
 };
 struct PushConstants {
     float4x4 model_matrix;
-    Ptr<Vertex> vertexBufferAddress;
+    float3 color;
     uint32_t id;
+    Ptr<Vertex> vertexBufferAddress;
 }
 [[vk::push_constant]]
 ConstantBuffer<PushConstants> pushConstants;
@@ -32,9 +35,9 @@ struct VSInput {
 
 struct v2f {
     float4 ClipPos : SV_Position;
+    float3 Color : COLOR;
 };
 
-[require(spvInt64Atomics)]
 [shader("vertex")]
 v2f vs_main(VSInput input) {
     v2f output;
@@ -42,6 +45,7 @@ v2f vs_main(VSInput input) {
 
     float3 worldpos = mul(pushConstants.model_matrix, float4(v.position, 1.0)).xyz;
     output.ClipPos = mul(mul(cameraData.proj, cameraData.view), float4(worldpos, 1.0));
+    output.Color = pushConstants.color;
     return output;
 }
 
@@ -53,12 +57,6 @@ struct FSOutput {
     float4 FragColor : SV_Target0;
 };
 
-struct ExtraUBO {
-    float4 color;
-}
-[[vk::binding(0, 1)]]
-ConstantBuffer<ExtraUBO> extra;
-
 [shader("pixel")]
 FSOutput fs_main(v2f input) {
     FSOutput output;
@@ -69,6 +67,6 @@ FSOutput fs_main(v2f input) {
     float depth = input.ClipPos.z / input.ClipPos.w;
     float fade = clamp((fade_end - depth) / (fade_end - fade_start), 0, 1);
 
-    output.FragColor = float4(float3(1.f), fade);
+    output.FragColor = float4(input.Color, fade);
     return output;
 }

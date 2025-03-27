@@ -44,6 +44,10 @@ v2f vs_main(VSInput input) {
 // ===== FRAGMENT SHADER =====
 // ===========================
 
+uniform float3 albedo;
+uniform float metallic;
+uniform float roughness;
+uniform float ao;
 
 [shader("pixel")]
 FSOutput fs_main(v2f input) {

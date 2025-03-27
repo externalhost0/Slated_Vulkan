@@ -1,4 +1,5 @@
 // Standard Editor Image Shader
+#define NOREFLECT
 
 struct CameraData {
     float4x4 proj;
@@ -17,8 +18,9 @@ struct Vertex {
 };
 struct PushConstants {
     float4x4 model_matrix;
+    float3 color;
+    uint32_t id;
     Ptr<Vertex> vertexBufferAddress;
-    uint id;
 }
 [[vk::push_constant]]
 ConstantBuffer<PushConstants> pushConstants;
@@ -36,6 +38,7 @@ struct v2f {
     float4 ClipPos : SV_Position;
     float2 UV : TEXCOORD0;
     nointerpolation uint ID : ID;
+    float3 Color : COLOR;
 };
 
 [shader("vertex")]
@@ -48,6 +51,7 @@ v2f vs_main(VSInput input) {
 
     output.UV = float2(v.uv_x, v.uv_y);
     output.ID = pushConstants.id;
+    output.Color = pushConstants.color;
     return output;
 }
 
@@ -60,13 +64,7 @@ struct FSOutput {
     uint FragID      : SV_Target1;
 };
 
-struct ExtraUBO {
-    float4 color;
-}
 [[vk::binding(0, 1)]]
-ConstantBuffer<ExtraUBO> extra;
-
-[[vk::binding(1, 1)]]
 Sampler2D u_Texture;
 
 
@@ -79,7 +77,7 @@ FSOutput fs_main(v2f input) {
     sampled = clamp(sampled, 0, 1);
     float alpha = 1.0 - sampled;
 
-    output.FragColor = float4(extra.color.xyz, alpha);
+    output.FragColor = float4(input.Color, alpha);
     output.FragID = input.ID;
     return output;
 }

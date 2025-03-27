@@ -83,12 +83,13 @@ namespace Slate::vkutil {
 		// we flip the viewport because Vulkan is reversed using LH instead of GL's RH
 		VkViewport viewport = {};
 		viewport.x = 0;
-		viewport.y = static_cast<float>(extent2D.height);
+		// using Slang compilier option to reflect the y axis solves this
+//		viewport.y = static_cast<float>(extent2D.height);
+//		viewport.width = static_cast<float>(extent2D.width);
+//		viewport.height = -static_cast<float>(extent2D.height);
+		viewport.y = 0;
 		viewport.width = static_cast<float>(extent2D.width);
-		viewport.height = -static_cast<float>(extent2D.height);
-//		viewport.y = 0;
-//		viewport.width = extent2D.width;
-//		viewport.height = extent2D.height;
+		viewport.height = static_cast<float>(extent2D.height);
 		viewport.minDepth = 0.f;
 		viewport.maxDepth = 1.f;
 		vkCmdSetViewport(cmd, 0, 1, &viewport);

@@ -29,7 +29,7 @@ namespace Slate {
 				.format = SLANG_SPIRV,
 				.profile = globalSession->findProfile("spirv_1_6")
 		};
-		std::array<slang::CompilerOptionEntry, 4> entries = {
+		std::array<slang::CompilerOptionEntry, 5> entries = {
 				slang::CompilerOptionEntry{
 						.name = slang::CompilerOptionName::VulkanUseEntryPointName,
 						.value = {
@@ -57,6 +57,13 @@ namespace Slate {
 								.kind = slang::CompilerOptionValueKind::Int,
 								.intValue0 = true
 						}
+				},
+				slang::CompilerOptionEntry{
+					.name = slang::CompilerOptionName::VulkanInvertY,
+					.value = {
+							.kind = slang::CompilerOptionValueKind::Int,
+							.intValue0 = true
+					}
 				}
 		};
 

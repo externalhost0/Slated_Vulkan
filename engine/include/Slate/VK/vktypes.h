@@ -41,6 +41,12 @@ namespace Slate {
 			alignas(8) VkDeviceAddress vertexBufferAddress = 0;
 			alignas(4) uint32_t id = 0;
 		};
+		struct DrawPushConstantsEditorEXT {
+			alignas(16) glm::mat4 modelMatrix = glm::mat4(1);
+			glm::vec3 color = {0, 0, 0};
+			alignas(4) uint32_t id = 0;
+			alignas(8) VkDeviceAddress vertexBufferAddress = 0;
+		};
 
 		struct CameraUBO {
 			glm::mat4 projectionMatrix;

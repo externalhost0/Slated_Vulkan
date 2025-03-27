@@ -76,6 +76,7 @@ namespace Slate {
 		vktypes::AllocatedImage CreateImage(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
 		vktypes::AllocatedImage CreateImage(const std::filesystem::path& file_path, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
 
+		vktypes::AllocatedBuffer CreateUniformBuffer(size_t size);
 		vktypes::AllocatedBuffer CreateBuffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage, VmaAllocationCreateFlags flags = 0) const;
 		MeshBuffer CreateMeshBuffer(std::vector<Vertex> vertices);
 		MeshBuffer CreateMeshBuffer(std::vector<Vertex> vertices, std::vector<uint32_t> indices);

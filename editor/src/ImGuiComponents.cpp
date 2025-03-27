@@ -28,8 +28,14 @@ namespace SlateGui {
 
 
 		ImVec2 size = { ImGui::GetFontSize()*6, 0 };
-		if (ImGui::ColorButton("##button", ImVec4(color.r, color.g, color.b, 1.0), ImGuiColorEditFlags_NoBorder, size))
+		if (ImGui::ColorButton("##button", ImVec4(color.r, color.g, color.b, 1.0), ImGuiColorEditFlags_NoBorder | ImGuiColorEditFlags_NoTooltip, size))
 			ImGui::OpenPopup("hi-picker");
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal | ImGuiHoveredFlags_NoSharedDelay)) {
+			ImGui::BeginTooltip();
+			// TODO add tooltip content
+
+			ImGui::EndTooltip();
+		}
 
 		if (toggle && ImGui::IsItemHovered()) {
 			// fun little easter egg if you try to sample the colorbutton above
