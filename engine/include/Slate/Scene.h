@@ -15,37 +15,38 @@
 // templated functions are seperate to avoid cylic dependencies in their defintions, find them in "SceneTemplates.h"
 namespace Slate {
 	class Entity;
+	static constexpr uint8_t MAX_ENTITY_COUNT = 255;
 
 	class Scene : public std::enable_shared_from_this<Scene> {
 	public:
 		Scene();
 		~Scene() = default;
 
-		Shared<Entity> CreateEntity();
-		Shared<Entity> CreateEntity(const std::string& name);
+		Entity& CreateEntity();
+		Entity& CreateEntity(const std::string& name);
 
-		Shared<Entity> DuplicateEntity(const Shared<Entity>& entity);
+		Entity& DuplicateEntity(const entt::entity& handle);
 
-		void DestroyEntity(const Shared<Entity>& entity);
-		void DestroyEntityById(const entt::entity& id);
+		void DestroyEntity(const entt::entity& handle);
 
-		Shared<Entity> GetEntityById(const entt::entity& id);
-		std::vector<Shared<Entity>> GetTopLevelEntities();
-		std::vector<Shared<Entity>> GetAllEntities();
+		Entity& GetEntity(const entt::entity& handle);
+		std::vector<Entity*> GetTopLevelEntities();
+		std::vector<Entity*> GetAllEntities();
 		template<class... T>
-		std::vector<Shared<Entity>> GetAllEntitiesWith();
+		std::vector<Entity*> GetAllEntitiesWith();
 
 		entt::registry& GetRegistry() { return registry; };
+		unsigned int GetEntityCount() { return entityMap.size(); }
 
 		void Clear();
 	public:
-		EnvironmentComponent& GetEnvironment() {
-			auto view = registry.view<EnvironmentComponent>();
+		AmbientLightComponent& GetEnvironment() {
+			auto view = registry.view<AmbientLightComponent>();
 			if (view->empty()) {
 				return this->_environment;
 			} else {
-				entt::entity temp = *registry.view<EnvironmentComponent>().begin();
-				return registry.get<EnvironmentComponent>(temp);
+				entt::entity temp = *registry.view<AmbientLightComponent>().begin();
+				return registry.get<AmbientLightComponent>(temp);
 			}
 		}
 		DirectionalLightComponent& GetDirectional() {
@@ -64,9 +65,9 @@ namespace Slate {
 	private:
 
 		DirectionalLightComponent _directional {};
-		EnvironmentComponent _environment {}; // use all default values of environment
+		AmbientLightComponent _environment {}; // use all default values of environment
 
 		entt::registry registry;
-		std::unordered_map<entt::entity, Shared<Entity>> entityMap;
+		std::unordered_map<entt::entity, UniquePtr<Entity>> entityMap;
 	};
 }

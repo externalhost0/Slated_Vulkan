@@ -8,12 +8,12 @@
 
 namespace Slate {
 	template<typename... T>
-	std::vector<Shared<Entity>> Scene::GetAllEntitiesWith() {
+	std::vector<Entity*> Scene::GetAllEntitiesWith() {
 		const auto& ids = this->registry.view<T...>();
-		std::vector<Shared<Entity>> entites_to_grab;
+		std::vector<Entity*> entites_to_grab;
 		entites_to_grab.reserve(static_cast<size_t>(std::distance(ids.begin(), ids.end()))); // not going to work, delete
 		for (const entt::entity& handle : ids) {
-			entites_to_grab.emplace_back(this->entityMap[handle]);
+			entites_to_grab.emplace_back(this->entityMap[handle].get());
 		}
 		return entites_to_grab;
 	}

@@ -19,7 +19,7 @@ namespace Slate {
 
 	class ResourceException : public std::exception {
 	public:
-		ResourceException(const std::string& msg, const std::filesystem::path& path) : message(msg), path(path) {
+		ResourceException(const std::string& msg, const std::filesystem::path& path) {
 			this->fullMessage = msg + " " + path.string();
 		}
 		const char* what() const noexcept override {
@@ -27,8 +27,6 @@ namespace Slate {
 		}
 	private:
 		std::string fullMessage;
-		std::string message;
-		std::filesystem::path path;
 	};
 
 	struct IResource {
@@ -45,9 +43,10 @@ namespace Slate {
 
 		virtual std::string GetName() final { return this->filename; };
 		virtual std::string GetFilepath() final { return this->filepath.string(); };
-	protected:
+	private:
 		std::string filename;
 		std::filesystem::path filepath;
+	protected:
 		virtual Result LoadResourceImpl(const std::filesystem::path& path) = 0;
 	private:
 		Result PreLoad(const std::filesystem::path& path);

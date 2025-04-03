@@ -4,85 +4,92 @@
 #pragma once
 #include <entt/entity/registry.hpp>
 #include <entt/entity/entity.hpp>
+#include <utility>
 
+#include "FastSTD.h"
 #include "Debug.h"
 #include "Scene.h"
 
 namespace Slate {
-	class Entity {
+	static constexpr unsigned int MAX_CHILD_COUNT = 128;
+
+	class Entity final {
 	public:
-		Entity() = delete;
+		Entity() = default;
 		~Entity() = default;
-
-		// proper construction involved feeding it a entt handle and assigning it a ref to scene
-		Entity(const entt::entity& handle, const std::weak_ptr<Scene>& scene);
-
-		// disallow the ability to assign entities
-		Entity& operator = (const Entity&) = delete;
+		Entity(const Entity&) = delete;  // disable copy constructor
+		Entity& operator=(const Entity&) = delete; // disable assignment operator
+		Entity(const entt::entity& handle, WeakPtr<Scene> scene) : _handle(handle), _scene(std::move(scene)) {};
 	public:
-		bool operator == (const Entity& other) const { return this->handle == other.handle; }
-		bool operator != (const Entity& other) const { return !(*this == other); }
-		explicit operator bool() const { return this->handle != entt::null; }
+		bool operator==(const Entity& other) const { return _handle == other._handle; }
+		bool operator!=(const Entity& other) const { return !(*this == other); }
+		explicit operator bool() const { return _handle != entt::null; }
 	public:
-		std::string GetName() const;
+		inline std::string GetName() const { return _name; };
+		inline entt::entity GetHandle() const { return _handle; };
+		inline FastVector<entt::entity, MAX_CHILD_COUNT> GetChildren() { return _childrenhandles; };
+		Entity* GetParentPtr();
+		Entity& GetRoot();
+
 		void SetName(const std::string& new_name);
-		entt::entity GetHandle() const;
-
-		std::vector<Entity> GetChildren();
-		std::weak_ptr<Entity> GetParent();
-		Entity* GetRoot();
-
-		void SetParent(std::weak_ptr<Entity> entity);
 
 		bool HasChildren() const;
 		bool HasParent() const;
 
-		void AddChild(const Entity& entity);
-		void RemoveChild(const Entity& entity);
-
+		void AddChild(const entt::entity& handle);
+		void RemoveChild(const entt::entity& handle);
 	public:
 		template<class T>
 		bool HasComponent() const {
-			Shared<Scene> scene = this->sceneRef.lock();
-			if (!scene) return false;
-			return scene->GetRegistry().all_of<T>(this->handle);
+			if (StrongPtr<Scene> scene = this->_scene.lock()) {
+				return scene->GetRegistry().all_of<T>(_handle);
+			}
+			return false;
 		}
 		template<class T>
-		T& GetMutableComponent() {
+		T& GetComponent() {
 			if (!HasComponent<T>()) throw std::runtime_error("Entity does not have that component!");
-			Shared<Scene> scene = this->sceneRef.lock();
-			return scene->GetRegistry().get<T>(this->handle);
+			if (StrongPtr<Scene> scene = this->_scene.lock()) {
+				return scene->GetRegistry().get<T>(_handle);
+			}
+			throw std::runtime_error("Scene expired!");
 		}
 		template<class T>
-		const T& GetImmutableComponent() const {
+		const T& GetCompnent() const {
 			if (!HasComponent<T>()) throw std::runtime_error("Entity does not have that component!");
-			Shared<Scene> scene = this->sceneRef.lock();
-			return scene->GetRegistry().get<T>(this->handle);
+			if (StrongPtr<Scene> scene = this->_scene.lock()) {
+				return scene->GetRegistry().get<T>(_handle);
+			}
+			throw std::runtime_error("Scene expired!");
 		}
 		template<class T, typename... Args>
 		T& AddComponent(Args&&... args) const {
 			if (HasComponent<T>()) throw std::runtime_error("Entity already has that component!");
-			Shared<Scene> scene = this->sceneRef.lock();
-			T& comp = scene->GetRegistry().emplace<T>(this->handle, std::forward<Args>(args)...);
-			// so far we havent had any use of our own functions doing anything special when components are added
-//			scene->OnComponentAdded<T>(this, comp);
-			return comp;
+			if (StrongPtr<Scene> scene = this->_scene.lock()) {
+				T& comp = scene->GetRegistry().emplace<T>(_handle, std::forward<Args>(args)...);
+				// so far we havent had any use of our own functions doing anything special when components are added
+//				scene->OnComponentAdded<T>(this, comp);
+				return comp;
+			}
+			throw std::runtime_error("Scene expired!");
 		}
 		template<class T>
 		void RemoveComponent() {
-			if (HasComponent<T>()) throw std::runtime_error("Entity does not have that component!");
-			Shared<Scene> scene = this->sceneRef.lock();
-			scene->GetRegistry().remove<T>(this->handle);
+			if (!HasComponent<T>()) throw std::runtime_error("Entity does not have that component!");
+			if (StrongPtr<Scene> scene = this->_scene.lock()) {
+				scene->GetRegistry().remove<T>(_handle);
+				return;
+			}
+			throw std::runtime_error("Scene expired!");
 		}
 	private:
-		std::string name;
+		void SetParent(Entity* parent);
 
-		entt::entity handle = entt::null;
-		std::weak_ptr<Scene> sceneRef;
+		std::string _name = "Null Name";
+		entt::entity _handle = entt::null;
 
-		std::weak_ptr<Entity> parent;
-		std::vector<Entity> children;
-
-		friend class Scene;
+		WeakPtr<Scene> _scene;
+		Optional<Entity*> _parent = std::nullopt;
+		FastVector<entt::entity, MAX_CHILD_COUNT> _childrenhandles;
 	};
 }

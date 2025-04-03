@@ -18,6 +18,8 @@ namespace Slate {
 			LOG_EXCEPTION(e);
 			return Result::FAIL;
 		}
+		this->filepath = path;
+		this->filename = path.filename();
 		return Result::SUCCESS;
 	}
 

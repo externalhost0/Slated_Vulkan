@@ -23,13 +23,13 @@ namespace Slate {
 		}
 	}
 
-
 	void InputSystem::StartupImpl() {
 
 	}
 	void InputSystem::ShutdownImpl() {
 
 	}
+
 	bool InputSystem::IsKeyPressed(int key, int keystate) const {
 		int state = glfwGetKey(this->owner->GetSystem<WindowSystem>()->GetCurrentWindow()->GetGlfwWindow(), static_cast<int32_t>(key));
 		return state == keystate;

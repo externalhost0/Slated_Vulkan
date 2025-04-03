@@ -13,25 +13,34 @@
 #include <vk_mem_alloc.h>
 
 namespace Slate {
+	enum class ShaderType : unsigned char {
+		Boolean,
+		Int,
+		UInt,
+		Float,
+		Double,
+
+		Texture2D,
+		Texture3D,
+		TextureCube,
+		Sampler,
+
+		Vec2,
+		Vec3,
+		Vec4,
+
+		Mat2,
+		Mat3,
+		Mat4,
+
+		Struct,
+		Pointer,
+		Unknown
+	};
+
 	struct ShaderCursor {
 	public:
-		void write(const void* data, size_t size) {
-//			buffer.writeToBuffer(this->_allocator, &data, size, 0);
-		}
 
-		ShaderCursor field(const char* name) {
-			return field(_typeLayout->findFieldIndexByName(name));
-		}
-		ShaderCursor field(unsigned int index) {
-			slang::VariableLayoutReflection* field = _typeLayout->getFieldByIndex(index);
-
-			ShaderCursor result = *this;
-			result._typeLayout = field->getTypeLayout();
-			result._byteOffset += field->getOffset();
-			result._bindingIndex += field->getOffset(slang::ParameterCategory::DescriptorTableSlot);
-
-			return result;
-		}
 	private:
 
 		VkBuffer        _buffer;
@@ -46,6 +55,19 @@ namespace Slate {
 		VmaAllocator _allocator;
 	};
 
+	struct Uniform {
+	public:
+		void write(const void* new_data) {
+
+		};
+
+		void* data = nullptr;
+		std::string name;
+		ShaderType type;
+		size_t size;
+		size_t offset;
+	};
+
 	struct ShaderResource : public IResource {
 	public:
 		void CompileToSpirv();
@@ -56,12 +78,12 @@ namespace Slate {
 	private:
 		Slang::ComPtr<ISlangBlob> spirv_code = nullptr;
 		VkShaderModule vkModule = VK_NULL_HANDLE;
-
-
-		std::vector<ShaderCursor> cursors;
+		slang::ProgramLayout* programLayout = nullptr;
+		std::vector<Uniform> uniforms;
 	private:
-		void reflectLayout(slang::ProgramLayout* layout);
 		Result LoadResourceImpl(const std::filesystem::path& path) override;
+
+		friend class ShaderSystem;
 	};
 
 }

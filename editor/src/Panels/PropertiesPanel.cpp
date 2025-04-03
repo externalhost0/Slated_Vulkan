@@ -16,12 +16,11 @@
 #include "../ImGuiSnippets.h"
 
 namespace Slate {
-	void EntityHeader(Entity* entity) {
+	void EntityHeader(Entity& entity) {
 		char buffer[128] = "";
-		std::string currentName = entity->GetName();
+		std::string currentName = entity.GetName();
 		strncpy(buffer, currentName.c_str(), sizeof(buffer) - 1);
 		buffer[sizeof(buffer) - 1] = '\0'; // Ensure null-termination
-
 
 		ImGui::PushFont(Fonts::iconLargeFont);
 		ImGui::Text(ICON_LC_BOX);
@@ -30,12 +29,12 @@ namespace Slate {
 		ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 2.0f);
 		ImGui::PushFont(Fonts::largeboldFont);
 		if (ImGui::InputText("##RenameInput", buffer, IM_ARRAYSIZE(buffer),ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll)) {
-			entity->SetName(buffer);
+			entity.SetName(buffer);
 		}
 		ImGui::PopFont();
 	}
-	void ComponentTransform(Entity* entity) {
-		auto& transform = entity->GetMutableComponent<TransformComponent>();
+	void ComponentTransform(Entity& entity) {
+		auto& transform = entity.GetComponent<TransformComponent>();
 
 		Vector3Drag("Position", transform.Position, "%.2f", 0.0f, 0.01f);
 
@@ -45,8 +44,34 @@ namespace Slate {
 
 		Vector3Drag("Scale", transform.Scale, "%.3f", 1.0f, 0.01f);
 	}
-	void ComponentMesh(Entity* entity) {
-		auto& mesh = entity->GetMutableComponent<MeshPrimitiveComponent>();
+	void ComponentMeshPrimitive(Entity& entity) {
+		GeometryPrimitiveComponent& mesh_component = entity.GetComponent<GeometryPrimitiveComponent>();
+		MeshPrimitiveType current_type = mesh_component.Meshtype;
+
+		ImGui::AlignTextToFramePadding();
+		ImGui::Text("Mesh Type: ");
+		ImGui::SameLine();
+		if (ImGui::BeginCombo("###hidden", MeshPrimitiveTypeStringMap.at(current_type))) {
+			for (const auto& [type, name] : MeshPrimitiveTypeStringMap) {
+				bool isSelected = (current_type == type);
+				if (ImGui::Selectable(name, isSelected)) {
+					mesh_component.Meshtype = type;
+				}
+				if (isSelected) {
+					ImGui::SetItemDefaultFocus();
+				}
+			}
+			ImGui::EndCombo();
+		}
+
+//		std::string shader_name = mesh_component.shader->GetName();
+//		ImGui::Text("%s", shader_name.c_str());
+//		for (const Uniform& uniform : mesh_component.uniforms) {
+//			ImGui::Text("%s", uniform.name.c_str());
+//			if (uniform.type == ShaderType::Vec3) {
+//				ImGui::DragFloat3("#hiddenitem", glm::value_ptr(*static_cast<glm::vec3*>(uniform.data)));
+//			}
+//		}
 
 //		ImGui::Text("%s", mesh.shaderProgram.filename.c_str());
 
@@ -82,7 +107,10 @@ namespace Slate {
 //			}
 //		}
 	}
-	void ComponentScript(Entity* entity) {
+	void ComponentMeshGLTF(Entity& entity) {
+
+	}
+	void ComponentScript(Entity& entity) {
 
 	}
 
@@ -112,8 +140,8 @@ namespace Slate {
 		return {r, g, b, 1.0};
 	}
 
-	void ComponentPointLight(Entity* entity) {
-		auto& light = entity->GetMutableComponent<PointLightComponent>();
+	void ComponentPointLight(Entity& entity) {
+		auto& light = entity.GetComponent<PointLightComponent>();
 
 		SlateGui::ColorField(light.point.Color);
 
@@ -132,8 +160,8 @@ namespace Slate {
 		ImGui::DragFloat("###hidden2", &light.point.Range, 0.5f, 0.f, 100.0f);
 		ImGui::PopItemWidth();
 	}
-	void ComponentSpotLight(Entity* entity) {
-		auto& light = entity->GetMutableComponent<SpotLightComponent>();
+	void ComponentSpotLight(Entity& entity) {
+		auto& light = entity.GetComponent<SpotLightComponent>();
 
 		SlateGui::ColorField(light.spot.Color);
 		ImGui::DragFloat("Intensity", &light.spot.Intensity, 0.05f, 0.f, 1000.0f);
@@ -141,15 +169,15 @@ namespace Slate {
 		ImGui::DragFloat("Size", &light.spot.Size, 0.5f, 1.f, 180.f);
 	}
 
-	void ComponentDirectionalLight(Entity* entity) {
-		auto& light = entity->GetMutableComponent<DirectionalLightComponent>();
+	void ComponentDirectionalLight(Entity& entity) {
+		auto& light = entity.GetComponent<DirectionalLightComponent>();
 
 		SlateGui::ColorField(light.directional.Color);
 		ImGui::DragFloat("Intensity", &light.directional.Intensity, 0.05f, 0.f, 1000.0f);
 	}
-	void ComponentEnvironmentLight(Entity* entity) {
+	void ComponentEnvironmentLight(Entity& entity) {
 		// ambient point source changes
-		auto& light = entity->GetMutableComponent<EnvironmentComponent>();
+		auto& light = entity.GetComponent<AmbientLightComponent>();
 
 		SlateGui::ColorField(light.ambient.Color);
 		ImGui::DragFloat("Intensity", &light.ambient.Intensity, 0.05f, 0.f, 1000.0f);
@@ -161,9 +189,9 @@ namespace Slate {
 	struct ComponentMetadata { static_assert(sizeof(T) == 0); };
 
 	template <typename... T>
-	void ProcessComponents(Entity* entity, ComponentGroup<T...>) {
+	void ProcessComponents(Entity& entity, ComponentGroup<T...>) {
 		(..., [&] {
-			if (entity->HasComponent<T>()) {
+			if (entity.HasComponent<T>()) {
 				ComponentPropertyPanel<T>(
 						entity,
 						ComponentMetadata<T>::handler,
@@ -175,9 +203,9 @@ namespace Slate {
 	}
 	// templated function for all component panels
 	template <typename T>
-	void ComponentPropertyPanel(Entity* entity, const std::function<void(Entity*)>& func, const char* title, const char* icon) {
+	void ComponentPropertyPanel(Entity& entity, const std::function<void(Entity&)>& func, const char* title, const char* icon) {
 		// make sure a component is only shown if an entity has it
-		if (!entity || !entity->HasComponent<T>()) return;
+		if (!entity || !entity.HasComponent<T>()) return;
 		// require that the componenttype is actually a component lol
 		static_assert(std::is_class<T>::value, "T must be a class/struct!");
 
@@ -186,7 +214,7 @@ namespace Slate {
 		ImGuiTreeNodeFlags nodeFlags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_AllowOverlap;
 
 		// generate a unique id for the child window
-		std::string uniqueId = "Child" + std::to_string(typeid(T).hash_code()) + std::to_string(static_cast<uint32_t>(entity->GetHandle()));
+		std::string uniqueId = "Child" + std::to_string(typeid(T).hash_code()) + std::to_string(static_cast<uint32_t>(entity.GetHandle()));
 		ImGui::BeginChild(uniqueId.c_str(), ImVec2(0, 0), childFlags);
 
 		// this constructs the icon -> title -> and set tree visibillity
@@ -218,24 +246,24 @@ namespace Slate {
 		}
 		// remove at end of call
 		if (remove) {
-			entity->RemoveComponent<T>();
-			if (std::is_same_v<T, TransformComponent>) {
-				entity = nullptr;
-			}
+			entity.RemoveComponent<T>();
+//			if (std::is_same_v<T, TransformComponent>) {
+//				entity = nullptr;
+//			}
 		}
 		ImGui::EndChild();
 	}
 
 	template <typename... T>
-	void ProcessAllComponents(Entity* entity, ComponentGroup<T...>) {
+	void ProcessAllComponents(Entity& entity, ComponentGroup<T...>) {
 		(..., [&] {
-			bool hasComponent = entity->HasComponent<T>();
+			bool hasComponent = entity.HasComponent<T>();
 			if (hasComponent) {
 				ImGui::BeginDisabled();
 			}
 			const char* componentName = ComponentMetadata<T>::name;
 			if (ImGui::Selectable(componentName)) {
-				entity->AddComponent<T>();
+				entity.AddComponent<T>();
 			}
 			if (hasComponent) {
 				ImGui::EndDisabled();
@@ -245,13 +273,13 @@ namespace Slate {
 
 	void Editor::OnPropertiesPanelUpdate() {
 		ImGui::Begin("Properties");
-		if (this->activeEntity.has_value()) {
+		if (this->activeEntityHandle.has_value()) {
 
-			Shared<Entity> entity = this->activeEntity.value();// alias active entity
-			EntityHeader(entity.get());
+			auto& entity = this->scene->GetEntity(this->activeEntityHandle.value()); // alias active entity
+			EntityHeader(entity);
 			ImGui::Separator();
 			ImGui::Spacing();
-			ProcessComponents(entity.get(), AllComponents{});
+			ProcessComponents(entity, AllComponents{});
 
 			// add comp button at bottom
 			const char* label = "Add Component";
@@ -261,7 +289,7 @@ namespace Slate {
 				ImGui::OpenPopup("ComponentList");
 			}
 			if(ImGui::BeginPopup("ComponentList")) {
-				ProcessAllComponents(entity.get(), AllComponents{});
+				ProcessAllComponents(entity, AllComponents{});
 				ImGui::EndPopup();
 			}
 		}
@@ -284,16 +312,22 @@ namespace Slate {
 		static constexpr auto handler = ComponentScript;
 	};
 	template <>
-	struct ComponentMetadata<MeshPrimitiveComponent> {
-		static constexpr const char* name = "Mesh Primitive";
-		static constexpr const char* icon = ICON_LC_BLOCKS;
-		static constexpr auto handler = ComponentMesh;
+	struct ComponentMetadata<AudioComponent> {
+		static constexpr const char* name = "Audio";
+		static constexpr const char* icon = ICON_LC_AUDIO_WAVEFORM;
+		static constexpr auto handler = ComponentScript;
 	};
 	template <>
-	struct ComponentMetadata<MeshGLTFComponent> {
-		static constexpr const char* name = "Mesh GLTF";
+	struct ComponentMetadata<GeometryPrimitiveComponent> {
+		static constexpr const char* name = "Geometry Primitive";
 		static constexpr const char* icon = ICON_LC_BLOCKS;
-		static constexpr auto handler = ComponentMesh;
+		static constexpr auto handler = ComponentMeshPrimitive;
+	};
+	template <>
+	struct ComponentMetadata<GeometryGLTFComponent> {
+		static constexpr const char* name = "Geometry GLTF";
+		static constexpr const char* icon = ICON_LC_BLOCKS;
+		static constexpr auto handler = ComponentMeshGLTF;
 	};
 	template <>
 	struct ComponentMetadata<PointLightComponent> {
@@ -308,8 +342,8 @@ namespace Slate {
 		static constexpr auto handler = ComponentDirectionalLight;
 	};
 	template <>
-	struct ComponentMetadata<EnvironmentComponent> {
-		static constexpr const char* name = "Environment Light";
+	struct ComponentMetadata<AmbientLightComponent> {
+		static constexpr const char* name = "Ambient Light";
 		static constexpr const char* icon = ICON_LC_GLOBE;
 		static constexpr auto handler = ComponentEnvironmentLight;
 	};

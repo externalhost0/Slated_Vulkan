@@ -12,7 +12,7 @@
 namespace Slate {
 	class WindowSystem : public ISystem {
 	public:
-		Shared<Window> GetCurrentWindow() {
+		StrongPtr<Window> GetCurrentWindow() {
 			if (this->activeWindow.has_value()) {
 				return this->activeWindow.value();
 			} else {
@@ -24,8 +24,8 @@ namespace Slate {
 		void StartupImpl() override;
 		void ShutdownImpl() override;
 
-		Optional<Shared<Window>> activeWindow;
+		Optional<StrongPtr<Window>> activeWindow;
 
-		std::vector<Shared<Window>> registeredWindows;
+		std::vector<StrongPtr<Window>> registeredWindows;
 	};
 }

@@ -16,7 +16,7 @@ namespace Slate {
 		template <typename T>
 		void RegisterSystem() {
 			static_assert(std::is_base_of<ISystem, T>::value, "T must inherit from ISystem");
-			auto system = CreateUnique<T>();
+			auto system = CreateUniquePtr<T>();
 			system->owner = this;
 			system->Startup();
 			systems[std::type_index(typeid(T))] = std::move(system);
@@ -30,7 +30,7 @@ namespace Slate {
 			return nullptr;
 		}
 	private:
-		std::unordered_map<std::type_index, Unique<ISystem>> systems;
+		std::unordered_map<std::type_index, UniquePtr<ISystem>> systems;
 	};
 
 }

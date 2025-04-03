@@ -7,7 +7,7 @@
 #include <fmt/format.h>
 #include <exception>
 namespace Slate {
-	enum class LogLevel : u_int8_t {
+	enum class LogLevel : uint8_t {
 		Info,
 		Warning,
 		Error,
@@ -22,4 +22,5 @@ namespace Slate {
 	}
 	#define LOG_EXCEPTION(exception) fmt::println(stderr, "[EXCEPTION] | {}", exception.what())
 	#define LOG_USER(level, message, ...) fmt::println(stderr, "[{}] \"{}\" | {}", LogLevelToString(level), __FUNCTION__, fmt::format(message __VA_OPT__(, __VA_ARGS__)))
+	#define RUNTIME_ERROR(message, ...) std::runtime_error(fmt::format(message __VA_OPT__(, __VA_ARGS__)))
 }

@@ -87,14 +87,17 @@ namespace Slate {
 		void Immediate_Submit(std::function<void(VkCommandBuffer cmd)>&& function);
 
 		ShaderPass CreateShaderPass(const ShaderResource& resource, PassProperties& properties) const;
-	public: // helper functions that do small things, might be replaced due to it being macgyvered
+	public:
+		// helper functions that do small things, might be replaced due to it being macgyvered
 		void DrawMeshData_EXT(const MeshBuffer& data);
+		VkClearColorValue clearColorValue = { 0.1f, 0.1f, 0.1f, 1.0f };
 	public:
 		VkSampler default_LinearSampler  = VK_NULL_HANDLE;
 		VkSampler default_NearestSampler = VK_NULL_HANDLE;
-		VkClearColorValue clearColorValue = { 0.1f, 0.1f, 0.1f, 1.0f };
+
+
 		// all created images are stored on the Render Engine
-		std::vector<vktypes::AllocatedImage> allocatedImages;
+		FastVector<vktypes::AllocatedImage, 64> allocatedImages;
 
 	private:
 		void CreateInstance();

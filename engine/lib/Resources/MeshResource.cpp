@@ -7,10 +7,16 @@
 namespace Slate {
 	Result MeshResource::LoadResourceImpl(const std::filesystem::path &path) {
 		auto asset = GLTFLoader::LoadGLTFAsset(path);
-		auto mesh = GLTFLoader::ProcessGLTFAsset(asset);
+		this->buffers = GLTFLoader::ProcessGLTFAsset(asset);
 
-		this->vertexCount = mesh.GetVertexCount();
-		this->indexCount = mesh.GetIndexCount();
+		unsigned int v_count = 0, i_count = 0;
+		for (const MeshBuffer& buffer : this->buffers) {
+			v_count += buffer.GetVertexCount();
+			i_count += buffer.GetIndexCount();
+		}
+		this->vertexCount = v_count;
+		this->indexCount = i_count;
+
 
 		return Result::SUCCESS;
 	}

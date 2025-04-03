@@ -13,7 +13,6 @@
 
 namespace Slate {
 	class RenderEngine;
-
 	struct VulkanInstanceInfo {
 		const char* app_name = "Unnamed_App";
 		Version app_version;
@@ -53,10 +52,6 @@ namespace Slate {
 			glm::mat4 viewMatrix;
 			alignas(16) glm::vec3 position;
 		};
-		// a dynamic uniform buffer
-		struct ExtraUBO {
-			alignas(16) glm::vec4 color;
-		};
 
 		// some of the point options that match their shader counterpart
 		struct AmbientLight {
@@ -83,8 +78,8 @@ namespace Slate {
 			float Blend = 1.f;
 		};
 
-		constexpr uint MAX_POINT_LIGHTS = 4;
-		constexpr uint MAX_SPOT_LIGHTS = 4;
+		constexpr unsigned int MAX_POINT_LIGHTS = 4;
+		constexpr unsigned int MAX_SPOT_LIGHTS = 4;
 
 		struct LightingUBO {
 			AmbientLight ambient {};
@@ -101,7 +96,6 @@ namespace Slate {
 					spot.Intensity = 0.f;
 				}
 			}
-
 		};
 	}
 
@@ -125,7 +119,7 @@ namespace Slate {
 
 			VmaAllocation allocation = nullptr;
 			VmaAllocationInfo allocationInfo = {};
-			friend class Slate::RenderEngine;
+			friend class Slate::RenderEngine; // for creation
 		};
 
 
@@ -162,18 +156,4 @@ namespace Slate {
 			VkDeviceAddress vertexBufferAddress = {};
 		};
 	}
-
-//	class ShaderResource {
-//	public:
-//		ShaderResource() = default;
-//		~ShaderResource() = default;
-//
-//		std::string GetFilename() const { return this->filename; }
-//
-//	private:
-//		VkShaderModule module = VK_NULL_HANDLE;
-//		std::string filename = "NULL";
-//
-//		friend class VulkanEngine;
-//	};
 }

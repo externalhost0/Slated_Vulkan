@@ -73,12 +73,12 @@ namespace Slate {
 
 			int32_t data = *static_cast<int32_t*>(stagbuf.getMappedMemory());
 			if (data >= 0) { // basically not negative max value of int32t
-				hoveredEntity.emplace(this->scene->GetEntityById(static_cast<entt::entity>(data)));
+				hoveredEntityHandle.emplace(this->scene->GetEntity(static_cast<entt::entity>(data)).GetHandle());
 			} else {
-				hoveredEntity = std::nullopt;
+				hoveredEntityHandle = std::nullopt;
 			}
 		} else {
-			hoveredEntity = std::nullopt;
+			hoveredEntityHandle = std::nullopt;
 		}
 
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f)); // image takes up entire window
@@ -213,7 +213,10 @@ namespace Slate {
 
 		// gizmo functionality
 		{
-			if (this->activeEntity.has_value() && !this->_isCameraControlActive && this->activeEntity.value()->HasComponent<TransformComponent>()) {
+
+			if (this->activeEntityHandle.has_value() &&
+				!this->_isCameraControlActive &&
+				this-scene->GetEntity(this->activeEntityHandle.value()).HasComponent<TransformComponent>()) {
 				// gizmo frame
 				ImGuizmo::BeginFrame();
 
@@ -233,47 +236,49 @@ namespace Slate {
 				// put the snapping scale on each axis
 				float snapValues[3] = { snapValue, snapValue, snapValue };
 
-				auto& entityTC = this->activeEntity.value()->GetMutableComponent<TransformComponent>();
-				// more snapping logic to round position if i start snapping
-				glm::mat4 transformMatrix = glm::translate(glm::mat4(1.f), entityTC.Position) *
-									  glm::mat4_cast(entityTC.Rotation) *
-									  glm::scale(glm::mat4(1.f), entityTC.Scale);
+				if (this->scene->GetEntity(this->activeEntityHandle.value()).HasComponent<TransformComponent>()) {
+					auto &entityTC = this->scene->GetEntity(this->activeEntityHandle.value()).GetComponent<TransformComponent>();
+					// more snapping logic to round position if i start snapping
+					glm::mat4 transformMatrix = glm::translate(glm::mat4(1.f), entityTC.Position) *
+												glm::mat4_cast(entityTC.Rotation) *
+												glm::scale(glm::mat4(1.f), entityTC.Scale);
 
-				ImGuizmo::Manipulate(glm::value_ptr(this->camera.GetViewMatrix()),
-									 glm::value_ptr(this->camera.GetProjectionMatrix()),
-									 _guizmoOperation, _guizmoSpace,
-									 glm::value_ptr(transformMatrix), nullptr, snap ? snapValues : nullptr);
+					ImGuizmo::Manipulate(glm::value_ptr(this->camera.GetViewMatrix()),
+										 glm::value_ptr(this->camera.GetProjectionMatrix()),
+										 _guizmoOperation, _guizmoSpace,
+										 glm::value_ptr(transformMatrix), nullptr, snap ? snapValues : nullptr);
 
-				// now apply the transformations
-				if (ImGuizmo::IsUsing()) {
-					glm::vec3 position;
-					glm::quat rotation;
-					glm::vec3 scale;
+					// now apply the transformations
+					if (ImGuizmo::IsUsing()) {
+						glm::vec3 position;
+						glm::quat rotation;
+						glm::vec3 scale;
 
-					glm::vec3 skew; // useless
-					glm::vec4 perspective; // useless
-					glm::decompose(transformMatrix, scale, rotation, position, skew, perspective);
+						glm::vec3 skew;       // useless
+						glm::vec4 perspective;// useless
+						glm::decompose(transformMatrix, scale, rotation, position, skew, perspective);
 
-					if (_guizmoOperation == ImGuizmo::OPERATION::TRANSLATE) {
-						entityTC.Position = position;
-					}
-					if (_guizmoOperation == ImGuizmo::OPERATION::ROTATE) {
-						entityTC.Rotation = glm::normalize(rotation);
-					}
-					if (_guizmoOperation == ImGuizmo::OPERATION::SCALE) {
-						entityTC.Scale = scale;
+						if (_guizmoOperation == ImGuizmo::OPERATION::TRANSLATE) {
+							entityTC.Position = position;
+						}
+						if (_guizmoOperation == ImGuizmo::OPERATION::ROTATE) {
+							entityTC.Rotation = glm::normalize(rotation);
+						}
+						if (_guizmoOperation == ImGuizmo::OPERATION::SCALE) {
+							entityTC.Scale = scale;
+						}
 					}
 				}
 			}
 			// mouse interaction with clicked object must be after guizmo
 			// required so that overlapping guizmo and different object dont interfere
 			if (glfwGetMouseButton(this->mainWindow.GetGlfwWindow(), GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-				if (hoveredEntity.has_value() && !ImGuizmo::IsUsing())
-					this->activeEntity.emplace(hoveredEntity.value());
+				if (hoveredEntityHandle.has_value() && !ImGuizmo::IsUsing())
+					this->activeEntityHandle.emplace(hoveredEntityHandle.value());
 			}
 			// right now will currently go off in menu that overlaps the image
-			if (ImGui::IsMouseDoubleClicked(GLFW_MOUSE_BUTTON_LEFT) && IsMouseInViewportBounds() && !hoveredEntity) {
-				this->activeEntity = std::nullopt;
+			if (ImGui::IsMouseDoubleClicked(GLFW_MOUSE_BUTTON_LEFT) && IsMouseInViewportBounds() && !hoveredEntityHandle) {
+				this->activeEntityHandle = std::nullopt;
 			}
 		}
 		ImGui::End();

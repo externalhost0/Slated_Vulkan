@@ -10,10 +10,9 @@ namespace Slate {
 	class GLTFLoader {
 	public:
 		static fastgltf::Asset LoadGLTFAsset(const std::filesystem::path& path);
-		static MeshAsset ProcessGLTFAsset(const fastgltf::Asset& gltf);
+		static std::vector<MeshBuffer> ProcessGLTFAsset(const fastgltf::Asset& gltf);
+		static inline RenderEngine* pEngine = nullptr;
 	private:
 		static inline fastgltf::Parser parser;
-
-
 	};
 }

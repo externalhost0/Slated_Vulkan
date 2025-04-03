@@ -3,6 +3,8 @@
 //
 #pragma once
 #include "ShaderPass.h"
+#include "FastSTD.h"
+
 #include <span>
 #include <vector>
 #include <volk.h>
@@ -72,7 +74,7 @@ namespace Slate {
 		MultisampleMode samplemode;
 		CullMode cullmode;
 
-		std::vector<VkFormat> color_formats;
+		std::span<VkFormat> color_formats;
 		VkFormat depth_format;
 	};
 
@@ -89,8 +91,8 @@ namespace Slate {
 		VkPipelineRenderingCreateInfo _renderInfo = {};
 		VkPipelineColorBlendAttachmentState _colorBlendAttachment = {};
 
-		std::vector<VkPipelineShaderStageCreateInfo> _shaderStages = {};
-		std::vector<VkFormat> _colorAttachmentFormats = {};
+		FastVector<VkPipelineShaderStageCreateInfo, 2> _shaderStages = {};
+		FastVector<VkFormat, 12> _colorAttachmentFormats = {};
 	public:
 		VkPipeline build(VkDevice device, VkPipelineLayout layout);
 		void Clear();

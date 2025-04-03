@@ -3,53 +3,60 @@
 //
 #include <string>
 #include <utility>
-
+#include "Slate/Logger.h"
 #include "Slate/Entity.h"
 namespace Slate {
-	Entity::Entity(const entt::entity& handle, const std::weak_ptr<Scene>& scene) {
-		this->handle = handle;
-		this->sceneRef = scene;
-	}
-	std::string Entity::GetName() const {
-		return this->name;
-	}
 	void Entity::SetName(const std::string& new_name) {
-		this->name = new_name;
+		this->_name = new_name;
 	}
-	entt::entity Entity::GetHandle() const {
-		return this->handle;
+	// recurse until it doesnt have a parent, this must be top level
+	Entity& Entity::GetRoot() {
+		if (!this->HasParent()) {
+			return *this;
+		}
+		if (auto parent = _parent.value()) {
+			return parent->GetRoot();
+		}
+		throw RUNTIME_ERROR("This should never happen | For entity ({})", _name);
 	}
-	std::vector<Entity> Entity::GetChildren() {
-		return this->children;
-	}
-	std::weak_ptr<Entity> Entity::GetParent() {
-		return this->parent;
-	}
-	Entity* Entity::GetRoot() {
+	Entity* Entity::GetParentPtr() {
+		if (_parent.has_value()) {
+			return _parent.value();
+		}
 		return nullptr;
 	}
-	void Entity::SetParent(std::weak_ptr<Entity> entity) {
-		if (entity.lock()->handle == this->handle) {
-			return;
-		}
-		this->parent = std::move(entity);
-	}
 	bool Entity::HasChildren() const {
-		return (!this->children.empty());
+		return !this->_childrenhandles.empty();
 	}
 	bool Entity::HasParent() const {
-		return false;
+		return this->_parent.has_value();
 	}
-	void Entity::AddChild(const Entity& entity) {
-		if (entity.handle == this->handle) {
+	void Entity::AddChild(const entt::entity& handle) {
+		if (handle == this->_handle) {
+			LOG_USER(LogLevel::Warning, "You attempted to add an Entity as a child of itself.");
 			return;
 		}
-		if (std::find(this->children.begin(), this->children.end(), entity) != this->children.end()) {
-			this->children.push_back(entity);
+		if (std::find(_childrenhandles.begin(), _childrenhandles.end(), handle) != _childrenhandles.end()) {
+			LOG_USER(LogLevel::Warning, "Entity is already a child of the currently parented entity.");
+			return;
+		}
+		_childrenhandles.push_back(handle);
+		if (auto scene = _scene.lock()) {
+			scene->GetEntity(handle).SetParent(this);
+		} else {
+			LOG_USER(LogLevel::Error, "Scene expired, this shouldn't happen!");
 		}
 	}
-	void Entity::RemoveChild(const Entity& entity) {
-//		this->children.erase(entity.get()->GetHandle());
+	void Entity::SetParent(Entity* parent) {
+		if (parent->_handle == _handle) {
+			LOG_USER(LogLevel::Warning, "Attempted to set an Entity's parent as itself.");
+			return;
+		}
+		_parent = parent;
+	}
+
+	void Entity::RemoveChild(const entt::entity& handle) {
+		this->_childrenhandles.erase_value(handle);
 	}
 
 }

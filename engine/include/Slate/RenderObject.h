@@ -11,7 +11,7 @@ namespace Slate {
 	// things every draw call needs
 	struct RenderObject : IRenderable {
 		GPU::DrawPushConstants push = {};
-		Shared<Material> mat_instance;
+		StrongPtr<Material> mat_instance;
 	};
 
 	struct VertexOnlyObject_EXT : protected RenderObject {

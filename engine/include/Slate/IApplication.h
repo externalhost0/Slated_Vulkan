@@ -11,12 +11,12 @@ namespace Slate {
 	public:
 		// used to make the users app!
 		template <typename Derived>
-		static Unique<IApplication> Create() {
+		static UniquePtr<IApplication> Create() {
 			static_assert(std::is_base_of<IApplication, Derived>::value, "Derived must inherit from Application");
 			static bool instanceCreated;
 			if (instanceCreated) throw std::runtime_error("An instance of Application has already been created!");
 			instanceCreated = true;
-			return CreateUnique<Derived>();
+			return CreateUniquePtr<Derived>();
 		}
 
 		const SystemManager& GetSystems() const { return this->manager; }

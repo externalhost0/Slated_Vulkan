@@ -7,60 +7,73 @@
 #include "Slate/Scene.h"
 #include "Slate/Components.h"
 #include "Slate/Entity.h"
+#include "Slate/Logger.h"
 
 namespace Slate {
+	// singular
+	template <typename Dependency, typename Dependent>
+	void register_dependency(entt::registry& registry) {
+		registry.on_construct<Dependent>().template connect<&entt::registry::get_or_emplace<Dependency>>();
+		registry.on_destroy<Dependency>().template connect<&entt::registry::remove<Dependent>>();
+	}
+	template <typename Dependency, typename Group>
+	void register_group_dependencies(entt::registry& registry) {
+		register_group_dependencies_impl<Dependency>(registry, Group{});
+	}
+	// unpacking of group
+	template <typename Dependency, typename... Dependents>
+	void register_group_dependencies_impl(entt::registry& registry, ComponentGroup<Dependents...>) {
+		(register_dependency<Dependency, Dependents>(registry), ...);
+	}
 
-	// TODO: make helper function or map for this sorta thing
+	using TransformDependants = ComponentGroup<
+			GeometryGLTFComponent,
+			GeometryPrimitiveComponent,
+			PointLightComponent,
+			SpotLightComponent,
+			DirectionalLightComponent
+			>;
 	Scene::Scene() {
-		this->registry.on_construct<MeshPrimitiveComponent>().connect<&entt::registry::get_or_emplace<TransformComponent>>();
-		this->registry.on_destroy<TransformComponent>().connect<&entt::registry::remove<MeshPrimitiveComponent>>();
-
-		this->registry.on_construct<MeshGLTFComponent>().connect<&entt::registry::get_or_emplace<TransformComponent>>();
-		this->registry.on_destroy<TransformComponent>().connect<&entt::registry::remove<MeshGLTFComponent>>();
-
-		this->registry.on_construct<PointLightComponent>().connect<&entt::registry::get_or_emplace<TransformComponent>>();
-		this->registry.on_destroy<TransformComponent>().connect<&entt::registry::remove<PointLightComponent>>();
-
-		this->registry.on_construct<DirectionalLightComponent>().connect<&entt::registry::get_or_emplace<TransformComponent>>();
-		this->registry.on_destroy<TransformComponent>().connect<&entt::registry::remove<DirectionalLightComponent>>();
-
-		this->registry.on_construct<SpotLightComponent>().connect<&entt::registry::get_or_emplace<TransformComponent>>();
-		this->registry.on_destroy<TransformComponent>().connect<&entt::registry::remove<SpotLightComponent>>();
+		register_group_dependencies<TransformComponent, TransformDependants>(registry);
 	}
 	void Scene::Clear() {
 		this->registry.clear<entt::entity>();
-//		this->entityMap.clear();
+		this->entityMap.clear();
 	}
 
-	Shared<Entity> Scene::CreateEntity() {
+	Entity& Scene::CreateEntity() {
 		return CreateEntity("Unnamed Entity");
 	}
-	Shared<Entity> Scene::CreateEntity(const std::string& name) {
-		entt::entity handle = this->registry.create();
-		Shared<Entity> entity = CreateShared<Entity>(handle, this->shared_from_this());
-		entity->name = name;
-		this->entityMap[handle] = entity;
-		return entity;
+	Entity& Scene::CreateEntity(const std::string& name) {
+		const entt::entity handle = this->registry.create();
+		auto entityptr = CreateUniquePtr<Entity>(handle, this->shared_from_this());
+		entityptr->SetName(name);
+		this->entityMap[handle] = std::move(entityptr);
+		return *this->entityMap[handle];
 	}
-	void Scene::DestroyEntityById(const entt::entity& id) {
-		this->entityMap.erase(id);
-		this->registry.destroy(id);
-	}
-	void Scene::DestroyEntity(const Shared<Entity>& entity) {
-		auto handle = entity->GetHandle();
+	// recurse through children when destroying
+	void Scene::DestroyEntity(const entt::entity& handle) {
+		auto& trash_entity = this->GetEntity(handle);
+		if (auto parentPtr = trash_entity.GetParentPtr()) {
+			parentPtr->RemoveChild(handle);
+		}
+		auto children = trash_entity.GetChildren();
+		for (auto child : children) {
+			DestroyEntity(child);
+		}
 		this->entityMap.erase(handle);
 		this->registry.destroy(handle);
 	}
 
 	template<typename... T>
-	static void CopyComponentIfExists(ComponentGroup<T...>, Shared<Entity> dst, Shared<Entity> src) {
+	static void CopyComponentIfExists(ComponentGroup<T...>, Entity& dst, Entity& src) {
 		CopyComponentIfExists<T...>(dst, src);
 	}
 	template<typename... T>
-	static void CopyComponentIfExists(Shared<Entity> dst, Shared<Entity> src) {
+	static void CopyComponentIfExists(Entity& dst, Entity& src) {
 		([&]() {
-			if (src->HasComponent<T>())
-				dst->AddComponent<T>(src->GetImmutableComponent<T>());
+			if (src.HasComponent<T>())
+				dst.AddComponent<T>(src.GetComponent<T>());
 		}(), ...);
 	}
 
@@ -78,32 +91,36 @@ namespace Slate {
 		}
 		return baseName + " 2";
 	}
-	Shared<Entity> Scene::DuplicateEntity(const Shared<Entity>& entity) {
-		const std::string name = entity->GetName();
+	Entity& Scene::DuplicateEntity(const entt::entity& handle) {
+		const std::string name = entityMap[handle]->GetName();
 		const std::string new_name = GenerateUniqueName(name); // just 1++ to the back of the name
-		Shared<Entity> new_entity = CreateEntity(new_name);
-		CopyComponentIfExists(AllComponents{}, new_entity, entity);
+		auto& new_entity = CreateEntity(new_name);
+		CopyComponentIfExists(AllComponents{}, GetEntity(new_entity.GetHandle()), GetEntity(handle));
 		return new_entity;
 	}
-	Shared<Entity> Scene::GetEntityById(const entt::entity& id) {
-		return this->entityMap[id];
+	Entity& Scene::GetEntity(const entt::entity& handle) {
+		auto it = entityMap.find(handle);
+		if (it != entityMap.end()) {
+			return *it->second;
+		}
+		throw RUNTIME_ERROR("Attempt to get entity ({}), does not exist!", (uint32_t)handle);
 	}
 
-	std::vector<Shared<Entity>> Scene::GetAllEntities() {
-		std::vector<Shared<Entity>> entities_to_grab;
+	std::vector<Entity*> Scene::GetAllEntities() {
+		std::vector<Entity*> entities_to_grab;
 		for (const entt::entity& handle : this->registry.view<entt::entity>()) {
-			entities_to_grab.emplace_back(this->entityMap[handle]);
+			entities_to_grab.emplace_back(this->entityMap[handle].get());
 		}
 		return entities_to_grab;
 	}
-	std::vector<Shared<Entity>> Scene::GetTopLevelEntities() {
-		std::vector<Shared<Entity>> entities_to_grab;
+	std::vector<Entity*> Scene::GetTopLevelEntities() {
+		std::vector<Entity*> entities_to_grab;
 		for (const entt::entity& handle : this->registry.view<entt::entity>()) {
-			Shared<Entity> entity = this->entityMap[handle];
+			const auto& entity = this->entityMap[handle];
 			if (entity->HasParent()) {
 				continue;
 			}
-			entities_to_grab.emplace_back(entity);
+			entities_to_grab.emplace_back(entity.get());
 		}
 		return entities_to_grab;
 	}
@@ -119,11 +136,11 @@ namespace Slate {
 
 	}
 	template<>
-	void Scene::OnComponentAdded<MeshPrimitiveComponent>(Entity entity, MeshPrimitiveComponent& component) {
+	void Scene::OnComponentAdded<GeometryPrimitiveComponent>(Entity entity, GeometryPrimitiveComponent& component) {
 
 	}
 	template<>
-	void Scene::OnComponentAdded<MeshGLTFComponent>(Entity entity, MeshGLTFComponent& component) {
+	void Scene::OnComponentAdded<GeometryGLTFComponent>(Entity entity, GeometryGLTFComponent& component) {
 
 	}
 	template<>
@@ -143,7 +160,7 @@ namespace Slate {
 
 	}
 	template<>
-	void Scene::OnComponentAdded<EnvironmentComponent>(Entity entity, EnvironmentComponent& component) {
+	void Scene::OnComponentAdded<AmbientLightComponent>(Entity entity, AmbientLightComponent& component) {
 
 	}
 

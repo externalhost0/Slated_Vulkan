@@ -30,6 +30,10 @@ add_library(${PROJECT_NAME}
         lib/Systems/WindowSystem.cpp
         lib/Systems/RenderSystem.cpp
         lib/RenderEngineOps.cpp
+        include/Slate/Systems/ShaderSystem.h
+        lib/Systems/ShaderSystem.cpp
+        include/Slate/UUID.h
+        include/Slate/FastSTD.h
 )
 
 # git submodules

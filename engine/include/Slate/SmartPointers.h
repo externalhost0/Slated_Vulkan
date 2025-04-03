@@ -8,28 +8,34 @@
 namespace Slate {
 	// alias for std::shared_ptr
 	template<typename T>
-	using Shared = std::shared_ptr<T>;
-
+	using StrongPtr = std::shared_ptr<T>;
 	// for populating the shared_ptr
 	template<typename T, typename ... Args>
-	constexpr Shared<T> CreateShared(Args &&... args) {
+	constexpr StrongPtr<T> CreateStrongPtr(Args &&... args) {
+		return std::make_shared<T>(std::forward<Args>(args)...);
+	}
+
+	// alias for std::weak_ptr
+	template<typename T>
+	using WeakPtr = std::weak_ptr<T>;
+	// for populating the weak_ptr
+	template<typename T, typename ... Args>
+	constexpr WeakPtr<T> CreateWeakPtr(Args &&... args) {
 		return std::make_shared<T>(std::forward<Args>(args)...);
 	}
 
 	// alias for std::unique_ptr
 	template<typename T>
-	using Unique = std::unique_ptr<T>;
-
+	using UniquePtr = std::unique_ptr<T>;
 	// for populating the unique_ptr
 	template<typename T, typename ... Args>
-	constexpr Unique<T> CreateUnique(Args &&... args) {
+	constexpr UniquePtr<T> CreateUniquePtr(Args &&... args) {
 		return std::make_unique<T>(std::forward<Args>(args)...);
 	}
 
 	// alias for std::optional
 	template<typename T>
 	using Optional = std::optional<T>;
-
 	// for populating the unique_ptr
 	template<typename T, typename ... Args>
 	constexpr Optional<T> CreateOptional(Args &&... args) {

@@ -3,6 +3,11 @@
 //
 #pragma once
 
+#include "Slate/Systems/ShaderSystem.h"
+#include "Slate/Systems/WindowSystem.h"
+#include "Slate/Systems/RenderSystem.h"
+#include "Slate/Systems/TimeSystem.h"
+
 #include <Slate/SmartPointers.h>
 #include <Slate/ShaderPass.h>
 #include <Slate/Entity.h>
@@ -16,18 +21,19 @@
 #include "ImGuizmo.h"
 
 namespace Slate {
-	enum struct ViewportModes {
+	enum struct ViewportModes : char {
 		SHADED,
 		UNSHADED,
 		WIREFRAME,
 		SOLID_WIREFRAME
 	};
-	enum struct HoverWindow {
+	enum struct HoverWindow : char {
 		ViewportWindow,
 		PropertiesWindow,
 		ScenePanel,
 		AssetsPanel
 	};
+
 
 	class Editor {
 	public:
@@ -57,10 +63,16 @@ namespace Slate {
 		void OnPropertiesPanelUpdate();
 		void OnViewportPanelUpdate();
 		void OnScenePanelUpdate();
+		void DrawEntityNode(Entity* entity, int i);
+		void DisplayEntityNode(Entity& entity);
 		void OnAssetPanelUpdate();
 
 		void CreateEditorImages();
 		bool IsMouseInViewportBounds();
+
+		void DrawEntity(VkCommandBuffer cmd, Entity& entity, VkPipelineLayout layout, const glm::mat4& topMatrix = glm::mat4(1));
+		void DrawEntityForEditorEXT(VkCommandBuffer cmd, Entity& entity, VkPipelineLayout layout, const glm::mat4& topMatrix = glm::mat4(1));
+		void DrawEntityForEditorLarge_EXT(VkCommandBuffer cmd, Entity& entity, VkPipelineLayout layout, const glm::mat4& topMatrix = glm::mat4(1));
 	private:
 		bool continueloop = true;
 		bool gridEnabled = true;
@@ -78,13 +90,19 @@ namespace Slate {
 		glm::vec2 _viewportSize {};
 		vktypes::AllocatedBuffer stagbuf;
 
-		Optional<Shared<Entity>> activeEntity;
-		Optional<Shared<Entity>> hoveredEntity;
+		Optional<entt::entity> activeEntityHandle;
+		Optional<entt::entity> hoveredEntityHandle;
+
+		std::unordered_map<MeshPrimitiveType, MeshBuffer> defaultMeshPrimitiveTypes;
+
+		ShaderSystem shaderSystem;
+		RenderSystem renderSystem;
+		WindowSystem windowSystem;
 
 		Window mainWindow;
 		RenderEngine engine;
 		ViewportCamera camera;
-		Shared<Scene> scene;
+		StrongPtr<Scene> scene;
 
 		vktypes::AllocatedImage _colorResolveImage;
 		vktypes::AllocatedImage _colorMSAAImage;
@@ -93,16 +111,15 @@ namespace Slate {
 		vktypes::AllocatedImage _entityMSAAImage;
 		vktypes::AllocatedImage _viewportImage;
 
+		// editor icons
 		vktypes::AllocatedImage lightbulb_image;
 		vktypes::AllocatedImage sun_image;
 		vktypes::AllocatedImage spotlight_image;
 
 		vktypes::AllocatedBuffer _cameraDataBuffer;
 		vktypes::AllocatedBuffer _lightingDataBuffer;
-		vktypes::AllocatedBuffer _colorBuffer;
 
-		MeshBuffer testmesh;
-		MeshBuffer quadData;
+
 		MeshBuffer gridmesh;
 		MeshBuffer arrowmesh;
 		MeshBuffer simplespheremesh;
@@ -128,6 +145,5 @@ namespace Slate {
 		VkPipelineLayout _globalPipeLayout = VK_NULL_HANDLE;
 
 		VkDescriptorSet _viewportImageDescriptorSet = VK_NULL_HANDLE;
-		VkDescriptorSet _testimage;
 	};
 }

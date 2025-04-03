@@ -10,6 +10,7 @@
 
 #include "Slate/VK/vktypes.h"
 #include "Slate/Debug.h"
+#include "Slate/RenderEngine.h"
 
 #include "Slate/Loaders/GLTFLoader.h"
 
@@ -44,18 +45,15 @@ namespace Slate {
 		return gltf;
 	}
 
-	MeshAsset GLTFLoader::ProcessGLTFAsset(const fastgltf::Asset& gltf) {
-		MeshAsset meshAsset;
-
+	std::vector<MeshBuffer> GLTFLoader::ProcessGLTFAsset(const fastgltf::Asset& gltf) {
+		std::vector<MeshBuffer> buffer_vector = {};
 		// use the same vectors for all meshes so that the memory doesnt reallocate as
-		std::vector<uint32_t> indices;
 		std::vector<Vertex> vertices;
+		std::vector<uint32_t> indices;
 		// each mesh
 		for (const fastgltf::Mesh& mesh : gltf.meshes) {
-			MeshBuffer new_mesh;
-//			new_mesh.name = mesh.name;
-			indices.clear();
 			vertices.clear();
+			indices.clear();
 
 			// each shape
 			for (const fastgltf::Primitive& primitive : mesh.primitives) {
@@ -78,7 +76,8 @@ namespace Slate {
 					const fastgltf::Accessor& posAccessor = gltf.accessors[primitive.findAttribute("POSITION")->accessorIndex];
 					vertices.resize(vertices.size() + posAccessor.count);
 
-					// initialize vertices, first with position
+					// initialize vertex values
+					// load position
 					fastgltf::iterateAccessorWithIndex<glm::vec3>(gltf, posAccessor, [&](glm::vec3 v, size_t index) {
 						Vertex vertex = {};
 						vertex.position = v;
@@ -116,10 +115,9 @@ namespace Slate {
 					}
 				}
 			}
-//			new_mesh = engine.CreateMeshBuffer(vertices, indices); // upload mesh data for vulkan
-//			meshAsset.buffers.emplace_back(CreateShared<MeshBuffer>(new_mesh)); // attach mesh to the vector
+			buffer_vector.emplace_back(pEngine->CreateMeshBuffer(vertices, indices));
 		}
-		return meshAsset;
+		return buffer_vector;
 
 	}
 }

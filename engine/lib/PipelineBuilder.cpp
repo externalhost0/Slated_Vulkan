@@ -6,6 +6,7 @@
 #include <volk.h>
 #include "Slate/PipelineBuilder.h"
 #include "Slate/VK/vkinfo.h"
+#include "Slate/FastSTD.h"
 
 namespace Slate {
 	bool isIntegarFormat(VkFormat format) {
@@ -29,7 +30,7 @@ namespace Slate {
 		_colorBlendAttachment = { };
 		// vector clears
 		_colorAttachmentFormats.clear();
-		_shaderStages.clear();
+//		_shaderStages.clear();
 	}
 	// build() needs to be the last function called on the builder!
 	VkPipeline PipelineBuilder::build(VkDevice device, VkPipelineLayout layout) {

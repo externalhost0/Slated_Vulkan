@@ -17,6 +17,7 @@ namespace Slate {
 		builder.set_blending_mode(properties.blendmode);
 		builder.set_depthtest(properties.depthmode);
 		builder.set_multisampling_mode(properties.samplemode);
+		builder.set_cull_mode(properties.cullmode);
 
 		builder.set_topology_mode(properties.topologymode);
 		builder.set_polygon_mode(properties.polygonmode);

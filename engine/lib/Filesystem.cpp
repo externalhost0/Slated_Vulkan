@@ -101,8 +101,8 @@ namespace Slate {
 		}
 		return parent_path;
 	}
-	std::vector<const std::filesystem::path> Filesystem::GetFoldersInDirectory(const std::filesystem::path &path) {
-		std::vector<const std::filesystem::path> directories;
+	const std::vector<std::filesystem::path> Filesystem::GetFoldersInDirectory(const std::filesystem::path &path) {
+		std::vector<std::filesystem::path> directories;
 
 		const std::filesystem::directory_iterator it_end; // default construction yields past-the-end
 		for (std::filesystem::directory_iterator it(path); it != it_end; ++it) {
@@ -112,8 +112,8 @@ namespace Slate {
 		}
 		return directories;
 	}
-	std::vector<const std::filesystem::path> Filesystem::GetFilesInDirectory(const std::filesystem::path &path) {
-		std::vector<const std::filesystem::path> file_paths;
+	const std::vector<std::filesystem::path> Filesystem::GetFilesInDirectory(const std::filesystem::path &path) {
+		std::vector<std::filesystem::path> file_paths;
 
 		const std::filesystem::directory_iterator it_end; // default construction yields past-the-end
 		for (std::filesystem::directory_iterator it(path); it != it_end; ++it) {

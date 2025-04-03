@@ -23,8 +23,8 @@ namespace Slate {
 
 		static void CreateFolder(const std::filesystem::path& path);
 
-		static std::vector<const std::filesystem::path> GetFoldersInDirectory(const std::filesystem::path& path);
-		static std::vector<const std::filesystem::path> GetFilesInDirectory(const std::filesystem::path& path);
+		static const std::vector<std::filesystem::path> GetFoldersInDirectory(const std::filesystem::path& path);
+		static const std::vector<std::filesystem::path> GetFilesInDirectory(const std::filesystem::path& path);
 
 		static nlohmann::json ReadJsonFile(const std::filesystem::path& path);
 		static std::vector<std::byte> ReadBinaryFile(const std::filesystem::path& path);
