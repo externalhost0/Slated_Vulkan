@@ -12,9 +12,9 @@
 namespace Slate {
 	class WindowSystem : public ISystem {
 	public:
-		StrongPtr<Window> GetCurrentWindow() {
+		Window* GetCurrentWindow() const {
 			if (this->activeWindow.has_value()) {
-				return this->activeWindow.value();
+				return this->activeWindow.value().get();
 			} else {
 				return nullptr;
 			}
@@ -24,8 +24,7 @@ namespace Slate {
 		void StartupImpl() override;
 		void ShutdownImpl() override;
 
-		Optional<StrongPtr<Window>> activeWindow;
-
-		std::vector<StrongPtr<Window>> registeredWindows;
+		Optional<UniquePtr<Window>> activeWindow;
+		std::vector<UniquePtr<Window>> registeredWindows;
 	};
 }

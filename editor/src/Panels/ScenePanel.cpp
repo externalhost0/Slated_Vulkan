@@ -99,7 +99,7 @@ namespace Slate {
 
 		// recurse children
 		if (!opened) return;
-		for (const auto& child : entity.GetChildren()) {
+		for (const auto& child : entity.GetChildrenHandles()) {
 			DisplayEntityNode(this->scene->GetEntity(child));
 		}
 	}
@@ -170,7 +170,7 @@ namespace Slate {
 //		}
 //
 ////		if (opened) {
-////			for (const StrongPtr<Entity>& child : entity->GetChildren()) {
+////			for (const StrongPtr<Entity>& child : entity->GetChildrenHandles()) {
 ////				DrawEntityNode(child.get(), i);
 ////			}
 ////		}

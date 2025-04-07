@@ -125,6 +125,10 @@ namespace Slate {
 		Fonts::largeitalicFont = io.Fonts->AddFontFromFileTTF((path + "NotoSans-Italic.ttf").c_str(), fontSize + 5.0f, &fontCfg);
 	}
 
+	namespace Theme {
+		static constexpr float MAIN_COLOR = (0.f);
+	}
+
 	void StyleStandard(ImGuiStyle *dst = nullptr) {
 		ImGui::StyleColorsDark();
 		ImGuiStyle *style = dst ? dst : &ImGui::GetStyle();
@@ -247,10 +251,10 @@ namespace Slate {
 
 	glm::mat4 TransformToModelMatrix(const TransformComponent &component, bool isScalable = true, bool isRotatable = true) {
 		auto model = glm::mat4(1);
-		model = glm::translate(model, component.Position);
+		model = glm::translate(model, component.position);
 		// some models we dont want scale to affect them, this is mostly for editor visualizers
-		if (isRotatable) model = model * glm::mat4_cast(component.Rotation);
-		if (isScalable) model = glm::scale(model, component.Scale);
+		if (isRotatable) model = model * glm::mat4_cast(component.rotation);
+		if (isScalable) model = glm::scale(model, component.scale);
 		return model;
 	}
 	glm::mat4 BillboardModelMatrix(glm::mat4 model, ViewportCamera &camera) {
@@ -289,12 +293,12 @@ namespace Slate {
 	void Editor::DrawEntity(VkCommandBuffer cmd, Entity& entity, VkPipelineLayout layout, const glm::mat4& topMatrix) {
 		if (entity.HasComponent<GeometryPrimitiveComponent>()) {
 			const GeometryPrimitiveComponent& mesh_component = entity.GetComponent<GeometryPrimitiveComponent>();
-			if (mesh_component.Meshtype == MeshPrimitiveType::Empty) return;
+			if (mesh_component.mesh_type == MeshPrimitiveType::Empty) return;
 			GPU::DrawPushConstants push = {};
 			push.id = static_cast<uint32_t>(entity.GetHandle());
 			push.modelMatrix = TransformToModelMatrix(entity.GetComponent<TransformComponent>()) * topMatrix;
 
-			RenderBuffer(cmd, this->defaultMeshPrimitiveTypes[mesh_component.Meshtype], push, layout);
+			RenderBuffer(cmd, this->defaultMeshPrimitiveTypes[mesh_component.mesh_type], push, layout);
 		} else if (entity.HasComponent<GeometryGLTFComponent>()) {
 			const GeometryGLTFComponent& mesh_component = entity.GetComponent<GeometryGLTFComponent>();
 			GPU::DrawPushConstants push = {};
@@ -308,7 +312,7 @@ namespace Slate {
 
 		// now recurse through all children if children are present
 		if (!entity.HasChildren()) return;
-		for (const auto child: entity.GetChildren()) {
+		for (const auto child: entity.GetChildrenHandles()) {
 			DrawEntity(cmd, this->scene->GetEntity(child), layout, TransformToModelMatrix(entity.GetComponent<TransformComponent>()));
 		}
 	}
@@ -318,13 +322,13 @@ namespace Slate {
 	void Editor::DrawEntityForEditorEXT(VkCommandBuffer cmd, Entity& entity, VkPipelineLayout layout, const glm::mat4& topMatrix) {
 		if (entity.HasComponent<GeometryPrimitiveComponent>()) {
 			const GeometryPrimitiveComponent& mesh_component = entity.GetComponent<GeometryPrimitiveComponent>();
-			if (mesh_component.Meshtype == MeshPrimitiveType::Empty) return;
+			if (mesh_component.mesh_type == MeshPrimitiveType::Empty) return;
 			GPU::DrawPushConstantsEditorEXT push = {};
 			push.id = static_cast<uint32_t>(entity.GetHandle());
 			push.modelMatrix = TransformToModelMatrix(entity.GetComponent<TransformComponent>()) * topMatrix;
 			push.color = glm::vec3(1.f, 0.706f, 0.f);
 
-			const MeshBuffer& buffer = this->defaultMeshPrimitiveTypes[mesh_component.Meshtype];
+			const MeshBuffer& buffer = this->defaultMeshPrimitiveTypes[mesh_component.mesh_type];
 			push.vertexBufferAddress = buffer.GetVBA();
 			vkCmdPushConstants(cmd, layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPU::DrawPushConstantsEditorEXT), &push);
 			vkCmdBindIndexBuffer(cmd, buffer.GetIndexBuffer().getBuffer(), 0, VK_INDEX_TYPE_UINT32);
@@ -346,7 +350,7 @@ namespace Slate {
 
 		// now recurse through all children if children are present
 		if (!entity.HasChildren()) return;
-		for (const auto& child: entity.GetChildren()) {
+		for (const auto& child: entity.GetChildrenHandles()) {
 			DrawEntity(cmd, this->scene->GetEntity(child), layout, TransformToModelMatrix(entity.GetComponent<TransformComponent>()));
 		}
 	}
@@ -354,9 +358,9 @@ namespace Slate {
 	void Editor::DrawEntityForEditorLarge_EXT(VkCommandBuffer cmd, Entity &entity, VkPipelineLayout layout, const glm::mat4 &topMatrix) {
 		if (entity.HasComponent<GeometryPrimitiveComponent>()) {
 			const GeometryPrimitiveComponent& mesh_component = entity.GetComponent<GeometryPrimitiveComponent>();
-			if (mesh_component.Meshtype == MeshPrimitiveType::Empty) return;
+			if (mesh_component.mesh_type == MeshPrimitiveType::Empty) return;
 			GPU::DrawPushConstantsEditorEXT push = {};
-			const MeshBuffer& buffer = this->defaultMeshPrimitiveTypes[mesh_component.Meshtype];
+			const MeshBuffer& buffer = this->defaultMeshPrimitiveTypes[mesh_component.mesh_type];
 			push.vertexBufferAddress = buffer.GetVBA();
 			push.modelMatrix = glm::scale(TransformToModelMatrix(entity.GetComponent<TransformComponent>()) * topMatrix, glm::vec3(1.0005f));
 			push.color = glm::vec3(1.f, 0.706f, 0.f);
@@ -382,7 +386,7 @@ namespace Slate {
 
 		// now recurse through all children if children are present
 		if (!entity.HasChildren()) return;
-		for (const auto child : entity.GetChildren()) {
+		for (const auto child : entity.GetChildrenHandles()) {
 			DrawEntityForEditorLarge_EXT(cmd, this->scene->GetEntity(child), layout, TransformToModelMatrix(entity.GetComponent<TransformComponent>()));
 		}
 	}
@@ -488,9 +492,7 @@ namespace Slate {
 		glfwSetErrorCallback(glfw_error_callback);
 #endif
 
-		WindowSpecification spec;
-		spec.resizeable = true;
-		this->mainWindow = Window(spec);
+		this->mainWindow = Window({.resizeable = true});
 		this->mainWindow.Initialize();
 
 		// callbacks
@@ -755,52 +757,53 @@ namespace Slate {
 
 		this->scene = CreateStrongPtr<Scene>();
 
-		auto& sphere = scene->CreateEntity("Sphere");
-		sphere.AddComponent<TransformComponent>().Position = glm::vec3{-2.f, 4.f, 0.f};
-		sphere.AddComponent<GeometryPrimitiveComponent>().Meshtype = MeshPrimitiveType::Cube;
+		Entity& sphere = scene->CreateEntity("Sphere");
+		sphere.AddComponent<TransformComponent>().position = glm::vec3{-2.f, 4.f, 0.f};
+		sphere.AddComponent<GeometryPrimitiveComponent>().mesh_type = MeshPrimitiveType::Cube;
+		sphere.AddComponent<RenderableComponent>().shader_source = standard_shader;
 
-		auto& quady = scene->CreateEntity("Quad");
-		quady.AddComponent<TransformComponent>().Position = glm::vec3{1.f, 1.f, 1.f};
-		quady.AddComponent<GeometryPrimitiveComponent>().Meshtype = MeshPrimitiveType::Quad;
+		Entity& quady = scene->CreateEntity("Quad");
+		quady.AddComponent<TransformComponent>().position = glm::vec3{1.f, 1.f, 1.f};
+		quady.AddComponent<GeometryPrimitiveComponent>().mesh_type = MeshPrimitiveType::Quad;
 
-		auto& standardPlane = scene->CreateEntity("Standard Plane");
-		standardPlane.AddComponent<GeometryPrimitiveComponent>().Meshtype = MeshPrimitiveType::Plane;
-		standardPlane.GetComponent<TransformComponent>().Scale = {10.f, 1.f, 10.f};
+		Entity& standardPlane = scene->CreateEntity("Standard Plane");
+		standardPlane.AddComponent<GeometryPrimitiveComponent>().mesh_type = MeshPrimitiveType::Plane;
+		standardPlane.GetComponent<TransformComponent>().scale = {10.f, 1.f, 10.f};
 
 		sphere.AddChild(quady.GetHandle());
 		sphere.AddChild(standardPlane.GetHandle());
 
-		auto& defaultCube = scene->CreateEntity("Default Cube");
-		defaultCube.AddComponent<TransformComponent>().Position = glm::vec3{-5.f, 1.f, -1.f};
-		defaultCube.AddComponent<GeometryPrimitiveComponent>().Meshtype = MeshPrimitiveType::Cube;
+		Entity& defaultCube = scene->CreateEntity("Default Cube");
+		defaultCube.AddComponent<TransformComponent>().position = glm::vec3{-5.f, 1.f, -1.f};
+		defaultCube.AddComponent<GeometryPrimitiveComponent>().mesh_type = MeshPrimitiveType::Cube;
 
-		auto& pointlight1 = scene->CreateEntity("Point Light 1");
-		pointlight1.AddComponent<TransformComponent>().Position = glm::vec3{2.f, 3.f, 2.f};
+		Entity& pointlight1 = scene->CreateEntity("Point Light 1");
+		pointlight1.AddComponent<TransformComponent>().position = glm::vec3{2.f, 3.f, 2.f};
 		pointlight1.AddComponent<PointLightComponent>().point.Color = glm::vec3{1.f, 0.f, 0.f};
 
-		auto& pointlight2 = scene->CreateEntity("Point Light 2");
-		pointlight2.AddComponent<TransformComponent>().Position = glm::vec3{-3.f, 3.f, -3.f};
+		Entity& pointlight2 = scene->CreateEntity("Point Light 2");
+		pointlight2.AddComponent<TransformComponent>().position = glm::vec3{-3.f, 3.f, -3.f};
 		pointlight2.AddComponent<PointLightComponent>().point.Color = glm::vec3{0.2f, 0.3f, 0.8f};
 
-		auto& pointlight3 = scene->CreateEntity("Point Light 3");
-		pointlight3.AddComponent<TransformComponent>().Position = glm::vec3{-3.f, 0.3f, 3.f};
+		Entity& pointlight3 = scene->CreateEntity("Point Light 3");
+		pointlight3.AddComponent<TransformComponent>().position = glm::vec3{-3.f, 0.3f, 3.f};
 		pointlight3.AddComponent<PointLightComponent>().point.Color = glm::vec3{0.212f, 0.949f, 0.129f};
 
-		auto& environ = scene->CreateEntity("Environment");
-		environ.AddComponent<TransformComponent>().Position = glm::vec3{-6.f, 6.f, -7.f};
+		Entity& environ = scene->CreateEntity("Environment");
+		environ.AddComponent<TransformComponent>().position = glm::vec3{-6.f, 6.f, -7.f};
 		environ.AddComponent<AmbientLightComponent>();
 
-		auto& sunlight = scene->CreateEntity("Sun Light");
-		sunlight.AddComponent<TransformComponent>().Position = glm::vec3{-7.f, 5.f, -4.f};
+		Entity& sunlight = scene->CreateEntity("Sun Light");
+		sunlight.AddComponent<TransformComponent>().position = glm::vec3{-7.f, 5.f, -4.f};
 		sunlight.AddComponent<DirectionalLightComponent>().directional.Color = glm::vec3{0.91, 0.882, 0.714};
 
-		auto& spotlight = scene->CreateEntity("Spot Light 1");
-		spotlight.AddComponent<TransformComponent>().Position = glm::vec3{2.f, 4.f, -4.f};
+		Entity& spotlight = scene->CreateEntity("Spot Light 1");
+		spotlight.AddComponent<TransformComponent>().position = glm::vec3{2.f, 4.f, -4.f};
 		spotlight.AddComponent<SpotLightComponent>().spot.Color = glm::vec3{0.3f, 0.6f, 0.1f};
 
-		auto& glasspane = scene->CreateEntity("Glass Plane");
-		glasspane.AddComponent<TransformComponent>().Position = glm::vec3{-1.f, 1.f, 0.f};
-		glasspane.AddComponent<GeometryPrimitiveComponent>().Meshtype = MeshPrimitiveType::Quad;
+		Entity& glasspane = scene->CreateEntity("Glass Plane");
+		glasspane.AddComponent<TransformComponent>().position = glm::vec3{-1.f, 1.f, 0.f};
+		glasspane.AddComponent<GeometryPrimitiveComponent>().mesh_type = MeshPrimitiveType::Quad;
 
 		ImGui_ImplGlfw_InstallCallbacks(this->mainWindow.GetGlfwWindow());
 	}
@@ -844,21 +847,21 @@ namespace Slate {
 						.Intensity = env.ambient.Intensity}};
 		lightingData.ClearDynamics();
 
-		for (const auto &entity: scene->GetAllEntitiesWith<DirectionalLightComponent>()) {
+		for (const auto entity: scene->GetAllEntitiesWith<DirectionalLightComponent>()) {
 			const TransformComponent entity_transform = entity->GetComponent<TransformComponent>();
 			const DirectionalLightComponent entity_light = entity->GetComponent<DirectionalLightComponent>();
 
-			lightingData.directional.Direction = entity_transform.Rotation * glm::vec3(0, -1, 0);
+			lightingData.directional.Direction = entity_transform.rotation * glm::vec3(0, -1, 0);
 			// stuff from properties panel
 			lightingData.directional.Color = entity_light.directional.Color;
 			lightingData.directional.Intensity = entity_light.directional.Intensity;
 		}
 		int i = 0;
-		for (const auto &entity: scene->GetAllEntitiesWith<PointLightComponent>()) {
+		for (const auto entity: scene->GetAllEntitiesWith<PointLightComponent>()) {
 			const TransformComponent entity_transform = entity->GetComponent<TransformComponent>();
 			const PointLightComponent entity_light = entity->GetComponent<PointLightComponent>();
 
-			lightingData.points[i].Position = entity_transform.Position;
+			lightingData.points[i].Position = entity_transform.position;
 			// stuff from properties panel
 			lightingData.points[i].Color = entity_light.point.Color;
 			lightingData.points[i].Intensity = entity_light.point.Intensity;
@@ -866,12 +869,12 @@ namespace Slate {
 			i++;
 		}
 		i = 0;
-		for (const auto &entity: scene->GetAllEntitiesWith<SpotLightComponent>()) {
+		for (const auto entity: scene->GetAllEntitiesWith<SpotLightComponent>()) {
 			const TransformComponent entity_transform = entity->GetComponent<TransformComponent>();
 			const SpotLightComponent entity_light = entity->GetComponent<SpotLightComponent>();
 
-			lightingData.spots[i].Position = entity_transform.Position;
-			lightingData.spots[i].Direction = entity_transform.Rotation * glm::vec3(0, -1, 0);
+			lightingData.spots[i].Position = entity_transform.position;
+			lightingData.spots[i].Direction = entity_transform.rotation * glm::vec3(0, -1, 0);
 			// stuff from properties panel
 			lightingData.spots[i].Color = entity_light.spot.Color;
 			lightingData.spots[i].Intensity = entity_light.spot.Intensity;
@@ -1152,7 +1155,6 @@ namespace Slate {
 			ImGui_ImplGlfw_NewFrame();
 			ImGui::NewFrame();
 		}
-		//		ImGui::SetMouseCursor(ImGuiMouseCursor_None);
 
 		// below is all dockspace setup
 		ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_NoWindowMenuButton; // flags for our Dockspace, which will be the whole screen
@@ -1227,7 +1229,7 @@ namespace Slate {
 				ImGui::Text("ImGui Delta Time: %.2f", io.DeltaTime);
 				if (hoveredEntityHandle.has_value()) {
 					auto& hoveredentity = this->scene->GetEntity(hoveredEntityHandle.value());
-					ImGui::Text("Hovered Entity: %s | %u",hoveredentity.GetName().c_str(), static_cast<int>(hoveredentity.GetHandle()));
+					ImGui::Text("Hovered Entity: %s | %u", hoveredentity.GetName().c_str(), static_cast<int>(hoveredentity.GetHandle()));
 				}
 				else
 					ImGui::Text("Hovered Entity: 'NONE'");

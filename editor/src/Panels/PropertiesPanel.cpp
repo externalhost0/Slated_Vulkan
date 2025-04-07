@@ -36,17 +36,17 @@ namespace Slate {
 	void ComponentTransform(Entity& entity) {
 		auto& transform = entity.GetComponent<TransformComponent>();
 
-		Vector3Drag("Position", transform.Position, "%.2f", 0.0f, 0.01f);
+		Vector3Drag("Position", transform.position, "%.2f", 0.0f, 0.01f);
 
-		glm::vec3 intermediate = glm::degrees(glm::eulerAngles(transform.Rotation));
+		glm::vec3 intermediate = glm::degrees(glm::eulerAngles(transform.rotation));
 		Vector3Drag("Rotation", intermediate, "%.1f", 0.0f, 0.1f);
-		transform.Rotation = glm::normalize(glm::quat(glm::radians(intermediate)));
+		transform.rotation = glm::normalize(glm::quat(glm::radians(intermediate)));
 
-		Vector3Drag("Scale", transform.Scale, "%.3f", 1.0f, 0.01f);
+		Vector3Drag("Scale", transform.scale, "%.3f", 1.0f, 0.01f);
 	}
 	void ComponentMeshPrimitive(Entity& entity) {
 		GeometryPrimitiveComponent& mesh_component = entity.GetComponent<GeometryPrimitiveComponent>();
-		MeshPrimitiveType current_type = mesh_component.Meshtype;
+		MeshPrimitiveType current_type = mesh_component.mesh_type;
 
 		ImGui::AlignTextToFramePadding();
 		ImGui::Text("Mesh Type: ");
@@ -55,7 +55,7 @@ namespace Slate {
 			for (const auto& [type, name] : MeshPrimitiveTypeStringMap) {
 				bool isSelected = (current_type == type);
 				if (ImGui::Selectable(name, isSelected)) {
-					mesh_component.Meshtype = type;
+					mesh_component.mesh_type = type;
 				}
 				if (isSelected) {
 					ImGui::SetItemDefaultFocus();
@@ -140,47 +140,52 @@ namespace Slate {
 		return {r, g, b, 1.0};
 	}
 
-	void ComponentPointLight(Entity& entity) {
-		auto& light = entity.GetComponent<PointLightComponent>();
-
-		SlateGui::ColorField(light.point.Color);
-
-		float largest_width = 95.f;
-		float sliderWidth = 150.f;
+	float largest_width = 95.f;
+	float sliderWidth = 150.f;
+	void ComponentILight(glm::vec3& color, float& intensity) {
+		ImGui::Text("Color");
+		ImGui::SameLine(largest_width);
+		SlateGui::ColorField(color);
 
 		ImGui::Text("Intensity");
 		ImGui::SameLine(largest_width);
 		ImGui::PushItemWidth(sliderWidth);
-		ImGui::DragFloat("###hidden", &light.point.Intensity, 0.05f, 0.f, 1000.0f);
+		ImGui::DragFloat("###hiddenintense", &intensity, 0.05f, 0.f, 1000.0f);
 		ImGui::PopItemWidth();
+	}
+	void ComponentPointLight(Entity& entity) {
+		auto& light = entity.GetComponent<PointLightComponent>();
+		ComponentILight(light.point.Color, light.point.Intensity);
 
 		ImGui::Text("Range");
 		ImGui::SameLine(largest_width);
 		ImGui::PushItemWidth(sliderWidth);
-		ImGui::DragFloat("###hidden2", &light.point.Range, 0.5f, 0.f, 100.0f);
+		ImGui::DragFloat("###hiddenrange", &light.point.Range, 0.5f, 0.f, 100.0f);
 		ImGui::PopItemWidth();
 	}
 	void ComponentSpotLight(Entity& entity) {
 		auto& light = entity.GetComponent<SpotLightComponent>();
+		ComponentILight(light.spot.Color, light.spot.Intensity);
 
-		SlateGui::ColorField(light.spot.Color);
-		ImGui::DragFloat("Intensity", &light.spot.Intensity, 0.05f, 0.f, 1000.0f);
-		ImGui::DragFloat("Blend", &light.spot.Blend, 0.01f, 0.f, 1.f);
-		ImGui::DragFloat("Size", &light.spot.Size, 0.5f, 1.f, 180.f);
+		ImGui::Text("Blend");
+		ImGui::SameLine(largest_width);
+		ImGui::PushItemWidth(sliderWidth);
+		ImGui::DragFloat("###hiddenblend", &light.spot.Blend, 0.01f, 0.f, 1.f);
+		ImGui::PopItemWidth();
+
+		ImGui::Text("Size");
+		ImGui::SameLine(largest_width);
+		ImGui::PushItemWidth(sliderWidth);
+		ImGui::DragFloat("###hiddensize", &light.spot.Size, 0.5f, 1.f, 180.f);
+		ImGui::PopItemWidth();
 	}
-
 	void ComponentDirectionalLight(Entity& entity) {
 		auto& light = entity.GetComponent<DirectionalLightComponent>();
-
-		SlateGui::ColorField(light.directional.Color);
-		ImGui::DragFloat("Intensity", &light.directional.Intensity, 0.05f, 0.f, 1000.0f);
+		ComponentILight(light.directional.Color, light.directional.Intensity);
 	}
 	void ComponentEnvironmentLight(Entity& entity) {
-		// ambient point source changes
 		auto& light = entity.GetComponent<AmbientLightComponent>();
-
-		SlateGui::ColorField(light.ambient.Color);
-		ImGui::DragFloat("Intensity", &light.ambient.Intensity, 0.05f, 0.f, 1000.0f);
+		ComponentILight(light.ambient.Color, light.ambient.Intensity);
 	}
 
 
@@ -204,8 +209,6 @@ namespace Slate {
 	// templated function for all component panels
 	template <typename T>
 	void ComponentPropertyPanel(Entity& entity, const std::function<void(Entity&)>& func, const char* title, const char* icon) {
-		// make sure a component is only shown if an entity has it
-		if (!entity || !entity.HasComponent<T>()) return;
 		// require that the componenttype is actually a component lol
 		static_assert(std::is_class<T>::value, "T must be a class/struct!");
 
@@ -214,7 +217,7 @@ namespace Slate {
 		ImGuiTreeNodeFlags nodeFlags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_AllowOverlap;
 
 		// generate a unique id for the child window
-		std::string uniqueId = "Child" + std::to_string(typeid(T).hash_code()) + std::to_string(static_cast<uint32_t>(entity.GetHandle()));
+		const std::string uniqueId = "Child" + std::to_string(typeid(T).hash_code()) + std::to_string(static_cast<uint32_t>(entity.GetHandle()));
 		ImGui::BeginChild(uniqueId.c_str(), ImVec2(0, 0), childFlags);
 
 		// this constructs the icon -> title -> and set tree visibillity
@@ -247,9 +250,6 @@ namespace Slate {
 		// remove at end of call
 		if (remove) {
 			entity.RemoveComponent<T>();
-//			if (std::is_same_v<T, TransformComponent>) {
-//				entity = nullptr;
-//			}
 		}
 		ImGui::EndChild();
 	}
@@ -336,6 +336,12 @@ namespace Slate {
 		static constexpr auto handler = ComponentPointLight;
 	};
 	template <>
+	struct ComponentMetadata<SpotLightComponent> {
+		static constexpr const char* name = "Spot Light";
+		static constexpr const char* icon = ICON_LC_LAMP_CEILING;
+		static constexpr auto handler = ComponentSpotLight;
+	};
+	template <>
 	struct ComponentMetadata<DirectionalLightComponent> {
 		static constexpr const char* name = "Directional Light";
 		static constexpr const char* icon = ICON_LC_SUN;
@@ -346,12 +352,6 @@ namespace Slate {
 		static constexpr const char* name = "Ambient Light";
 		static constexpr const char* icon = ICON_LC_GLOBE;
 		static constexpr auto handler = ComponentEnvironmentLight;
-	};
-	template <>
-	struct ComponentMetadata<SpotLightComponent> {
-		static constexpr const char* name = "Spot Light";
-		static constexpr const char* icon = ICON_LC_LAMP_CEILING;
-		static constexpr auto handler = ComponentSpotLight;
 	};
 
 }

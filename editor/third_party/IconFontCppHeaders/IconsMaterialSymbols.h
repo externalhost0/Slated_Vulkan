@@ -87,6 +87,7 @@
 #define ICON_MS_ACCESSIBILITY_NEW "\xee\xa4\xac"	// U+e92c
 #define ICON_MS_ACCESSIBLE "\xee\xa4\x94"	// U+e914
 #define ICON_MS_ACCESSIBLE_FORWARD "\xee\xa4\xb4"	// U+e934
+#define ICON_MS_ACCESSIBLE_MENU "\xef\x8d\x8e"	// U+f34e
 #define ICON_MS_ACCOUNT_BALANCE "\xee\xa1\x8f"	// U+e84f
 #define ICON_MS_ACCOUNT_BALANCE_WALLET "\xee\xa1\x90"	// U+e850
 #define ICON_MS_ACCOUNT_BOX "\xee\xa1\x91"	// U+e851
@@ -177,6 +178,7 @@
 #define ICON_MS_ALARM_ADD "\xee\xa1\x96"	// U+e856
 #define ICON_MS_ALARM_OFF "\xee\xa1\x97"	// U+e857
 #define ICON_MS_ALARM_ON "\xee\xa1\x98"	// U+e858
+#define ICON_MS_ALARM_PAUSE "\xef\x8d\x9b"	// U+f35b
 #define ICON_MS_ALARM_SMART_WAKE "\xef\x9a\xb0"	// U+f6b0
 #define ICON_MS_ALBUM "\xee\x80\x99"	// U+e019
 #define ICON_MS_ALIGN_CENTER "\xee\x8d\x96"	// U+e356
@@ -292,6 +294,7 @@
 #define ICON_MS_ARROWS_OUTWARD "\xef\x9c\xac"	// U+f72c
 #define ICON_MS_ART_TRACK "\xee\x81\xa0"	// U+e060
 #define ICON_MS_ARTICLE "\xee\xbd\x82"	// U+ef42
+#define ICON_MS_ARTICLE_PERSON "\xef\x8d\xa8"	// U+f368
 #define ICON_MS_ARTICLE_SHORTCUT "\xef\x96\x87"	// U+f587
 #define ICON_MS_ARTIST "\xee\x80\x9a"	// U+e01a
 #define ICON_MS_ASPECT_RATIO "\xee\xa1\x9b"	// U+e85b
@@ -622,6 +625,22 @@
 #define ICON_MS_CAPTIVE_PORTAL "\xef\x9c\xa8"	// U+f728
 #define ICON_MS_CAPTURE "\xef\x9c\xa7"	// U+f727
 #define ICON_MS_CAR_CRASH "\xee\xaf\xb2"	// U+ebf2
+#define ICON_MS_CAR_DEFROST_LEFT "\xef\x8d\x84"	// U+f344
+#define ICON_MS_CAR_DEFROST_LOW_LEFT "\xef\x8d\x83"	// U+f343
+#define ICON_MS_CAR_DEFROST_LOW_RIGHT "\xef\x8d\x82"	// U+f342
+#define ICON_MS_CAR_DEFROST_MID_LOW_LEFT "\xef\x8d\x81"	// U+f341
+#define ICON_MS_CAR_DEFROST_MID_RIGHT "\xef\x8d\x80"	// U+f340
+#define ICON_MS_CAR_DEFROST_RIGHT "\xef\x8c\xbf"	// U+f33f
+#define ICON_MS_CAR_FAN_LOW_LEFT "\xef\x8c\xbe"	// U+f33e
+#define ICON_MS_CAR_FAN_LOW_MID_LEFT "\xef\x8c\xbd"	// U+f33d
+#define ICON_MS_CAR_FAN_LOW_RIGHT "\xef\x8c\xbc"	// U+f33c
+#define ICON_MS_CAR_FAN_MID_LEFT "\xef\x8c\xbb"	// U+f33b
+#define ICON_MS_CAR_FAN_MID_LOW_RIGHT "\xef\x8c\xba"	// U+f33a
+#define ICON_MS_CAR_FAN_MID_RIGHT "\xef\x8c\xb9"	// U+f339
+#define ICON_MS_CAR_FAN_RECIRCULATE "\xef\x8c\xb8"	// U+f338
+#define ICON_MS_CAR_GEAR "\xef\x8c\xb7"	// U+f337
+#define ICON_MS_CAR_LOCK "\xef\x8c\xb6"	// U+f336
+#define ICON_MS_CAR_MIRROR_HEAT "\xef\x8c\xb5"	// U+f335
 #define ICON_MS_CAR_RENTAL "\xee\xa9\x95"	// U+ea55
 #define ICON_MS_CAR_REPAIR "\xee\xa9\x96"	// U+ea56
 #define ICON_MS_CAR_TAG "\xef\x93\xa3"	// U+f4e3
@@ -686,6 +705,7 @@
 #define ICON_MS_CHECKLIST_RTL "\xee\x9a\xb3"	// U+e6b3
 #define ICON_MS_CHECKROOM "\xef\x86\x9e"	// U+f19e
 #define ICON_MS_CHEER "\xef\x9a\xa8"	// U+f6a8
+#define ICON_MS_CHEF_HAT "\xef\x8d\x97"	// U+f357
 #define ICON_MS_CHESS "\xef\x97\xa7"	// U+f5e7
 #define ICON_MS_CHESS_PAWN "\xef\x8e\xb6"	// U+f3b6
 #define ICON_MS_CHEVRON_BACKWARD "\xef\x91\xab"	// U+f46b
@@ -1090,6 +1110,7 @@
 #define ICON_MS_DRIVE_FOLDER_UPLOAD "\xee\xa6\xa3"	// U+e9a3
 #define ICON_MS_DRIVE_FUSIONTABLE "\xee\x99\xb8"	// U+e678
 #define ICON_MS_DROPDOWN "\xee\xa6\xa4"	// U+e9a4
+#define ICON_MS_DROPPER_EYE "\xef\x8d\x91"	// U+f351
 #define ICON_MS_DRY "\xef\x86\xb3"	// U+f1b3
 #define ICON_MS_DRY_CLEANING "\xee\xa9\x98"	// U+ea58
 #define ICON_MS_DUAL_SCREEN "\xef\x9b\x8f"	// U+f6cf
@@ -1101,6 +1122,7 @@
 #define ICON_MS_E911_EMERGENCY "\xef\x84\x99"	// U+f119
 #define ICON_MS_E_MOBILEDATA "\xef\x80\x82"	// U+f002
 #define ICON_MS_E_MOBILEDATA_BADGE "\xef\x9f\xa3"	// U+f7e3
+#define ICON_MS_EAR_SOUND "\xef\x8d\x96"	// U+f356
 #define ICON_MS_EARBUDS "\xef\x80\x83"	// U+f003
 #define ICON_MS_EARBUDS_BATTERY "\xef\x80\x84"	// U+f004
 #define ICON_MS_EARLY_ON "\xee\x8a\xba"	// U+e2ba
@@ -1261,6 +1283,8 @@
 #define ICON_MS_FAMILY_LINK "\xee\xac\x99"	// U+eb19
 #define ICON_MS_FAMILY_RESTROOM "\xef\x86\xa2"	// U+f1a2
 #define ICON_MS_FAMILY_STAR "\xef\x94\xa7"	// U+f527
+#define ICON_MS_FAN_FOCUS "\xef\x8c\xb4"	// U+f334
+#define ICON_MS_FAN_INDIRECT "\xef\x8c\xb3"	// U+f333
 #define ICON_MS_FARSIGHT_DIGITAL "\xef\x95\x99"	// U+f559
 #define ICON_MS_FAST_FORWARD "\xee\x80\x9f"	// U+e01f
 #define ICON_MS_FAST_REWIND "\xee\x80\xa0"	// U+e020
@@ -1483,6 +1507,7 @@
 #define ICON_MS_FORWARD_MEDIA "\xef\x9b\xb4"	// U+f6f4
 #define ICON_MS_FORWARD_TO_INBOX "\xef\x86\x87"	// U+f187
 #define ICON_MS_FOUNDATION "\xef\x88\x80"	// U+f200
+#define ICON_MS_FRAGRANCE "\xef\x8d\x85"	// U+f345
 #define ICON_MS_FRAME_INSPECT "\xef\x9d\xb2"	// U+f772
 #define ICON_MS_FRAME_PERSON "\xef\xa2\xa6"	// U+f8a6
 #define ICON_MS_FRAME_PERSON_MIC "\xef\x93\x95"	// U+f4d5
@@ -1532,6 +1557,7 @@
 #define ICON_MS_GLOBE "\xee\x99\x8c"	// U+e64c
 #define ICON_MS_GLOBE_ASIA "\xef\x9e\x99"	// U+f799
 #define ICON_MS_GLOBE_BOOK "\xef\x8f\x89"	// U+f3c9
+#define ICON_MS_GLOBE_LOCATION_PIN "\xef\x8d\x9d"	// U+f35d
 #define ICON_MS_GLOBE_UK "\xef\x9e\x98"	// U+f798
 #define ICON_MS_GLUCOSE "\xee\x92\xa0"	// U+e4a0
 #define ICON_MS_GLYPHS "\xef\xa2\xa3"	// U+f8a3
@@ -1558,6 +1584,7 @@
 #define ICON_MS_GRAPH_4 "\xef\x8e\x9d"	// U+f39d
 #define ICON_MS_GRAPH_5 "\xef\x8e\x9c"	// U+f39c
 #define ICON_MS_GRAPH_6 "\xef\x8e\x9b"	// U+f39b
+#define ICON_MS_GRAPH_7 "\xef\x8d\x86"	// U+f346
 #define ICON_MS_GRAPHIC_EQ "\xee\x86\xb8"	// U+e1b8
 #define ICON_MS_GRASS "\xef\x88\x85"	// U+f205
 #define ICON_MS_GRID_3X3 "\xef\x80\x95"	// U+f015
@@ -1724,6 +1751,7 @@
 #define ICON_MS_HUMIDITY_MID "\xef\x85\xa5"	// U+f165
 #define ICON_MS_HUMIDITY_PERCENTAGE "\xef\xa1\xbe"	// U+f87e
 #define ICON_MS_HVAC "\xef\x84\x8e"	// U+f10e
+#define ICON_MS_HVAC_MAX_DEFROST "\xef\x8c\xb2"	// U+f332
 #define ICON_MS_ICE_SKATING "\xee\x94\x8b"	// U+e50b
 #define ICON_MS_ICECREAM "\xee\xa9\xa9"	// U+ea69
 #define ICON_MS_ID_CARD "\xef\x93\x8a"	// U+f4ca
@@ -1747,6 +1775,9 @@
 #define ICON_MS_INBOX "\xee\x85\x96"	// U+e156
 #define ICON_MS_INBOX_CUSTOMIZE "\xef\xa1\x99"	// U+f859
 #define ICON_MS_INBOX_TEXT "\xef\x8e\x99"	// U+f399
+#define ICON_MS_INBOX_TEXT_ASTERISK "\xef\x8d\xa0"	// U+f360
+#define ICON_MS_INBOX_TEXT_PERSON "\xef\x8d\x9e"	// U+f35e
+#define ICON_MS_INBOX_TEXT_SHARE "\xef\x8d\x9c"	// U+f35c
 #define ICON_MS_INCOMPLETE_CIRCLE "\xee\x9e\x9b"	// U+e79b
 #define ICON_MS_INDETERMINATE_CHECK_BOX "\xee\xa4\x89"	// U+e909
 #define ICON_MS_INDETERMINATE_QUESTION_BOX "\xef\x95\xad"	// U+f56d
@@ -1987,6 +2018,7 @@
 #define ICON_MS_LOCK "\xee\xa2\x99"	// U+e899
 #define ICON_MS_LOCK_CLOCK "\xee\xbd\x97"	// U+ef57
 #define ICON_MS_LOCK_OPEN "\xee\xa2\x98"	// U+e898
+#define ICON_MS_LOCK_OPEN_CIRCLE "\xef\x8d\xa1"	// U+f361
 #define ICON_MS_LOCK_OPEN_RIGHT "\xef\x99\x96"	// U+f656
 #define ICON_MS_LOCK_OUTLINE "\xee\xa2\x99"	// U+e899
 #define ICON_MS_LOCK_PERSON "\xef\xa3\xb3"	// U+f8f3
@@ -2147,6 +2179,7 @@
 #define ICON_MS_MONORAIL "\xef\x91\xb3"	// U+f473
 #define ICON_MS_MOOD "\xee\xa8\xa2"	// U+ea22
 #define ICON_MS_MOOD_BAD "\xee\x9f\xb3"	// U+e7f3
+#define ICON_MS_MOON_STARS "\xef\x8d\x8f"	// U+f34f
 #define ICON_MS_MOP "\xee\x8a\x8d"	// U+e28d
 #define ICON_MS_MOPED "\xee\xac\xa8"	// U+eb28
 #define ICON_MS_MORE "\xee\x98\x99"	// U+e619
@@ -2298,6 +2331,7 @@
 #define ICON_MS_NEXT_PLAN "\xee\xbd\x9d"	// U+ef5d
 #define ICON_MS_NEXT_WEEK "\xee\x85\xaa"	// U+e16a
 #define ICON_MS_NFC "\xee\x86\xbb"	// U+e1bb
+#define ICON_MS_NFC_OFF "\xef\x8d\xa9"	// U+f369
 #define ICON_MS_NIGHT_SHELTER "\xef\x87\xb1"	// U+f1f1
 #define ICON_MS_NIGHT_SIGHT_AUTO "\xef\x87\x97"	// U+f1d7
 #define ICON_MS_NIGHT_SIGHT_AUTO_OFF "\xef\x87\xb9"	// U+f1f9
@@ -2344,6 +2378,8 @@
 #define ICON_MS_NOTIFICATION_ADD "\xee\x8e\x99"	// U+e399
 #define ICON_MS_NOTIFICATION_IMPORTANT "\xee\x80\x84"	// U+e004
 #define ICON_MS_NOTIFICATION_MULTIPLE "\xee\x9b\x82"	// U+e6c2
+#define ICON_MS_NOTIFICATION_SETTINGS "\xef\x8d\xa7"	// U+f367
+#define ICON_MS_NOTIFICATION_SOUND "\xef\x8d\x93"	// U+f353
 #define ICON_MS_NOTIFICATIONS "\xee\x9f\xb5"	// U+e7f5
 #define ICON_MS_NOTIFICATIONS_ACTIVE "\xee\x9f\xb7"	// U+e7f7
 #define ICON_MS_NOTIFICATIONS_NONE "\xee\x9f\xb5"	// U+e7f5
@@ -2590,6 +2626,7 @@
 #define ICON_MS_PLAYLIST_ADD_CIRCLE "\xee\x9f\xa5"	// U+e7e5
 #define ICON_MS_PLAYLIST_PLAY "\xee\x81\x9f"	// U+e05f
 #define ICON_MS_PLAYLIST_REMOVE "\xee\xae\x80"	// U+eb80
+#define ICON_MS_PLUG_CONNECT "\xef\x8d\x9a"	// U+f35a
 #define ICON_MS_PLUMBING "\xef\x84\x87"	// U+f107
 #define ICON_MS_PLUS_ONE "\xee\xa0\x80"	// U+e800
 #define ICON_MS_PODCASTS "\xef\x81\x88"	// U+f048
@@ -2888,6 +2925,12 @@
 #define ICON_MS_SEARCH_HANDS_FREE "\xee\x9a\x96"	// U+e696
 #define ICON_MS_SEARCH_INSIGHTS "\xef\x92\xbc"	// U+f4bc
 #define ICON_MS_SEARCH_OFF "\xee\xa9\xb6"	// U+ea76
+#define ICON_MS_SEAT_COOL_LEFT "\xef\x8c\xb1"	// U+f331
+#define ICON_MS_SEAT_COOL_RIGHT "\xef\x8c\xb0"	// U+f330
+#define ICON_MS_SEAT_HEAT_LEFT "\xef\x8c\xaf"	// U+f32f
+#define ICON_MS_SEAT_HEAT_RIGHT "\xef\x8c\xae"	// U+f32e
+#define ICON_MS_SEAT_VENT_LEFT "\xef\x8c\xad"	// U+f32d
+#define ICON_MS_SEAT_VENT_RIGHT "\xef\x8c\xac"	// U+f32c
 #define ICON_MS_SECURITY "\xee\x8c\xaa"	// U+e32a
 #define ICON_MS_SECURITY_KEY "\xef\x94\x83"	// U+f503
 #define ICON_MS_SECURITY_UPDATE "\xef\x81\xb2"	// U+f072
@@ -3184,6 +3227,7 @@
 #define ICON_MS_SQUARE_FOOT "\xee\xa9\x89"	// U+ea49
 #define ICON_MS_SSID_CHART "\xee\xad\xa6"	// U+eb66
 #define ICON_MS_STACK "\xef\x98\x89"	// U+f609
+#define ICON_MS_STACK_GROUP "\xef\x8d\x99"	// U+f359
 #define ICON_MS_STACK_HEXAGON "\xef\x90\x9c"	// U+f41c
 #define ICON_MS_STACK_OFF "\xef\x98\x88"	// U+f608
 #define ICON_MS_STACK_STAR "\xef\x98\x87"	// U+f607
@@ -3217,6 +3261,7 @@
 #define ICON_MS_STAY_CURRENT_PORTRAIT "\xee\x83\x94"	// U+e0d4
 #define ICON_MS_STAY_PRIMARY_LANDSCAPE "\xee\x83\x95"	// U+e0d5
 #define ICON_MS_STAY_PRIMARY_PORTRAIT "\xee\x83\x96"	// U+e0d6
+#define ICON_MS_STEERING_WHEEL_HEAT "\xef\x8c\xab"	// U+f32b
 #define ICON_MS_STEP "\xef\x9b\xbe"	// U+f6fe
 #define ICON_MS_STEP_INTO "\xef\x9c\x81"	// U+f701
 #define ICON_MS_STEP_OUT "\xef\x9c\x80"	// U+f700
@@ -3252,8 +3297,13 @@
 #define ICON_MS_STYLE "\xee\x90\x9d"	// U+e41d
 #define ICON_MS_STYLER "\xee\x89\xb3"	// U+e273
 #define ICON_MS_STYLUS "\xef\x98\x84"	// U+f604
+#define ICON_MS_STYLUS_BRUSH "\xef\x8d\xa6"	// U+f366
+#define ICON_MS_STYLUS_FOUNTAIN_PEN "\xef\x8d\xa5"	// U+f365
+#define ICON_MS_STYLUS_HIGHLIGHTER "\xef\x8d\xa4"	// U+f364
 #define ICON_MS_STYLUS_LASER_POINTER "\xef\x9d\x87"	// U+f747
 #define ICON_MS_STYLUS_NOTE "\xef\x98\x83"	// U+f603
+#define ICON_MS_STYLUS_PEN "\xef\x8d\xa3"	// U+f363
+#define ICON_MS_STYLUS_PENCIL "\xef\x8d\xa2"	// U+f362
 #define ICON_MS_SUBDIRECTORY_ARROW_LEFT "\xee\x97\x99"	// U+e5d9
 #define ICON_MS_SUBDIRECTORY_ARROW_RIGHT "\xee\x97\x9a"	// U+e5da
 #define ICON_MS_SUBHEADER "\xee\xa7\xaa"	// U+e9ea
@@ -3261,6 +3311,7 @@
 #define ICON_MS_SUBSCRIPT "\xef\x84\x91"	// U+f111
 #define ICON_MS_SUBSCRIPTIONS "\xee\x81\xa4"	// U+e064
 #define ICON_MS_SUBTITLES "\xee\x81\x88"	// U+e048
+#define ICON_MS_SUBTITLES_GEAR "\xef\x8d\x95"	// U+f355
 #define ICON_MS_SUBTITLES_OFF "\xee\xbd\xb2"	// U+ef72
 #define ICON_MS_SUBWAY "\xee\x95\xaf"	// U+e56f
 #define ICON_MS_SUMMARIZE "\xef\x81\xb1"	// U+f071
@@ -3296,6 +3347,7 @@
 #define ICON_MS_SWITCH "\xee\x87\xb4"	// U+e1f4
 #define ICON_MS_SWITCH_ACCESS "\xef\x9b\xbd"	// U+f6fd
 #define ICON_MS_SWITCH_ACCESS_2 "\xef\x94\x86"	// U+f506
+#define ICON_MS_SWITCH_ACCESS_3 "\xef\x8d\x8d"	// U+f34d
 #define ICON_MS_SWITCH_ACCESS_SHORTCUT "\xee\x9f\xa1"	// U+e7e1
 #define ICON_MS_SWITCH_ACCESS_SHORTCUT_ADD "\xee\x9f\xa2"	// U+e7e2
 #define ICON_MS_SWITCH_ACCOUNT "\xee\xa7\xad"	// U+e9ed
@@ -3670,6 +3722,7 @@
 #define ICON_MS_VOICE_SELECTION "\xef\x96\x8a"	// U+f58a
 #define ICON_MS_VOICE_SELECTION_OFF "\xef\x90\xac"	// U+f42c
 #define ICON_MS_VOICEMAIL "\xee\x83\x99"	// U+e0d9
+#define ICON_MS_VOICEMAIL_2 "\xef\x8d\x92"	// U+f352
 #define ICON_MS_VOLCANO "\xee\xaf\x9a"	// U+ebda
 #define ICON_MS_VOLUME_DOWN "\xee\x81\x8d"	// U+e04d
 #define ICON_MS_VOLUME_DOWN_ALT "\xee\x9e\x9c"	// U+e79c
@@ -3682,6 +3735,7 @@
 #define ICON_MS_VPN_KEY_ALERT "\xef\x9b\x8c"	// U+f6cc
 #define ICON_MS_VPN_KEY_OFF "\xee\xad\xba"	// U+eb7a
 #define ICON_MS_VPN_LOCK "\xee\x98\xaf"	// U+e62f
+#define ICON_MS_VPN_LOCK_2 "\xef\x8d\x90"	// U+f350
 #define ICON_MS_VR180_CREATE2D "\xee\xbf\x8a"	// U+efca
 #define ICON_MS_VR180_CREATE2D_OFF "\xef\x95\xb1"	// U+f571
 #define ICON_MS_VRPANO "\xef\x82\x82"	// U+f082
@@ -3783,6 +3837,9 @@
 #define ICON_MS_WINDOW_CLOSED "\xee\x9d\xbe"	// U+e77e
 #define ICON_MS_WINDOW_OPEN "\xee\x9e\x8c"	// U+e78c
 #define ICON_MS_WINDOW_SENSOR "\xee\x8a\xbb"	// U+e2bb
+#define ICON_MS_WINDSHIELD_DEFROST_FRONT "\xef\x8c\xaa"	// U+f32a
+#define ICON_MS_WINDSHIELD_DEFROST_REAR "\xef\x8c\xa9"	// U+f329
+#define ICON_MS_WINDSHIELD_HEAT_FRONT "\xef\x8c\xa8"	// U+f328
 #define ICON_MS_WINE_BAR "\xef\x87\xa8"	// U+f1e8
 #define ICON_MS_WOMAN "\xee\x84\xbe"	// U+e13e
 #define ICON_MS_WOMAN_2 "\xef\xa3\xa7"	// U+f8e7

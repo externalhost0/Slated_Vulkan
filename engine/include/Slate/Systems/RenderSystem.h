@@ -10,6 +10,9 @@ namespace Slate {
 	class RenderSystem : public ISystem {
 	public:
 		RenderEngine& GetEngine() { return this->engine; }
+
+		void Render();
+		void Update();
 	private:
 		void StartupImpl() override;
 		void ShutdownImpl() override;

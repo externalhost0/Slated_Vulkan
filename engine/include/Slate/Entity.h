@@ -16,10 +16,10 @@ namespace Slate {
 	class Entity final {
 	public:
 		Entity() = default;
+		Entity(const entt::entity& handle, WeakPtr<Scene> scene) : _handle(handle), _scene(std::move(scene)) {};
 		~Entity() = default;
 		Entity(const Entity&) = delete;  // disable copy constructor
 		Entity& operator=(const Entity&) = delete; // disable assignment operator
-		Entity(const entt::entity& handle, WeakPtr<Scene> scene) : _handle(handle), _scene(std::move(scene)) {};
 	public:
 		bool operator==(const Entity& other) const { return _handle == other._handle; }
 		bool operator!=(const Entity& other) const { return !(*this == other); }
@@ -27,8 +27,7 @@ namespace Slate {
 	public:
 		inline std::string GetName() const { return _name; };
 		inline entt::entity GetHandle() const { return _handle; };
-		inline FastVector<entt::entity, MAX_CHILD_COUNT> GetChildren() { return _childrenhandles; };
-		Entity* GetParentPtr();
+		inline FastVector<entt::entity, MAX_CHILD_COUNT> GetChildrenHandles() const { return _childrenhandles; };
 		Entity& GetRoot();
 
 		void SetName(const std::string& new_name);
@@ -84,10 +83,13 @@ namespace Slate {
 		}
 	private:
 		void SetParent(Entity* parent);
+		Entity* GetParentPtr();
+		friend class Scene;
 
 		std::string _name = "Null Name";
 		entt::entity _handle = entt::null;
 
+		// the scene needs to exist before any entity can exist
 		WeakPtr<Scene> _scene;
 		Optional<Entity*> _parent = std::nullopt;
 		FastVector<entt::entity, MAX_CHILD_COUNT> _childrenhandles;

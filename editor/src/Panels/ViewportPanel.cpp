@@ -239,9 +239,9 @@ namespace Slate {
 				if (this->scene->GetEntity(this->activeEntityHandle.value()).HasComponent<TransformComponent>()) {
 					auto &entityTC = this->scene->GetEntity(this->activeEntityHandle.value()).GetComponent<TransformComponent>();
 					// more snapping logic to round position if i start snapping
-					glm::mat4 transformMatrix = glm::translate(glm::mat4(1.f), entityTC.Position) *
-												glm::mat4_cast(entityTC.Rotation) *
-												glm::scale(glm::mat4(1.f), entityTC.Scale);
+					glm::mat4 transformMatrix = glm::translate(glm::mat4(1.f), entityTC.position) *
+												glm::mat4_cast(entityTC.rotation) *
+												glm::scale(glm::mat4(1.f), entityTC.scale);
 
 					ImGuizmo::Manipulate(glm::value_ptr(this->camera.GetViewMatrix()),
 										 glm::value_ptr(this->camera.GetProjectionMatrix()),
@@ -259,13 +259,13 @@ namespace Slate {
 						glm::decompose(transformMatrix, scale, rotation, position, skew, perspective);
 
 						if (_guizmoOperation == ImGuizmo::OPERATION::TRANSLATE) {
-							entityTC.Position = position;
+							entityTC.position = position;
 						}
 						if (_guizmoOperation == ImGuizmo::OPERATION::ROTATE) {
-							entityTC.Rotation = glm::normalize(rotation);
+							entityTC.rotation = glm::normalize(rotation);
 						}
 						if (_guizmoOperation == ImGuizmo::OPERATION::SCALE) {
-							entityTC.Scale = scale;
+							entityTC.scale = scale;
 						}
 					}
 				}

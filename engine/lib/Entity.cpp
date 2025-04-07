@@ -1,13 +1,22 @@
 //
 // Created by Hayden Rivas on 3/13/25.
 //
-#include <string>
-#include <utility>
 #include "Slate/Logger.h"
 #include "Slate/Entity.h"
+
+#include <string>
+
+
 namespace Slate {
+	// PUBLIC METHODS //
 	void Entity::SetName(const std::string& new_name) {
 		this->_name = new_name;
+	}
+	bool Entity::HasChildren() const {
+		return !this->_childrenhandles.empty();
+	}
+	bool Entity::HasParent() const {
+		return this->_parent.has_value();
 	}
 	// recurse until it doesnt have a parent, this must be top level
 	Entity& Entity::GetRoot() {
@@ -18,18 +27,6 @@ namespace Slate {
 			return parent->GetRoot();
 		}
 		throw RUNTIME_ERROR("This should never happen | For entity ({})", _name);
-	}
-	Entity* Entity::GetParentPtr() {
-		if (_parent.has_value()) {
-			return _parent.value();
-		}
-		return nullptr;
-	}
-	bool Entity::HasChildren() const {
-		return !this->_childrenhandles.empty();
-	}
-	bool Entity::HasParent() const {
-		return this->_parent.has_value();
 	}
 	void Entity::AddChild(const entt::entity& handle) {
 		if (handle == this->_handle) {
@@ -47,6 +44,11 @@ namespace Slate {
 			LOG_USER(LogLevel::Error, "Scene expired, this shouldn't happen!");
 		}
 	}
+	void Entity::RemoveChild(const entt::entity& handle) {
+		this->_childrenhandles.erase_value(handle);
+	}
+
+	// PRIVATE METHODS //
 	void Entity::SetParent(Entity* parent) {
 		if (parent->_handle == _handle) {
 			LOG_USER(LogLevel::Warning, "Attempted to set an Entity's parent as itself.");
@@ -54,9 +56,10 @@ namespace Slate {
 		}
 		_parent = parent;
 	}
-
-	void Entity::RemoveChild(const entt::entity& handle) {
-		this->_childrenhandles.erase_value(handle);
+	Entity* Entity::GetParentPtr() {
+		if (_parent.has_value()) {
+			return _parent.value();
+		}
+		return nullptr;
 	}
-
 }

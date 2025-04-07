@@ -19,7 +19,7 @@ namespace Slate {
 			return CreateUniquePtr<Derived>();
 		}
 
-		const SystemManager& GetSystems() const { return this->manager; }
+		inline const SystemManager& GetManager() const { return this->manager; }
 		// starts the app, should be done in main() after creation
 		virtual void Run() final; // (init(), loop(), end())
 		virtual void StopLoop() final;

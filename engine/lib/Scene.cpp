@@ -57,7 +57,7 @@ namespace Slate {
 		if (auto parentPtr = trash_entity.GetParentPtr()) {
 			parentPtr->RemoveChild(handle);
 		}
-		auto children = trash_entity.GetChildren();
+		auto children = trash_entity.GetChildrenHandles();
 		for (auto child : children) {
 			DestroyEntity(child);
 		}
