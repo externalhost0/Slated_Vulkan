@@ -3,8 +3,8 @@
 //
 
 #pragma once
-#include <Slate/Components.h>
-#include <Slate/Entity.h>
+#include "Slate/ECS/Components.h"
+#include "Slate/ECS/Entity.h"
 
 #include <IconFontCppHeaders/IconsLucide.h>
 #include <glm/vec3.hpp>
@@ -20,6 +20,6 @@ namespace Slate {
 
 
 	// short imgui widhets
-	void Vector3Drag(const char* label, glm::vec3 &value, const char* format, float resetValue, float dragSpeed);
+	void Vector3Drag(const char* label, glm::vec3* value, const char* format, float resetValue, float dragSpeed);
 	void HighlightedText(const char* text, ImVec4 bg_color, ImVec2 padding = {0.0f, 0.0f}, ImVec4 text_color = {1, 1, 1, 1});
 }

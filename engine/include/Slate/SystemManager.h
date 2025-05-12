@@ -7,30 +7,51 @@
 #include <memory>
 #include <typeindex>
 
+#include "Slate/Common/Logger.h"
+#include "Slate/SmartPointers.h"
 #include "Slate/Systems/ISystem.h"
-#include "SmartPointers.h"
 
 namespace Slate {
 	class SystemManager {
 	public:
-		template <typename T>
-		void RegisterSystem() {
+		template<class T>
+		void registerSystem() {
 			static_assert(std::is_base_of<ISystem, T>::value, "T must inherit from ISystem");
-			auto system = CreateUniquePtr<T>();
-			system->owner = this;
-			system->Startup();
-			systems[std::type_index(typeid(T))] = std::move(system);
-		}
-		template <typename T>
-		T* GetSystem() {
-			auto it = systems.find(std::type_index(typeid(T)));
-			if (it != this->systems.end()) {
-				return dynamic_cast<T*>(it->second.get());
+			UniquePtr<T> system = CreateUniquePtr<T>();
+			if (std::find(ordered_systems.begin(), ordered_systems.end(), system) == ordered_systems.end()) {
+				ordered_systems.push_back(std::move(system));
 			}
-			return nullptr;
+		}
+		template<class T>
+		void deregisterSystem() {
+			static_assert(std::is_base_of<ISystem, T>::value, "T must inherit from ISystem");
+			ordered_systems.erase(
+					std::remove_if(
+							ordered_systems.begin(),
+							ordered_systems.end(),
+							[](const UniquePtr<ISystem>& system) {
+								return dynamic_cast<T*>(system.get()) != nullptr;
+							}),
+					ordered_systems.end()
+			);
+		}
+		void startAll(Scene& scene) {
+			for (auto& system : ordered_systems) {
+				system->start(scene);
+			}
+		}
+		void updateAll(Scene& scene) {
+			for (auto& system : ordered_systems) {
+				system->update(scene);
+			}
+		}
+		void stopAll(Scene& scene) {
+			for (auto& system : ordered_systems) {
+				system->stop(scene);
+			}
 		}
 	private:
-		std::unordered_map<std::type_index, UniquePtr<ISystem>> systems;
+		std::vector<UniquePtr<ISystem>> ordered_systems;
 	};
 
 }

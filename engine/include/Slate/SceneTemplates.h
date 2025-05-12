@@ -3,18 +3,18 @@
 //
 
 #pragma once
-#include "Scene.h"
-#include "Entity.h"
+#include "Slate/ECS/Entity.h"
+#include "Slate/ECS/Scene.h"
 
 namespace Slate {
 	template<typename... T>
-	std::vector<Entity*> Scene::GetAllEntitiesWith() {
-		const auto& ids = this->registry.view<T...>();
-		std::vector<Entity*> entites_to_grab;
-		entites_to_grab.reserve(static_cast<size_t>(std::distance(ids.begin(), ids.end()))); // not going to work, delete
-		for (const entt::entity& handle : ids) {
-			entites_to_grab.emplace_back(this->entityMap[handle].get());
+	std::vector<GameEntity> Scene::GetAllEntitiesWithEXT() {
+		const auto handles = this->_registry.view<T...>();
+		std::vector<GameEntity> result;
+		result.reserve(static_cast<size_t>(std::distance(handles.begin(), handles.end()))); // not going to work, delete
+		for (entt::entity handle : handles) {
+			result.emplace_back(handle, this->_registry);
 		}
-		return entites_to_grab;
+		return result;
 	}
 }

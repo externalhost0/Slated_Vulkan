@@ -4,18 +4,12 @@
 
 #pragma once
 #include "ISystem.h"
-#include "Slate/RenderEngine.h"
 
 namespace Slate {
 	class RenderSystem : public ISystem {
 	public:
-		RenderEngine& GetEngine() { return this->engine; }
-
-		void Render();
-		void Update();
-	private:
-		void StartupImpl() override;
-		void ShutdownImpl() override;
-		RenderEngine engine;
+		void onStart(Scene& scene) override;
+		void onUpdate(Scene& scene) override;
+		void onStop(Scene& scene) override;
 	};
 }

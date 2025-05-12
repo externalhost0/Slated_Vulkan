@@ -6,7 +6,6 @@
 #include <imgui.h>
 #include <glm/gtc/type_ptr.hpp>
 
-#include <GLFW/glfw3.h>
 #include <fmt/base.h>
 #include <cmath>
 
@@ -14,6 +13,7 @@
 #include "Utilities.h"
 
 namespace SlateGui {
+	// TODO: the entire slategui needs to be properly written
 	bool ToggleButton(const char* label) {
 		static bool state = false;
 		if (ImGui::Button(label)) {
@@ -60,7 +60,7 @@ namespace SlateGui {
 			std::array<int, 4> result = Slate::Utilities::ColorPickScreenFunc();
 			ImVec4 convert = ImColor(result[0], result[1], result[2]);
 			color = { convert.x, convert.y, convert.z };
-			fmt::print("Setting\n");
+			fmt::print("Setting Color DEBUG\n");
 		}
 		if (toggle) {
 			// FIXME: for some reasonwe have to repeatedly set this, the cursor flickers, reseting back to the arrow!!

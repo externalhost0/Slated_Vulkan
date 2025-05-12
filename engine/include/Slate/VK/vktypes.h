@@ -7,20 +7,12 @@
 #include <glm/detail/type_mat4x4.hpp>
 #include <vk_mem_alloc.h>
 
-#include "Slate/GeneralTypes.h"
-#include "vkinfo.h"
 #include "Slate/SmartPointers.h"
+#include "Slate/Version.h"
+#include "vkinfo.h"
+#include "Slate/VkObjects.h"
 
 namespace Slate {
-	class RenderEngine;
-	struct VulkanInstanceInfo {
-		const char* app_name = "Unnamed_App";
-		Version app_version;
-		const char* engine_name = "Unnamed_Engine";
-		Version engine_version;
-	};
-
-
 	struct Vertex {
 		alignas(16) glm::vec3 position;
 		float uv_x;
@@ -40,18 +32,28 @@ namespace Slate {
 			alignas(8) VkDeviceAddress vertexBufferAddress = 0;
 			alignas(4) uint32_t id = 0;
 		};
-		struct DrawPushConstantsEditorEXT {
-			alignas(16) glm::mat4 modelMatrix = glm::mat4(1);
-			glm::vec3 color = {0, 0, 0};
-			alignas(4) uint32_t id = 0;
-			alignas(8) VkDeviceAddress vertexBufferAddress = 0;
-		};
 
-		struct CameraUBO {
+		struct CameraData {
 			glm::mat4 projectionMatrix;
 			glm::mat4 viewMatrix;
 			alignas(16) glm::vec3 position;
 		};
+		struct DrawPushConstantsEditorEXT {
+			CameraData camera;
+			alignas(16) glm::mat4 modelMatrix = glm::mat4(1);
+			alignas(16) glm::vec3 color = {0, 0, 0};
+			alignas(4) uint32_t id = 0;
+			alignas(8) VkDeviceAddress vertexBufferAddress = 0;
+		};
+
+		struct DrawPushConstants2EditorEXT {
+			CameraData camera;
+			alignas(16) glm::mat4 modelMatrix = glm::mat4(1);
+			alignas(4) uint32_t id = 0;
+			alignas(8) VkDeviceAddress vertexBufferAddress = 0;
+		};
+
+;
 
 		// some of the point options that match their shader counterpart
 		struct AmbientLight {
@@ -78,10 +80,10 @@ namespace Slate {
 			float Blend = 1.f;
 		};
 
-		constexpr unsigned int MAX_POINT_LIGHTS = 4;
-		constexpr unsigned int MAX_SPOT_LIGHTS = 4;
+		constexpr uint8_t MAX_POINT_LIGHTS = 4;
+		constexpr uint8_t MAX_SPOT_LIGHTS = 4;
 
-		struct LightingUBO {
+		struct LightingData {
 			AmbientLight ambient {};
 			DirectionalLight directional {};
 			PointLight points[MAX_POINT_LIGHTS] {};
@@ -97,63 +99,48 @@ namespace Slate {
 				}
 			}
 		};
-	}
+		struct PushConstants_EditorPrimitives {
+			alignas(16) glm::mat4 modelMatrix;
+			alignas(8) VkDeviceAddress vertexBufferAddress;
+		};
+		struct PushConstants_EditorImagesREPLACE {
+			alignas(16) glm::mat4 modelMatrix;
+			alignas(16) glm::vec3 color;
+			alignas(8) VkDeviceAddress vertexBufferAddress;
+			uint32_t id;
+			uint textureId;
+		};
 
+		struct PushConstants_EditorImagesOD2 {
+			glm::mat4 modelMatrix;
+			glm::vec3 color;
+			VkDeviceAddress vertexBufferAddress;
+			uint32_t id;
+			uint textureId;
+		};
+
+		struct PushConstants_EditorImages {
+			glm::mat4 modelMatrix;
+			glm::vec3 color;
+			VkDeviceAddress vertexBufferAddress;
+			uint32_t id;
+			uint textureId;
+		};
+
+		// standard structs
+		struct PerFrameData {
+			CameraData camera;
+			LightingData lighting;
+			float time;
+		};
+		struct PerObjectData {
+			alignas(16) glm::mat4 modelMatrix;
+			alignas(8) VkDeviceAddress vertexBufferAddress;
+			alignas(4) uint32_t id;
+		};
+	}
 	enum class MaterialPassType : uint8_t {
 		Opaque,
 		Transparent
 	};
-
-	namespace vktypes {
-		struct AllocatedImage {
-		public:
-			VkImage getImage() const { return this->image; }
-			VkImageView getImageView() const { return this->imageView; }
-			VkFormat getFormat() const { return this->imageFormat; }
-			VkExtent2D getExtent2D() const { return VkExtent2D{ imageExtent.width, imageExtent.height }; }
-		private:
-			VkImage image = VK_NULL_HANDLE;
-			VkImageView imageView = VK_NULL_HANDLE;
-			VkExtent3D imageExtent = {};
-			VkFormat imageFormat = VK_FORMAT_UNDEFINED;
-
-			VmaAllocation allocation = nullptr;
-			VmaAllocationInfo allocationInfo = {};
-			friend class Slate::RenderEngine; // for creation
-		};
-
-
-		struct AllocatedBuffer {
-		public:
-			VkBuffer getBuffer() const { return this->buffer; }
-			VkDeviceSize getBufferSize() const { return this->allocationInfo.size; }
-			void* getMappedMemory() const { return this->allocationInfo.pMappedData; }
-
-			void writeToBuffer(VmaAllocator allocator, void* data, VkDeviceSize size, VkDeviceSize offset) const {
-				vmaCopyMemoryToAllocation(allocator, data, this->allocation, offset, size);
-			};
-			VkDeviceSize getAlignmentSize() const {
-				if (this->minOffsetAlignment > 0) {
-					return (this->allocationInfo.size + minOffsetAlignment - 1) & ~(minOffsetAlignment - 1);
-				}
-				return this->allocationInfo.size;
-			}
-		private:
-			VkBuffer buffer = VK_NULL_HANDLE;
-
-			VmaAllocation allocation = nullptr;
-			VmaAllocationInfo allocationInfo = {};
-			VkDeviceSize minOffsetAlignment = 1; // set in buffer creation
-
-			friend class Slate::RenderEngine; // for creation
-		};
-
-		// holds the resources needed for a mesh
-		struct StagingMeshBuffers {
-			AllocatedBuffer indexBuffer;
-			AllocatedBuffer vertexBuffer;
-
-			VkDeviceAddress vertexBufferAddress = {};
-		};
-	}
 }

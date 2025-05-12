@@ -12,8 +12,16 @@
 namespace Slate {
 	static constexpr unsigned int MAX_SHADER_NUM = 128;
 
+	ShaderType TypefromSlangType(slang::TypeReflection* typeReflection);
+	std::string StringFromShaderType(ShaderType type);
+
 	class ShaderSystem : public ISystem {
 	public:
+		void onStart(Scene& scene) override;
+		void onUpdate(Scene& scene) override;
+		void onStop(Scene& scene) override;
+	public:
+
 		void RegisterShader(ShaderResource& resource);
 		void UnregisterShader(StrongPtr<ShaderResource> resource);
 
@@ -24,10 +32,6 @@ namespace Slate {
 	private:
 		unsigned int num_registered_shaders = 0;
 		std::unordered_map<uint32_t, StrongPtr<ShaderResource>> resource_map;
-		std::weak_ptr<RenderEngine> pEngine;
-
-		void StartupImpl() override;
-		void ShutdownImpl() override;
 
 		bool CanRegister();
 	};

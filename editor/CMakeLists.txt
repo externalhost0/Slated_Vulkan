@@ -3,9 +3,7 @@ set(PROJECT_NAME "SlateEditor")
 project(${PROJECT_NAME}
         LANGUAGES C CXX
 )
-
 add_executable(${PROJECT_NAME}
-        ${SHADERS}
         src/main.cpp
         src/Editor.cpp
         src/Panels/PropertiesPanel.cpp

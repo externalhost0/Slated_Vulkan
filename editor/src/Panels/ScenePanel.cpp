@@ -1,7 +1,7 @@
 //
 // Created by Hayden Rivas on 1/16/25.
 //
-#include <Slate/Components.h>
+#include "Slate/ECS/Components.h"
 #include <Slate/SceneTemplates.h>
 
 #include "../Editor.h"
@@ -19,7 +19,7 @@ namespace Slate {
 
 
 	// recurse through all children of a node, but only if it would be visible
-	void Editor::DisplayEntityNode(Entity& entity) {
+	void EditorApplication::_displayEntityNode(GameEntity entity) {
 		ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_NoTreePushOnOpen |
 								   ImGuiTreeNodeFlags_FramePadding     |
 								   ImGuiTreeNodeFlags_SpanFullWidth    |
@@ -29,8 +29,8 @@ namespace Slate {
 		}
 
 		bool isSelected = false;
-		if (this->activeEntityHandle.has_value()) {
-			if (entity.GetHandle() == this->activeEntityHandle.value()) {
+		if (this->ctx.activeEntity.has_value()) {
+			if (entity == this->ctx.activeEntity.value()) {
 				isSelected = true;
 				flags |= ImGuiTreeNodeFlags_Selected;
 			}
@@ -44,11 +44,11 @@ namespace Slate {
 		ImGui::PopStyleVar(2);
 
 		if (ImGui::IsItemClicked()) {
-			this->activeEntityHandle.emplace(entity.GetHandle());
+			this->ctx.activeEntity.emplace(entity);
 		}
 
 		if (ImGui::BeginPopupContextItem(std::to_string((uint64_t) entity.GetHandle()).c_str())) {
-			this->activeEntityHandle.emplace(entity.GetHandle());
+			this->ctx.activeEntity.emplace(entity);
 			// name header
 			ImGui::PushFont(Fonts::boldFont);
 			ImGui::Text("%s", entity.GetName().c_str());
@@ -77,15 +77,15 @@ namespace Slate {
 			}
 
 			if (ImGui::Selectable("Duplicate")) {
-				auto& duped_entity = this->scene->DuplicateEntity(this->activeEntityHandle.value());
+				GameEntity duped_entity = this->ctx.scene->DuplicateEntity(this->ctx.activeEntity.value());
 				// set newly duplicated entity as active
-				this->activeEntityHandle.emplace(duped_entity.GetHandle());
+				this->ctx.activeEntity.emplace(duped_entity);
 			}
 			ImGui::Selectable("Copy NW");
 			ImGui::Selectable("Paste NW");
 			ImGui::Separator();
 			if (ImGui::Selectable("Delete")) {
-				this->activeEntityHandle = std::nullopt;
+				this->ctx.activeEntity = std::nullopt;
 				to_delete_handles.push(entity.GetHandle());
 
 				ImGui::CloseCurrentPopup();
@@ -99,8 +99,8 @@ namespace Slate {
 
 		// recurse children
 		if (!opened) return;
-		for (const auto& child : entity.GetChildrenHandles()) {
-			DisplayEntityNode(this->scene->GetEntity(child));
+		for (GameEntity child : entity.GetChildren()) {
+			_displayEntityNode(child);
 		}
 	}
 
@@ -177,43 +177,41 @@ namespace Slate {
 //
 //	}
 
-	void Editor::OnScenePanelUpdate() {
+	void EditorApplication::_onScenePanelUpdate() {
 		ImGui::Begin("Scene Hierarchy");
 		{
 			// if we click on any empty space, unselect the entity
 			if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && ImGui::IsWindowHovered()) {
-				this->activeEntityHandle = std::nullopt;
+				this->ctx.activeEntity = std::nullopt;
 			}
 
 			// right click menu on window
 			if (ImGui::BeginPopupContextWindow()) {
 				ImGui::PushStyleColor(ImGuiCol_HeaderHovered, Brighten(ImGui::GetStyleColorVec4(ImGuiCol_HeaderHovered), 0.2f));
 				if (ImGui::Selectable("New Entity")) {
-					this->activeEntityHandle.emplace(this->scene->CreateEntity("Unnamed Enitty").GetHandle());
+					this->ctx.activeEntity.emplace(this->ctx.scene->CreateEntity("Unnamed Enitty"));
 				}
 				ImGui::PopStyleColor();
 				ImGui::EndPopup();
 			}
 			// quick lookups for entity additions and presence in scene
-			for (const auto& entity : scene->GetTopLevelEntities()) {
-				const entt::entity id = entity->GetHandle();
-				if (std::find(user_ordered_handles.begin(), user_ordered_handles.end(), id) == user_ordered_handles.end()) {
-					user_ordered_handles.push_back(id);
+			for (GameEntity entity : this->ctx.scene->GetRootEntities()) {
+				const entt::entity handle = entity.GetHandle();
+				if (std::find(user_ordered_handles.begin(), user_ordered_handles.end(), handle) == user_ordered_handles.end()) {
+					user_ordered_handles.push_back(handle);
 				}
 			}
 
 			// recurse through all top level entities
 			// when entities have no children they are leaves
-			for (auto handle : user_ordered_handles) {
+			for (entt::entity handle : user_ordered_handles) {
 				// from order vector get our entity
-				auto& entity = this->scene->GetEntity(handle);
-				DisplayEntityNode(entity);
+				_displayEntityNode(this->ctx.scene->resolveEntity(handle));
 			}
 			// deletion queue after rendering
-			// remove deleted entities from both the vector and set
 			while (!to_delete_handles.empty()) {
-				auto handle = to_delete_handles.front();
-				this->scene->DestroyEntity(handle);
+				entt::entity handle = to_delete_handles.front();
+				this->ctx.scene->DestroyEntity(handle);
 
 				auto it = std::find(user_ordered_handles.begin(), user_ordered_handles.end(), handle);
 				if (it != user_ordered_handles.end()) {

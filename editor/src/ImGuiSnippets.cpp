@@ -65,7 +65,7 @@ namespace Slate {
 		return {rgb[0], rgb[1], rgb[2], color.w};
 	}
 
-	void Vector3Drag(const char *label, glm::vec3 &value, const char* format, float resetValue, float dragSpeed) {
+	void Vector3Drag(const char *label, glm::vec3* value, const char* format, float resetValue, float dragSpeed) {
 		float min = 0.f;
 		float max = 0.f;
 
@@ -97,11 +97,11 @@ namespace Slate {
 					ImGui::PushStyleColor(ImGuiCol_ButtonActive, guizmocolors[ImGuizmo::DIRECTION_X]);
 				}
 				ImGui::PushStyleVarX(ImGuiStyleVar_FramePadding, buttonwidth);
-				if (ImGui::Button("X")) value.x = resetValue;
+				if (ImGui::Button("X")) value->x = resetValue;
 				ImGui::PopStyleVar();
 				ImGui::PopStyleColor(3);
 				ImGui::SameLine();
-				ImGui::DragFloat("##X", &value.x, dragSpeed, min, max, format);
+				ImGui::DragFloat("##X", &value->x, dragSpeed, min, max, format);
 
 				ImGui::TableNextColumn();
 				{
@@ -110,11 +110,11 @@ namespace Slate {
 					ImGui::PushStyleColor(ImGuiCol_ButtonActive, guizmocolors[ImGuizmo::DIRECTION_Y]);
 				}
 				ImGui::PushStyleVarX(ImGuiStyleVar_FramePadding, buttonwidth);
-				if (ImGui::Button("Y")) value.y = resetValue;
+				if (ImGui::Button("Y")) value->y = resetValue;
 				ImGui::PopStyleVar();
 				ImGui::PopStyleColor(3);
 				ImGui::SameLine();
-				ImGui::DragFloat("##Y", &value.y, dragSpeed, min, max, format);
+				ImGui::DragFloat("##Y", &value->y, dragSpeed, min, max, format);
 
 				ImGui::TableNextColumn();
 				{
@@ -123,11 +123,11 @@ namespace Slate {
 					ImGui::PushStyleColor(ImGuiCol_ButtonActive, guizmocolors[ImGuizmo::DIRECTION_Z]);
 				}
 				ImGui::PushStyleVarX(ImGuiStyleVar_FramePadding, buttonwidth);
-				if (ImGui::Button("Z")) value.z = resetValue;
+				if (ImGui::Button("Z")) value->z = resetValue;
 				ImGui::PopStyleVar();
 				ImGui::PopStyleColor(3);
 				ImGui::SameLine();
-				ImGui::DragFloat("##Z", &value.z, dragSpeed, min, max, format);
+				ImGui::DragFloat("##Z", &value->z, dragSpeed, min, max, format);
 
 				ImGui::PopStyleVar();
 				ImGui::EndTable();

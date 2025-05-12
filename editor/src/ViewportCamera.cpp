@@ -20,17 +20,17 @@ namespace Slate {
 		float adjustedSpeed = realSpeed * static_cast<float>(deltaTime);
 
 		if (ispressed(window, GLFW_KEY_W))
-			position += adjustedSpeed * frontVector;
+			_position += adjustedSpeed * _frontVector;
 		if (ispressed(window, GLFW_KEY_S))
-			position -= adjustedSpeed * frontVector;
+			_position -= adjustedSpeed * _frontVector;
 		if (ispressed(window, GLFW_KEY_A))
-			position -= glm::normalize(glm::cross(frontVector, upVector)) * adjustedSpeed;
+			_position -= glm::normalize(glm::cross(_frontVector, _upVector)) * adjustedSpeed;
 		if (ispressed(window, GLFW_KEY_D))
-			position += glm::normalize(glm::cross(frontVector, upVector)) * adjustedSpeed;
+			_position += glm::normalize(glm::cross(_frontVector, _upVector)) * adjustedSpeed;
 		if (ispressed(window, GLFW_KEY_SPACE))
-			position += adjustedSpeed * upVector;
+			_position += adjustedSpeed * _upVector;
 		if (ispressed(window, GLFW_KEY_LEFT_CONTROL))
-			position -= adjustedSpeed * upVector;
+			_position -= adjustedSpeed * _upVector;
 	}
 	void ViewportCamera::ProcessMouse(int xpos, int ypos) {
 		// first part: resolve mouse movement
@@ -58,7 +58,7 @@ namespace Slate {
 		direction.z = -cosf(glm::radians(yaw)) * cosf(glm::radians(pitch));
 		direction.y = sinf(glm::radians(pitch));
 		direction.x = sinf(glm::radians(yaw)) * cosf(glm::radians(pitch));
-		frontVector = glm::normalize(direction);
+		_frontVector = glm::normalize(direction);
 	}
 }
 

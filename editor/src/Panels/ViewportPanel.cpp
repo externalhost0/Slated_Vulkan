@@ -11,7 +11,7 @@
 #include "imgui/imgui_internal.h"
 #include "ImGuizmo/ImGuizmo.h"
 
-#include "Slate/Components.h"
+#include "Slate/ECS/Components.h"
 
 #include "../Editor.h"
 #include "IconFontCppHeaders/IconsLucide.h"
@@ -19,9 +19,11 @@
 
 namespace Slate {
 
-	bool Editor::IsMouseInViewportBounds() {
-		double mx, my;
-		glfwGetCursorPos(this->mainWindow.GetGlfwWindow(), &mx, &my);
+	bool EditorApplication::IsMouseInViewportBounds() {
+		// margin around borders so that you dont get too close and select things that arent the viewport
+		unsigned int margin = 10;
+
+		auto [ mx, my ] = GetInput().GetMousePosition();
 		mx -= _viewportBounds[0].x;
 		my -= _viewportBounds[0].y;
 		glm::vec2 viewportSize = _viewportBounds[1] - _viewportBounds[0];
@@ -29,28 +31,32 @@ namespace Slate {
 		int mouseX = static_cast<int>(mx);
 		int mouseY = static_cast<int>(my);
 
-		if (mouseX >= 0 && mouseY >= 0 && mouseX < static_cast<int>(viewportSize.x) && mouseY < static_cast<int>(viewportSize.y)) {
+		int minX = static_cast<int>(margin);
+		int minY = static_cast<int>(margin);
+		int maxX = static_cast<int>(viewportSize.x) - static_cast<int>(margin);
+		int maxY = static_cast<int>(viewportSize.y) - static_cast<int>(margin);
+
+		if (mouseX >= minX && mouseY >= minY && mouseX < maxX && mouseY < maxY) {
 			return true;
 		} else {
 			return false;
 		}
 	}
 
-	void Editor::OnViewportPanelUpdate() {
+	void EditorApplication::_onViewportPanelUpdate() {
 		// yes all of these checks are required
 		// isCameraControlActive: Requires user to not be in fly mode to select
 		// ImGui::IsItemHovered(): Requires user to be hovering item, works in tandem with the next check
 		// IsMouseInViewportBounds(): Requires the mouse position is actually inside the viewport
 		// TODO: move into main input function and make sure color picking isnt on
 		if (!_isCameraControlActive && ImGui::IsItemHovered() && IsMouseInViewportBounds()) {
-			double mouseX, mouseY;
-			glfwGetCursorPos(this->mainWindow.GetGlfwWindow(), &mouseX, &mouseY);
+			auto [ mouseX, mouseY ] = GetInput().GetMousePosition();
 
 			float xrel = ((float)mouseX - _viewportBounds[0].x) / _viewportSize.x;
 			float yrel = ((float)mouseY - _viewportBounds[0].y) / _viewportSize.y;
 
-			auto offsetX = static_cast<int32_t>((float) engine.GetSwapchainExtent().width * xrel);
-			auto offsetY = static_cast<int32_t>((float) engine.GetSwapchainExtent().height * yrel);
+			auto offsetX = static_cast<int32_t>((float) getGX().getSwapchainExtent().width * xrel);
+			auto offsetY = static_cast<int32_t>((float) getGX().getSwapchainExtent().height * yrel);
 
 			VkImageSubresourceLayers layer = {};
 			layer.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -67,18 +73,21 @@ namespace Slate {
 			region.imageExtent = { 1, 1, 1 };
 			region.imageSubresource = layer;
 
-			this->engine.Immediate_Submit([&](VkCommandBuffer cmd) {
-				vkCmdCopyImageToBuffer(cmd, this->_entityImage.getImage(), VK_IMAGE_LAYOUT_GENERAL, stagbuf.getBuffer(), 1, &region);
-			});
+			GX& gx = this->getGX();
+			CommandBuffer& copycmd = gx.acquireCommand();
+			{
+				copycmd.cmdCopyImageToBuffer(entityResolveImage, _stagbuf, region);
+			}
+			gx.submitCommand(copycmd);
 
-			int32_t data = *static_cast<int32_t*>(stagbuf.getMappedMemory());
+			int32_t data = *reinterpret_cast<int32_t*>(gx.getAllocatedBuffer(_stagbuf)->getMappedPtr());
 			if (data >= 0) { // basically not negative max value of int32t
-				hoveredEntityHandle.emplace(this->scene->GetEntity(static_cast<entt::entity>(data)).GetHandle());
+				ctx.hoveredEntity.emplace(this->ctx.scene->resolveEntity(static_cast<entt::entity>(data)));
 			} else {
-				hoveredEntityHandle = std::nullopt;
+				ctx.hoveredEntity = std::nullopt;
 			}
 		} else {
-			hoveredEntityHandle = std::nullopt;
+			ctx.hoveredEntity = std::nullopt;
 		}
 
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f)); // image takes up entire window
@@ -86,28 +95,27 @@ namespace Slate {
 		if (ImGui::IsWindowHovered()) this->_currenthovered = HoverWindow::ViewportWindow;
 
 		// reuse logic from first Slate engine
-		if (glfwGetMouseButton(this->mainWindow.GetGlfwWindow(), GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
+		if (glfwGetMouseButton(getActiveWindow()->getGLFWWindow(), GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
 			// only enter camera control mode if not already active and viewport window is hovered
 			if (!_isCameraControlActive && ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows)
 				&& !ImGui::IsAnyItemActive() && !ImGui::IsAnyItemHovered()) {
 				ImGui::SetWindowFocus();
-				this->camera.isFirstMouse = true;
+				this->_camera.isFirstMouse = true;
 				_isCameraControlActive = true;
-				glfwSetInputMode(this->mainWindow.GetGlfwWindow(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+				GetInput().SetInputMode(InputMode::CURSOR_DISABLED);
 			}
 			// if already active, continue to update
 			if (_isCameraControlActive) {
-				double posx, posy;
-				glfwGetCursorPos(this->mainWindow.GetGlfwWindow(), &posx, &posy);
+				auto [ posx, posy ] = GetInput().GetMousePosition();
 				{ // kinda important
-					this->camera.ProcessMouse((int)posx, (int)posy);
-					this->camera.ProcessKeys(this->mainWindow.GetGlfwWindow(), this->deltaTime);
+					this->_camera.ProcessMouse((int)posx, (int)posy);
+					this->_camera.ProcessKeys(getActiveWindow()->getGLFWWindow(), this->getTime().getDeltaTime());
 				}
 				ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouse;
 			}
 		} else if (_isCameraControlActive) {
 			_isCameraControlActive = false;
-			glfwSetInputMode(this->mainWindow.GetGlfwWindow(), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+			GetInput().SetInputMode(InputMode::CURSOR_NORMAL);
 			ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
 		}
 
@@ -121,9 +129,9 @@ namespace Slate {
 		ImVec2 size = ImGui::GetContentRegionAvail();
 		if (_viewportSize != *((glm::vec2 *) &size) && size.x > 0.0f && size.y > 0.0f) {
 			_viewportSize = { size.x, size.y };
-			this->camera.UpdateAspect(size.x, size.y);
+			this->_camera.updateAspect(size.x, size.y);
 		}
-		sceneTexture = reinterpret_cast<ImTextureID>(this->_viewportImageDescriptorSet); // we need to re assign sceneTexture variable for when the descriptorSet changes via resize
+		ImTextureID sceneTexture = reinterpret_cast<ImTextureID>(this->_viewportImageDescriptorSet); // we need to re assign sceneTexture variable for when the descriptorSet changes via resize
 		ImGui::Image(sceneTexture, ImVec2{_viewportSize.x, _viewportSize.y}); // important part
 		ImGui::PopStyleVar(); // pop window padding var
 
@@ -149,10 +157,11 @@ namespace Slate {
 				ImGui::PushStyleVar(ImGuiStyleVar_GrabMinSize, 8.0f);
 				ImGui::PushItemWidth(120.f);
 
-				ImGui::SliderFloat("Camera Speed", &this->camera.cameraSpeed, 1.0f, 10.0f, "%.2f");
-				ImGui::SliderFloat("Camera FOV", &this->camera.fov, 30.0f, 120.0f);
-				ImGui::SliderFloat("Camera Near Plane", &this->camera.near, 0.01f, 10.0f);
-				ImGui::SliderFloat("Camera Far Plane", &this->camera.far, 1.0f, 1000.0f);
+				ImGui::SliderFloat("Camera Speed", &_camera.cameraSpeed, 1.0f, 10.0f, "%.2f");
+				ImGui::SliderFloat("Camera FOV", &_camera._fov, 30.0f, 120.0f);
+				ImGui::SliderFloat("Camera Near Plane", &_camera._near, 0.01f, 10.0f);
+				ImGui::SliderFloat("Camera Far Plane", &_camera._far, 1.0f, 1000.0f);
+				// than apply, cause these properties are privated
 
 				ImGui::PopItemWidth();
 
@@ -166,7 +175,12 @@ namespace Slate {
 				ImGui::Text("Clear Color");
 				ImGui::SameLine();
 
-				if (ImGui::ColorButton("Clear Color", ImVec4(engine.clearColorValue.float32[0], engine.clearColorValue.float32[1], engine.clearColorValue.float32[2], engine.clearColorValue.float32[3]),
+				RGBA& currentClearColor = getGX()._clearColor;
+				if (ImGui::ColorButton("Clear Color",
+									   ImVec4(currentClearColor.r,
+											  currentClearColor.g,
+											  currentClearColor.b,
+											  currentClearColor.a),
 									   ImGuiColorEditFlags_NoSidePreview,
 									   ImVec2(ImGui::GetFontSize() * 3, ImGui::GetTextLineHeight())))
 				{
@@ -174,12 +188,12 @@ namespace Slate {
 				}
 				if (ImGui::BeginPopup("ev-picker")) {
 					if (ImGui::IsKeyPressed(ImGuiKey_Enter)) ImGui::CloseCurrentPopup();
-					ImGui::ColorPicker4("##pickerBg", reinterpret_cast<float*>(&engine.clearColorValue));
+					ImGui::ColorPicker4("##pickerBg", reinterpret_cast<float*>(&currentClearColor));
 					ImGui::EndPopup();
 				}
 				//toggle viewport helpers, like grid
 				if (ImGui::Button("Grid")) {
-					this->gridEnabled = !this->gridEnabled;
+					this->_gridEnabled = !this->_gridEnabled;
 				}
 				ImGui::EndMenu();
 			}
@@ -214,9 +228,9 @@ namespace Slate {
 		// gizmo functionality
 		{
 
-			if (this->activeEntityHandle.has_value() &&
+			if (ctx.activeEntity.has_value() &&
 				!this->_isCameraControlActive &&
-				this-scene->GetEntity(this->activeEntityHandle.value()).HasComponent<TransformComponent>()) {
+				this->ctx.activeEntity.value().HasComponent<TransformComponent>()) {
 				// gizmo frame
 				ImGuizmo::BeginFrame();
 
@@ -236,15 +250,15 @@ namespace Slate {
 				// put the snapping scale on each axis
 				float snapValues[3] = { snapValue, snapValue, snapValue };
 
-				if (this->scene->GetEntity(this->activeEntityHandle.value()).HasComponent<TransformComponent>()) {
-					auto &entityTC = this->scene->GetEntity(this->activeEntityHandle.value()).GetComponent<TransformComponent>();
+				if (this->ctx.activeEntity.value().HasComponent<TransformComponent>()) {
+					TransformComponent& transform_c = this->ctx.activeEntity.value().GetComponent<TransformComponent>();
 					// more snapping logic to round position if i start snapping
-					glm::mat4 transformMatrix = glm::translate(glm::mat4(1.f), entityTC.position) *
-												glm::mat4_cast(entityTC.rotation) *
-												glm::scale(glm::mat4(1.f), entityTC.scale);
+					glm::mat4 transformMatrix = glm::translate(glm::mat4(1.f), transform_c.global.position) *
+												glm::mat4_cast(transform_c.global.rotation) *
+												glm::scale(glm::mat4(1.f), transform_c.global.scale);
 
-					ImGuizmo::Manipulate(glm::value_ptr(this->camera.GetViewMatrix()),
-										 glm::value_ptr(this->camera.GetProjectionMatrix()),
+					ImGuizmo::Manipulate(glm::value_ptr(this->_camera.getViewMatrix()),
+										 glm::value_ptr(this->_camera.getProjectionMatrix()),
 										 _guizmoOperation, _guizmoSpace,
 										 glm::value_ptr(transformMatrix), nullptr, snap ? snapValues : nullptr);
 
@@ -254,31 +268,31 @@ namespace Slate {
 						glm::quat rotation;
 						glm::vec3 scale;
 
-						glm::vec3 skew;       // useless
-						glm::vec4 perspective;// useless
+						glm::vec3 skew;        // useless
+						glm::vec4 perspective; // useless
 						glm::decompose(transformMatrix, scale, rotation, position, skew, perspective);
 
 						if (_guizmoOperation == ImGuizmo::OPERATION::TRANSLATE) {
-							entityTC.position = position;
-						}
+							transform_c.global.position = position;
+						} else
 						if (_guizmoOperation == ImGuizmo::OPERATION::ROTATE) {
-							entityTC.rotation = glm::normalize(rotation);
-						}
+							transform_c.global.rotation = glm::normalize(rotation);
+						} else
 						if (_guizmoOperation == ImGuizmo::OPERATION::SCALE) {
-							entityTC.scale = scale;
+							transform_c.global.scale = scale;
 						}
 					}
 				}
 			}
 			// mouse interaction with clicked object must be after guizmo
 			// required so that overlapping guizmo and different object dont interfere
-			if (glfwGetMouseButton(this->mainWindow.GetGlfwWindow(), GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-				if (hoveredEntityHandle.has_value() && !ImGuizmo::IsUsing())
-					this->activeEntityHandle.emplace(hoveredEntityHandle.value());
+			if (glfwGetMouseButton(this->getActiveWindow()->getGLFWWindow(), GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+				if (ctx.hoveredEntity.has_value() && !ImGuizmo::IsUsing())
+					this->ctx.activeEntity.emplace(this->ctx.hoveredEntity.value());
 			}
 			// right now will currently go off in menu that overlaps the image
-			if (ImGui::IsMouseDoubleClicked(GLFW_MOUSE_BUTTON_LEFT) && IsMouseInViewportBounds() && !hoveredEntityHandle) {
-				this->activeEntityHandle = std::nullopt;
+			if (ImGui::IsMouseDoubleClicked(GLFW_MOUSE_BUTTON_LEFT) && IsMouseInViewportBounds() && !this->ctx.hoveredEntity.has_value()) {
+				this->ctx.activeEntity = std::nullopt;
 			}
 		}
 		ImGui::End();

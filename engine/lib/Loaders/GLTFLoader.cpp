@@ -8,9 +8,8 @@
 #include <fastgltf/types.hpp>
 #include <fastgltf/glm_element_traits.hpp>
 
+#include "Slate/Common/Debug.h"
 #include "Slate/VK/vktypes.h"
-#include "Slate/Debug.h"
-#include "Slate/RenderEngine.h"
 
 #include "Slate/Loaders/GLTFLoader.h"
 
@@ -34,12 +33,12 @@ namespace Slate {
 	fastgltf::Asset GLTFLoader::LoadGLTFAsset(const std::filesystem::path& path) {
 		// get data from path
 		auto data_result = fastgltf::GltfDataBuffer::FromPath(path);
-		EXPECT(data_result.error() == fastgltf::Error::None, "Data load from path {} failed!", path.c_str());
+		ASSERT_MSG(data_result.error() == fastgltf::Error::None, "Data load from path {} failed!", path.c_str());
 		fastgltf::GltfDataBuffer data = std::move(data_result.get());
 
 		// asset loading, requires a parser and some options
 		auto asset_result = parser.loadGltf(data, path.parent_path(), options);
-		EXPECT(asset_result.error() == fastgltf::Error::None, "Error when validating {}", path.c_str());
+		ASSERT_MSG(asset_result.error() == fastgltf::Error::None, "Error when validating {}", path.c_str());
 		fastgltf::Asset gltf = std::move(asset_result.get());
 
 		return gltf;
@@ -115,7 +114,7 @@ namespace Slate {
 					}
 				}
 			}
-			buffer_vector.emplace_back(pEngine->CreateMeshBuffer(vertices, indices));
+//			buffer_vector.emplace_back(pEngine->CreateMeshBuffer(vertices, indices));
 		}
 		return buffer_vector;
 

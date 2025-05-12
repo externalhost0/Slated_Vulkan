@@ -41,9 +41,8 @@ namespace Slate::vkinfo {
 		return info;
 	}
 
-	VkRenderingAttachmentInfo CreateColorAttachmentInfo(VkImageView view, VkClearColorValue* clear, VkImageView resolveView, VkResolveModeFlags resolveFlags) {
-		VkRenderingAttachmentInfo colorAttachment = { .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-		colorAttachment.pNext = nullptr;
+	VkRenderingAttachmentInfo CreateColorAttachmentInfo(VkImageView view, const VkClearColorValue* clear, VkImageView resolveView, VkResolveModeFlags resolveFlags) {
+		VkRenderingAttachmentInfo colorAttachment = { .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO, .pNext = nullptr };
 
 		colorAttachment.imageView = view;
 		colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -55,6 +54,7 @@ namespace Slate::vkinfo {
 		}
 		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 		if (resolveView) {
+			colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 			colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 			colorAttachment.resolveImageView = resolveView;
 			colorAttachment.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -62,7 +62,30 @@ namespace Slate::vkinfo {
 		}
 		return colorAttachment;
 	}
-	VkRenderingAttachmentInfo CreateDepthAttachmentInfo(VkImageView view, VkClearDepthStencilValue* clear) {
+	VkRenderingAttachmentInfo CreateColorAttachmentInfo(VkImageView view, const VkClearColorValue* clear, VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp, VkImageView resolveView, VkResolveModeFlags resolveMode) {
+		VkRenderingAttachmentInfo colorAttachment = { .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO, .pNext = nullptr };
+		colorAttachment.imageView = view;
+		colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+		// default state
+		colorAttachment.loadOp = loadOp;
+		colorAttachment.storeOp = storeOp;
+
+		if (clear) {
+			colorAttachment.clearValue.color = *clear;
+			colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		}
+		if (resolveView) {
+			colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+			colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+			colorAttachment.resolveImageView = resolveView;
+			colorAttachment.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+			colorAttachment.resolveMode = static_cast<VkResolveModeFlagBits>(resolveMode);
+		}
+		return colorAttachment;
+
+	}
+	VkRenderingAttachmentInfo CreateDepthAttachmentInfo(VkImageView view, const VkClearDepthStencilValue* clear) {
 		VkRenderingAttachmentInfo depthAttachment = {};
 		depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
 		depthAttachment.pNext = nullptr;
@@ -77,7 +100,7 @@ namespace Slate::vkinfo {
 		}
 		return depthAttachment;
 	}
-	VkRenderingAttachmentInfo CreateDepthStencilAttachmentInfo(VkImageView view, VkClearDepthStencilValue* clear) {
+	VkRenderingAttachmentInfo CreateDepthStencilAttachmentInfo(VkImageView view, const VkClearDepthStencilValue* clear) {
 		VkRenderingAttachmentInfo depthAttachment = {};
 		depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
 		depthAttachment.pNext = nullptr;
@@ -86,9 +109,29 @@ namespace Slate::vkinfo {
 		depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 		depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		depthAttachment.resolveMode = VK_RESOLVE_MODE_NONE;
 		if (clear) {
 			depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 			depthAttachment.clearValue.depthStencil = *clear;
+		}
+		return depthAttachment;
+	}
+	VkRenderingAttachmentInfo CreateDepthStencilAttachmentInfo(VkImageView view, const VkClearDepthStencilValue* clear, VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp, VkImageView resolveView, VkResolveModeFlags resolveMode) {
+		VkRenderingAttachmentInfo depthAttachment = { .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO, .pNext = nullptr };
+		depthAttachment.imageView = view;
+		depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+		depthAttachment.loadOp = loadOp;
+		depthAttachment.storeOp = storeOp;
+
+		if (clear) {
+			depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+			depthAttachment.clearValue.depthStencil = *clear;
+		}
+		if (resolveView) {
+			depthAttachment.resolveImageView = resolveView;
+			depthAttachment.resolveImageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+			depthAttachment.resolveMode = static_cast<VkResolveModeFlagBits>(resolveMode);
 		}
 		return depthAttachment;
 	}

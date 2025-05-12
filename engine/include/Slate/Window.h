@@ -2,51 +2,53 @@
 // Created by Hayden Rivas on 1/8/25.
 //
 #pragma once
+#include "Slate/Common/Invalids.h"
+
 #include <GLFW/glfw3.h>
 #include <string>
 #include <utility>
 
-
 namespace Slate {
-	enum class VideoMode : char {
-		FULLSCREEN,
-		BORDERLESS_FULLSCREEN,
-		WINDOWED,
-	};
+	using WindowHandle = uint8_t;
 
+	enum class VideoMode : char {
+		Windowed = 0,
+		BorderlessFullscreen,
+		Fullscreen,
+	};
 	// lets design important classes with [type]specification
-	struct WindowSpecification {
-		VideoMode videomode = VideoMode::WINDOWED;
+	struct WindowSpec
+	{
+		VideoMode videomode = VideoMode::Windowed;
 		std::string title = "Untitled Window";
 		bool resizeable = false;
-		unsigned int width = 1280, height = 720;
+		uint16_t width = 1280, height = 720;
 	};
 
-	class Window {
+	class Window final {
 	public:
-		Window() = default;
-		explicit Window(WindowSpecification init_specification) : specification(std::move(init_specification)) {};
-		~Window() { glfwDestroyWindow(this->glfwWindow); }
+		~Window() { destroy(); };
 
-		void Initialize();
-		void Shutdown();
+		void create(const WindowSpec& new_spec);
+		void destroy();
 	public:
-		void PollWindow() const { glfwPollEvents(); };
-		void FocusWindow() const { glfwFocusWindow(this->glfwWindow); }
+		inline GLFWwindow* getGLFWWindow()  { return this->glfwWindow; }
 
+		inline const std::string& getTitle() const { return this->spec.title; }
+		inline uint16_t getWidth() const { return this->spec.width; }
+		inline uint16_t getHeight() const { return this->spec.height; }
 
-		inline GLFWwindow* GetGlfwWindow()  { return this->glfwWindow; }
-		inline std::string GetTitle() const { return this->specification.title; }
-		inline unsigned int GetWidth() const { return this->specification.width; }
-		inline unsigned int GetHeight() const { return this->specification.height; }
+		void setWindowMode(VideoMode new_videomode);
+		void setWindowSize(uint16_t new_width, uint16_t new_height);
+		void setTitle(const std::string& new_title);
 
-		inline void SetWindowSize(unsigned int new_width, unsigned int new_height) { this->specification.width = new_width, this->specification.height = new_height; }
-		inline void SetWindowMode(VideoMode new_videomode) { this->specification.videomode = new_videomode; }
-		inline void SetTitle(const std::string& new_title) { this->specification.title = new_title; }
-
+		inline bool isMaximized() const { return glfwGetWindowAttrib(this->glfwWindow, GLFW_MAXIMIZED); }
 		inline bool isMinimized() const { return glfwGetWindowAttrib(this->glfwWindow, GLFW_ICONIFIED); }
+		inline bool isFocused() const { return glfwGetWindowAttrib(this->glfwWindow, GLFW_FOCUSED); }
+		inline bool isHovered() const { return glfwGetWindowAttrib(this->glfwWindow, GLFW_HOVERED); }
 	private:
-		WindowSpecification specification;
+		WindowSpec spec;
+		Window* parent = nullptr;
 		GLFWwindow* glfwWindow = nullptr;
 	};
 }

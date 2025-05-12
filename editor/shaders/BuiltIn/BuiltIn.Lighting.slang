@@ -3,45 +3,6 @@
 // =========================
 import "BuiltIn.Common";
 
-struct AmbientLight {
-    float3 Color;
-    float Intensity;
-};
-struct DirectionalLight {
-    float3 Color;
-    float Intensity;
-    float3 Direction;
-};
-struct PointLight {
-    float3 Color;
-    float Intensity;
-    float3 Position;
-    float Range;
-};
-struct SpotLight {
-    float3 Color;
-    float Intensity;
-    float3 Position;
-    float Size;
-    float3 Direction;
-    float Blend;
-}
-
-// Global Uniforms (optional and therefore not in BuiltIn.Common)
-
-// Lighting data that can be optionally included but always updated
-static const uint8_t MAX_POINT_LIGHTS = 4;
-static const uint8_t MAX_SPOT_LIGHTS = 4;
-
-struct LightingUBO {
-    AmbientLight _ambientLight;
-    DirectionalLight _directionalLight;
-    PointLight _pointLights[MAX_POINT_LIGHTS];
-    SpotLight _spotLights[MAX_SPOT_LIGHTS];
-}
-[[vk::binding(1, 0)]]
-ConstantBuffer<LightingUBO> lighting;
-
 // ===========================
 // === LIGHTING FUNCTIONS ====
 // ===========================
@@ -119,31 +80,32 @@ float3 CalcSpotSpecular(SpotLight lightObject, float3 normals, float3 view_dir, 
 
 // general function that applies all lighting to a fragment
 float3 CalculateLighting(float3 Normal, float3 WorldPosition) {
-    float3 ambientResult = lighting._ambientLight.Color * lighting._ambientLight.Intensity;
+
+    float3 ambientResult = perFrame.lighting._ambientLight.Color * perFrame.lighting._ambientLight.Intensity;
     float3 diffuseResult = float3(0, 0, 0);
     float3 specularResult = float3(0, 0, 0);
 
-    float3 view_direction = normalize(cameraData.position - WorldPosition);
+    float3 view_direction = normalize(perFrame.camera.position - WorldPosition);
     float3 vertex_normals = normalize(Normal);
 
-    diffuseResult += CalcDirectionalDiffuse(lighting._directionalLight, vertex_normals, view_direction);
-    specularResult += CalcDirectionalSpecular(lighting._directionalLight, vertex_normals, view_direction);
+    diffuseResult += CalcDirectionalDiffuse(perFrame.lighting._directionalLight, vertex_normals, view_direction);
+    specularResult += CalcDirectionalSpecular(perFrame.lighting._directionalLight, vertex_normals, view_direction);
 
     [unroll]
     for (int i = 0; i < MAX_POINT_LIGHTS; ++i) {
-        float3 direction = normalize(lighting._pointLights[i].Position - WorldPosition);
-        float distancelight = length(lighting._pointLights[i].Position - WorldPosition);
+        float3 direction = normalize(perFrame.lighting._pointLights[i].Position - WorldPosition);
+        float distancelight = length(perFrame.lighting._pointLights[i].Position - WorldPosition);
 
-        diffuseResult += CalcPointDiffuse(lighting._pointLights[i], vertex_normals, direction, distancelight);
-        specularResult += CalcPointSpecular(lighting._pointLights[i], vertex_normals, view_direction, direction, distancelight);
+        diffuseResult += CalcPointDiffuse(perFrame.lighting._pointLights[i], vertex_normals, direction, distancelight);
+        specularResult += CalcPointSpecular(perFrame.lighting._pointLights[i], vertex_normals, view_direction, direction, distancelight);
     }
     [unroll]
     for (int i = 0; i < MAX_SPOT_LIGHTS; ++i) {
-        float3 direction = normalize(lighting._spotLights[i].Position - WorldPosition);
-        float distancelight = length(lighting._spotLights[i].Position - WorldPosition);
+        float3 direction = normalize(perFrame.lighting._spotLights[i].Position - WorldPosition);
+        float distancelight = length(perFrame.lighting._spotLights[i].Position - WorldPosition);
 
-        diffuseResult += CalcSpotDiffuse(lighting._spotLights[i], vertex_normals, direction, distancelight);
-        specularResult += CalcSpotSpecular(lighting._spotLights[i], vertex_normals, view_direction, direction, distancelight);
+        diffuseResult += CalcSpotDiffuse(perFrame.lighting._spotLights[i], vertex_normals, direction, distancelight);
+        specularResult += CalcSpotSpecular(perFrame.lighting._spotLights[i], vertex_normals, view_direction, direction, distancelight);
     }
 
     return ambientResult + diffuseResult + specularResult;

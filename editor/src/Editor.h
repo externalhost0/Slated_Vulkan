@@ -3,18 +3,13 @@
 //
 #pragma once
 
-#include "Slate/Systems/ShaderSystem.h"
-#include "Slate/Systems/WindowSystem.h"
-#include "Slate/Systems/RenderSystem.h"
-#include "Slate/Systems/TimeSystem.h"
+#include <Slate/IApplication.h>
 
+#include <Slate/ECS/Entity.h>
+#include <Slate/ECS/Scene.h>
 #include <Slate/SmartPointers.h>
-#include <Slate/ShaderPass.h>
-#include <Slate/Entity.h>
-#include <Slate/Scene.h>
 #include <Slate/Window.h>
 
-#include "Slate/RenderEngine.h"
 #include "ViewportCamera.h"
 
 #include "imgui/imgui.h"
@@ -34,116 +29,69 @@ namespace Slate {
 		AssetsPanel
 	};
 
+	struct Context
+	{
+		Optional<GameEntity> activeEntity;
+		Optional<GameEntity> hoveredEntity;
+		Scene* scene;
+	};
 
-	class Editor {
-	public:
-		inline void Run() {
-			this->Initialize();
-			while (this->continueloop) {
-				this->Loop();
-			}
-			this->Shutdown();
-		}
+	class EditorApplication : public IApplication {
+	protected:
+		// called
+		void onInitialize() override;
+		void onTick() override;
+		void onRender() override;
+		void onShutdown() override;
 
-		void OnKey(int key, int action, int mods);
-		void OnMouseButton();
-		void OnMouseMove();
-		void OnWindowResize(int width, int height);
+		// callback
+		void onWindowMinimize() override;
+		void onSwapchainResize() override;
+
 	private:
-		void Initialize();
-		void Loop();
-		void Shutdown();
+		void _guiUpdate();
+		void _displayEntityNode(GameEntity entity);
+		void _onViewportPanelUpdate();
+		void _onScenePanelUpdate();
+		void _onPropertiesPanelUpdate();
+		void _onAssetPanelUpdate();
 
-		// just for organization
-		void Render();
-		void RenderVisualizers();
-		void RenderReal();
-		void GuiUpdate();
+		void _createVisualizerMeshes();
 
-		void OnPropertiesPanelUpdate();
-		void OnViewportPanelUpdate();
-		void OnScenePanelUpdate();
-		void DrawEntityNode(Entity* entity, int i);
-		void DisplayEntityNode(Entity& entity);
-		void OnAssetPanelUpdate();
-
-		void CreateEditorImages();
 		bool IsMouseInViewportBounds();
+		void InitImGui(ImGuiRequiredData req, GLFWwindow* glfwWindow, VkFormat format);
+	public:
+		TextureHandle colorResolveImage;
+		TextureHandle colorMSAAImage;
+		TextureHandle depthStencilMSAAImage;
+		TextureHandle entityResolveImage;
+		TextureHandle entityMSAAImage;
+		TextureHandle viewportImage;
 
-		void DrawEntity(VkCommandBuffer cmd, Entity& entity, VkPipelineLayout layout, const glm::mat4& topMatrix = glm::mat4(1));
-		void DrawEntityForEditorEXT(VkCommandBuffer cmd, Entity& entity, VkPipelineLayout layout, const glm::mat4& topMatrix = glm::mat4(1));
-		void DrawEntityForEditorLarge_EXT(VkCommandBuffer cmd, Entity& entity, VkPipelineLayout layout, const glm::mat4& topMatrix = glm::mat4(1));
+		BufferHandle _stagbuf;
+
+
+		MeshData arrowmesh;
+		MeshData simplespheremesh;
+		MeshData spotmesh;
 	private:
-		bool continueloop = true;
-		bool gridEnabled = true;
+		Context ctx;
 
-		double lastTime = 0.f;
-		double deltaTime = 0.f;
+		std::unordered_map<MeshPrimitiveType, MeshData> defaultMeshPrimitiveTypes;
 
-		ViewportModes _viewportMode = ViewportModes::SHADED;
 		HoverWindow _currenthovered;
+
+		ViewportCamera _camera;
+		ViewportModes _viewportMode = ViewportModes::SHADED;
 		ImGuizmo::MODE _guizmoSpace = ImGuizmo::MODE::WORLD;
 		ImGuizmo::OPERATION _guizmoOperation = ImGuizmo::OPERATION::TRANSLATE;
 		bool _isCameraControlActive = false;
-		glm::vec2 _viewportBounds[2] {};
-		ImTextureID sceneTexture{};
-		glm::vec2 _viewportSize {};
-		vktypes::AllocatedBuffer stagbuf;
+		bool _gridEnabled = true;
+		glm::vec2 _viewportBounds[2]{};
+		glm::vec2 _viewportSize{};
 
-		Optional<entt::entity> activeEntityHandle;
-		Optional<entt::entity> hoveredEntityHandle;
-
-		std::unordered_map<MeshPrimitiveType, MeshBuffer> defaultMeshPrimitiveTypes;
-
-		ShaderSystem shaderSystem;
-		RenderSystem renderSystem;
-		WindowSystem windowSystem;
-
-		Window mainWindow;
-		RenderEngine engine;
-		ViewportCamera camera;
-		StrongPtr<Scene> scene;
-
-		vktypes::AllocatedImage _colorResolveImage;
-		vktypes::AllocatedImage _colorMSAAImage;
-		vktypes::AllocatedImage _depthStencilMSAAImage;
-		vktypes::AllocatedImage _entityImage;
-		vktypes::AllocatedImage _entityMSAAImage;
-		vktypes::AllocatedImage _viewportImage;
-
-		// editor icons
-		vktypes::AllocatedImage lightbulb_image;
-		vktypes::AllocatedImage sun_image;
-		vktypes::AllocatedImage spotlight_image;
-
-		vktypes::AllocatedBuffer _cameraDataBuffer;
-		vktypes::AllocatedBuffer _lightingDataBuffer;
-
-
-		MeshBuffer gridmesh;
-		MeshBuffer arrowmesh;
-		MeshBuffer simplespheremesh;
-		MeshBuffer spotmesh;
-
-		// example pipeline
-		ShaderPass _standardPass;
-
-		// hard coded pipelines for editor only
-		VkDescriptorSetLayout _flatDS0Layout = VK_NULL_HANDLE;
-
-		VkPipelineLayout _flatcolorPipeLayout = VK_NULL_HANDLE;
-
-		VkPipeline _flatcolorTriPipeline = VK_NULL_HANDLE;
-		VkPipeline _flatcolorLinePipeline = VK_NULL_HANDLE;
-		VkDescriptorSetLayout _flatcolorDS1Layout = VK_NULL_HANDLE;
-
-		VkPipeline _flatimagePipeline = VK_NULL_HANDLE;
-		VkPipelineLayout _flatimagePipeLayout = VK_NULL_HANDLE;
-		VkDescriptorSetLayout _flatimageDS1Layout = VK_NULL_HANDLE;
-
-		VkDescriptorSetLayout _globalDS0Layout = VK_NULL_HANDLE;
-		VkPipelineLayout _globalPipeLayout = VK_NULL_HANDLE;
 
 		VkDescriptorSet _viewportImageDescriptorSet = VK_NULL_HANDLE;
+		VkDescriptorPool _imguiDescriptorPool = VK_NULL_HANDLE;
 	};
 }

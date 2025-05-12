@@ -1,44 +1,65 @@
-// this file is included in every shader file
-// and therefore does not need to be imported
-
-// Standard Input into Vertex Shader
-struct VSInput {
-    uint VertexID : SV_VertexID;
-};
-struct FSOutput {
-    float4 FragColor : SV_Target0;
-    uint FragID : SV_Target1;
-};
-// Global Uniforms that are made available for EVERY shader
+// Global uniforms that are made available for EVERY shader
+[require(spvShaderNonUniform)]
 
 struct CameraData {
     float4x4 proj;
     float4x4 view;
     float3 position;
+}
+
+struct AmbientLight {
+    float3 Color;
+    float Intensity;
 };
+struct DirectionalLight {
+    float3 Color;
+    float Intensity;
+    float3 Direction;
+};
+struct PointLight {
+    float3 Color;
+    float Intensity;
+    float3 Position;
+    float Range;
+};
+struct SpotLight {
+    float3 Color;
+    float Intensity;
+    float3 Position;
+    float Size;
+    float3 Direction;
+    float Blend;
+}
+static const uint8_t MAX_POINT_LIGHTS = 4;
+static const uint8_t MAX_SPOT_LIGHTS = 4;
+
+struct LightingData{
+    AmbientLight _ambientLight;
+    DirectionalLight _directionalLight;
+    PointLight _pointLights[MAX_POINT_LIGHTS];
+    SpotLight _spotLights[MAX_SPOT_LIGHTS];
+}
+
+struct PerFrameData {
+    CameraData camera;
+    LightingData lighting;
+    float time;
+}
+
+// GLOBAL BUFFER DS
+// i have no idea why it cant be in set 0
+[[vk::binding(0, 3)]]
+ConstantBuffer<PerFrameData> perFrame;
+// TEXTURE DS
 [[vk::binding(0, 0)]]
-ConstantBuffer<CameraData> cameraData;
+uniform Texture2D kTextures2D[];
+// SAMPLER DS
+[[vk::binding(1, 0)]]
+uniform SamplerState kSamplers[];
+// STORAGE DS
+[[vk::binding(2, 0)]]
+uniform __DynamicResource kStorage[];
 
-struct PushConstants {
-    float4x4 model_matrix;
-    Ptr<Vertex> vertexBufferAddress;
-    uint32_t id;
-}
-[[vk::push_constant]]
-ConstantBuffer<PushConstants> pushConstants;
-
-// Standard Vertex struct for all meshes
-struct Vertex {
-    float3 position;
-    float uv_x;
-    float3 normal;
-    float uv_y;
-    float4 tangent;
-};
-
-// Helper Functions
-// simplifies model transformation for 3D
-float4 ToClipPos(float3 position) {
-    float3 world_pos = mul(pushConstants.model_matrix, float4(position, 1)).xyz;
-    return mul(mul(cameraData.proj, cameraData.view), float4(world_pos, 1));
-}
+// float4 textureBindless2D(uint textureid, uint samplerid, float2 uv) {
+//     return kTextures2D[textureid].Sample(kSamplers[samplerid], uv);
+// }

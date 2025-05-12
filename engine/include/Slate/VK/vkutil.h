@@ -4,18 +4,30 @@
 #pragma once
 #include <filesystem>
 
+#include "Slate/Common/Debug.h"
 namespace Slate::vkutil {
+	struct StageAccess
+	{
+		VkPipelineStageFlags2 stage;
+		VkAccessFlags2 access;
+	};
+	uint32_t GetTextureBytesPerPlane(uint32_t width, uint32_t height, VkFormat format, uint32_t plane);
+	uint32_t GetTextureBytesPerLayer(uint32_t width, uint32_t height, VkFormat format, uint32_t level);
+	uint32_t GetBytesPerPixel(VkFormat format);
+	uint32_t GetNumImagePlanes(VkFormat format);
+	VkExtent2D GetImagePlaneExtent(VkExtent2D plane0, VkFormat format, uint32_t plane);
 
-	VkImageAspectFlags AspectMaskFromLayout(VkImageLayout layout);
+	uint32_t GetAlignedSize(uint32_t value, uint32_t alignment);
+
+	VkImageAspectFlags AspectMaskFromAttachmentLayout(VkImageLayout layout);
 	VkImageAspectFlags AspectMaskFromFormat(VkFormat format);
 
-	void TransitionImageLayout(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout);
-	void BlitImageToImage(VkCommandBuffer cmd, VkImage source, VkImage destination, VkExtent2D srcSize, VkExtent2D dstSize);
+	bool IsFormatDepthOrStencil(VkFormat format);
 
-	void SetViewport(VkCommandBuffer cmd, VkExtent2D extent2D);
-	void SetScissor(VkCommandBuffer cmd, VkExtent2D extent2D, VkOffset2D offset2D = {0, 0});
+	StageAccess getPipelineStageAccess(VkImageLayout layout);
+	void ImageMemoryBarrier2(VkCommandBuffer cmd, VkImage image, StageAccess src, StageAccess dst, VkImageLayout oldLayout, VkImageLayout newLayout, VkImageSubresourceRange range);
 
 	uint32_t FindMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
-	void GenerateMipmaps(VkCommandBuffer cmd, VkImage image, VkExtent2D imageSize);
+
 }// namespace Slate::vkutil

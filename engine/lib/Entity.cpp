@@ -1,65 +1,58 @@
 //
 // Created by Hayden Rivas on 3/13/25.
 //
-#include "Slate/Logger.h"
-#include "Slate/Entity.h"
+#include "Slate/ECS/Entity.h"
+#include "Slate/Common/Logger.h"
 
+#include <vector>
 #include <string>
 
 
 namespace Slate {
 	// PUBLIC METHODS //
-	void Entity::SetName(const std::string& new_name) {
-		this->_name = new_name;
+	void GameEntity::SetName(const std::string& new_name) const {
+		Core().name = new_name;
 	}
-	bool Entity::HasChildren() const {
-		return !this->_childrenhandles.empty();
+	const std::string& GameEntity::GetName() const {
+		return Core().name;
 	}
-	bool Entity::HasParent() const {
-		return this->_parent.has_value();
+	bool GameEntity::HasChildren() const {
+		return !Core().children.empty();
 	}
-	// recurse until it doesnt have a parent, this must be top level
-	Entity& Entity::GetRoot() {
+	bool GameEntity::HasParent() const {
+		return !(Core().parent == entt::null);
+	}
+	void GameEntity::AddChild(GameEntity entity) {
+		if (entity.GetHandle() == this->_handle) {
+			LOG_USER(LogType::Warning, "You attempted to add an Entity as a child of itself.");
+			return;
+		}
+		if (std::find(Core().children.begin(), Core().children.end(), entity.GetHandle()) != Core().children.end()) {
+			LOG_USER(LogType::Warning, "Entity is already a child of the currently parented entity.");
+			return;
+		}
+		Core().children.push_back(entity.GetHandle());
+		_registry.get<CoreComponent>(entity.GetHandle()).parent = this->_handle;
+	}
+	void GameEntity::RemoveChild(GameEntity entity) {
+		Core().children.erase_value(entity.GetHandle());
+		_registry.get<CoreComponent>(entity.GetHandle()).parent = entt::null;
+	}
+	GameEntity GameEntity::GetParent() {
+		return {Core().parent, this->_registry};
+	}
+	std::vector<GameEntity> GameEntity::GetChildren() {
+		std::vector<GameEntity> result;
+		result.reserve(Core().children.size());
+		for (entt::entity child : Core().children) {
+			result.emplace_back(child, this->_registry);
+		}
+		return result;
+	}
+	GameEntity GameEntity::GetRoot() {
 		if (!this->HasParent()) {
 			return *this;
 		}
-		if (auto parent = _parent.value()) {
-			return parent->GetRoot();
-		}
-		throw RUNTIME_ERROR("This should never happen | For entity ({})", _name);
-	}
-	void Entity::AddChild(const entt::entity& handle) {
-		if (handle == this->_handle) {
-			LOG_USER(LogLevel::Warning, "You attempted to add an Entity as a child of itself.");
-			return;
-		}
-		if (std::find(_childrenhandles.begin(), _childrenhandles.end(), handle) != _childrenhandles.end()) {
-			LOG_USER(LogLevel::Warning, "Entity is already a child of the currently parented entity.");
-			return;
-		}
-		_childrenhandles.push_back(handle);
-		if (auto scene = _scene.lock()) {
-			scene->GetEntity(handle).SetParent(this);
-		} else {
-			LOG_USER(LogLevel::Error, "Scene expired, this shouldn't happen!");
-		}
-	}
-	void Entity::RemoveChild(const entt::entity& handle) {
-		this->_childrenhandles.erase_value(handle);
-	}
-
-	// PRIVATE METHODS //
-	void Entity::SetParent(Entity* parent) {
-		if (parent->_handle == _handle) {
-			LOG_USER(LogLevel::Warning, "Attempted to set an Entity's parent as itself.");
-			return;
-		}
-		_parent = parent;
-	}
-	Entity* Entity::GetParentPtr() {
-		if (_parent.has_value()) {
-			return _parent.value();
-		}
-		return nullptr;
+		return this->GetParent().GetRoot();
 	}
 }

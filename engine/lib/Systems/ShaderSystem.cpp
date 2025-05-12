@@ -5,11 +5,22 @@
 #include "Slate/Systems/ShaderSystem.h"
 #include "Slate/Resources/ShaderResource.h"
 
-#include "Slate/Debug.h"
+#include "Slate/Common/Debug.h"
+#include "Slate/Common/Logger.h"
 #include "Slate/SmartPointers.h"
 
 #include <slang/slang.h>
 namespace Slate {
+	void ShaderSystem::onStart(Scene& scene) {
+
+	}
+	void ShaderSystem::onUpdate(Scene& scene) {
+
+	}
+	void ShaderSystem::onStop(Scene& scene) {
+
+	}
+
 
 	ShaderType TypefromSlangType(slang::TypeReflection* typeReflection) {
 		slang::TypeReflection::Kind kind = typeReflection->getKind();
@@ -57,6 +68,8 @@ namespace Slate {
 			}
 		} else if (kind == slang::TypeReflection::Kind::Struct) {
 			return ShaderType::Struct;
+		} else if (kind == slang::TypeReflection::Kind::Pointer) {
+			return ShaderType::Pointer;
 		}
 		return ShaderType::Unknown;
 	}
@@ -94,41 +107,36 @@ namespace Slate {
 				return "Mat3";
 			case ShaderType::Mat4:
 				return "Mat4";
+			case ShaderType::Pointer:
+				return "Pointer";
 			default:
 				return "Unknown";
 		}
 	}
 
-	void ShaderSystem::StartupImpl() {
-
-	}
-	void ShaderSystem::ShutdownImpl() {
-
-	}
-
 	void ShaderSystem::RegisterShader(ShaderResource& resource) {
 		if (!this->CanRegister()) {
-			LOG_USER(LogLevel::Warning, "Unable to register shader: {}", resource.GetFilepath());
+			LOG_USER(LogType::Warning, "Unable to register shader: {}", resource.GetFilepath());
 			return;
 		}
 //		resource.CreateVkModule();
-		resource.CompileToSpirv();
+		resource._compileToSpirv();
 		ReflectProgram(resource);
 		this->resource_map[this->num_registered_shaders] = CreateStrongPtr<ShaderResource>(resource);
 		this->num_registered_shaders++;
 	}
 
 	void ShaderSystem::ReflectProgram(Slate::ShaderResource& resource) {
-		unsigned int count = resource.programLayout->getParameterCount();
+		unsigned int count = resource._programLayout->getParameterCount();
 		for (unsigned int i = 0; i < count; ++i) {
-			slang::VariableLayoutReflection* var_layout = resource.programLayout->getParameterByIndex(i);
+			slang::VariableLayoutReflection* var_layout = resource._programLayout->getParameterByIndex(i);
 
 			Uniform uniform;
 			uniform.type = TypefromSlangType(var_layout->getType());
 			uniform.name = var_layout->getName();
 			uniform.size = var_layout->getTypeLayout()->getSize();
 			uniform.offset = var_layout->getOffset();
-			resource.uniforms.push_back(uniform);
+//			resource.uniforms.push_back(uniform);
 		}
 
 	}

@@ -23,5 +23,6 @@ helper_detectOS()
 helper_addGlobalDefines()
 helper_addExternalDefines()
 
+
 add_subdirectory("${SLATE_BASE_FOLDER}/engine")
 add_subdirectory("${SLATE_BASE_FOLDER}/editor")

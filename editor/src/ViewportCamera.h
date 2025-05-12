@@ -19,6 +19,6 @@ namespace Slate {
 		float yaw{};
 		float pitch{};
 		int lastx{}, lasty{};
-		friend class Editor;
+		friend class EditorApplication;
 	};
 }

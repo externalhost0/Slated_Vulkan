@@ -3,10 +3,15 @@
 // === SHARED STRUCTS/DATA ===
 // ===========================
 
+// defines for uniforms can not be imported, only pure logic can be imported
+// we can get around this with specific slang compilation api commands
+// #include "BuiltIn.Common.slang"
+import "BuiltIn.Standard";
 import "BuiltIn.Common";
-import "BuiltIn.Math";
 import "BuiltIn.Lighting";
+import "BuiltIn.Math";
 import "BuiltIn.Attribs";
+
 
 // ===========================
 // ====== VERTEX SHADER ======
@@ -26,16 +31,15 @@ struct v2f {
 v2f vs_main(VSInput input) {
     v2f output;
 
-    Vertex v = pushConstants.vertexBufferAddress[input.VertexID];
+    Vertex v = perObject.vertexBufferAddress[input.VertexID];
 
-    float3 worldpos = (pushConstants.model_matrix * float4(v.position, 1)).xyz;
-    output.ClipPos = ((cameraData.proj * cameraData.view) * float4(worldpos, 1));
+    float3 worldpos = (perObject.model * float4(v.position, 1)).xyz;
+    output.ClipPos = ((perFrame.camera.proj * perFrame.camera.view) * float4(worldpos, 1));
 
-    output.Normal = (pushConstants.model_matrix * float4(v.normal, 0.0)).xyz;
-
+    output.Normal = (perObject.model * float4(v.normal, 0.0)).xyz;
     output.UV = float2(v.uv_x, v.uv_y);
     output.WorldPosition = worldpos;
-    output.ID = pushConstants.id;
+    output.ID = perObject.id;
 
     return output;
 }
@@ -44,10 +48,10 @@ v2f vs_main(VSInput input) {
 // ===== FRAGMENT SHADER =====
 // ===========================
 
-uniform float3 albedo;
-uniform float metallic;
-uniform float roughness;
-uniform float ao;
+// uniform float3 albedo;
+// uniform float metallic;
+// uniform float roughness;
+// uniform float ao;
 
 [shader("pixel")]
 FSOutput fs_main(v2f input) {

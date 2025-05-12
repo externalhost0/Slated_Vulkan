@@ -42,4 +42,7 @@ namespace Slate {
 		return std::make_optional<T>(std::forward<Args>(args)...);
 	}
 
+
+
+
 }

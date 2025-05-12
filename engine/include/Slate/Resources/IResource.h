@@ -41,11 +41,13 @@ namespace Slate {
 		virtual void MoveResource(const std::filesystem::path& new_path) final;
 		virtual void DeleteResource() final;
 
-		virtual std::string GetName() final { return this->filename; };
-		virtual std::string GetFilepath() final { return this->filepath.string(); };
+		virtual std::string GetName() const final { return this->filename; };
+		virtual std::string GetFilepath() const final { return this->filepath.string(); };
+		virtual size_t GetFilesize() const final { return this->filesize; };
 	private:
 		std::string filename;
 		std::filesystem::path filepath;
+		size_t filesize{0};
 	protected:
 		virtual Result LoadResourceImpl(const std::filesystem::path& path) = 0;
 	private:

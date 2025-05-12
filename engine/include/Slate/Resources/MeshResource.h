@@ -4,12 +4,31 @@
 
 #pragma once
 #include "IResource.h"
-#include "Slate/FastSTD.h"
+#include "Slate/Common/FastSTD.h"
+#include "Slate/Common/Handles.h"
+#include "Slate/VkObjects.h"
 
 #include <array>
+#include <volk.h>
 
 namespace Slate {
 
+	class MeshData final {
+	public:
+		const BufferHandle& getVertexBufferHandle() const { return _vertexBuffer; }
+		const BufferHandle& getIndexBufferHandle() const { return _indexBuffer; }
+		uint32_t getVertexCount() const { return _vertexCount; }
+		uint32_t getIndexCount() const { return _indexCount; }
+	private:
+		BufferHandle _indexBuffer;
+		BufferHandle _vertexBuffer;
+		VkDeviceAddress _vertexBufferAddress = 0;
+		uint32_t _vertexCount = 0;
+		uint32_t _indexCount = 0;
+
+		// whereever the meshdata is built
+		friend class GX;
+	};
 	// either an editor primitive or a assets single shape
 	class MeshBuffer {
 	public:
@@ -17,17 +36,15 @@ namespace Slate {
 		~MeshBuffer() = default;
 
 		bool IsIndexed() const { return indexCount > 0; }
-		const vktypes::AllocatedBuffer& GetIndexBuffer() const { return this->indexBuffer; }
+		const AllocatedBuffer& GetIndexBuffer() const { return this->indexBuffer; }
 		const VkDeviceAddress& GetVBA() const { return this->vertexBufferAddress; }
 		uint32_t GetVertexCount() const { return this->vertexCount; }
 		uint32_t GetIndexCount() const { return this->indexCount; }
 	private:
-		vktypes::AllocatedBuffer indexBuffer;
+		AllocatedBuffer indexBuffer;
 		VkDeviceAddress vertexBufferAddress = 0;
 		uint32_t vertexCount = 0;
 		uint32_t indexCount = 0;
-
-		friend class RenderEngine;
 	};
 
 	// a mesh resource is only an imported mesh, not something built in

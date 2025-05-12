@@ -29,19 +29,28 @@ macro(helper_compileGLSLShadersEXT)
 endmacro()
 
 macro(helper_compileSlangShadersEXT)
+    # locates slang_c executable
+    if(NOT Vulkan_SLANGC_EXECUTABLE)
+        get_filename_component(_Vulkan_LIB_DIR ${Vulkan_LIBRARY} DIRECTORY)
+        find_program(Vulkan_SLANGC_EXECUTABLE
+                NAMES slangc
+                HINTS ${_Vulkan_LIB_DIR}/../Bin
+        )
+    endif()
+
     # set shader asset dir
     set(SHADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/shaders)
 
     # output flags
     set(_SLANG_FLAGS
-            -profile spirv_1_6
+            -profile spirv_1_5
             -capability spvInt64Atomics
             -target spirv
             -emit-spirv-directly
             -fvk-use-entrypoint-name
             -fvk-use-gl-layout
             -matrix-layout-column-major
-            -I ${CMAKE_CURRENT_SOURCE_DIR}/shaders/BuiltIn
+            -I ${SHADER_DIR}/BuiltIn
             -O1 # optimize 0-3
     )
 

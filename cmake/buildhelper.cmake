@@ -49,7 +49,7 @@ macro(helper_addGlobalDefines)
 endmacro()
 
 macro(helper_addExternalDefines)
-    # GLN
+    # GLM
     add_compile_definitions(GLM_FORCE_DEPTH_ZERO_TO_ONE)
     add_compile_definitions(GLM_ENABLE_EXPERIMENTAL)
     # IMGUI

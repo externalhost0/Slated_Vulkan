@@ -4,12 +4,42 @@
 #include <regex>
 #include <vector>
 
-#include "Slate/Scene.h"
-#include "Slate/Components.h"
-#include "Slate/Entity.h"
-#include "Slate/Logger.h"
+#include "Slate/Common/Logger.h"
+#include "Slate/ECS/Components.h"
+#include "Slate/ECS/Entity.h"
+#include "Slate/ECS/Scene.h"
+
+#include "Slate/Systems/RenderSystem.h"
+#include "Slate/Systems/TransformSystem.h"
+#include "Slate/Systems/ShaderSystem.h"
 
 namespace Slate {
+	std::string GenerateUniqueName(const std::string& baseName) {
+		std::regex regex("^(.*?)(\\s(\\d+))?$");
+		std::smatch match;
+
+		if (std::regex_match(baseName, match, regex)) {
+			std::string name_segment = match[1].str();
+			std::string number_segment = match[3].str();
+
+			int newnumber = number_segment.empty() ? 1 : std::stoi(number_segment) + 1;
+			return name_segment + " " + std::to_string(newnumber);
+		}
+		return baseName + " 2";
+	}
+	template<typename... T>
+	static void CopyComponentIfExists(ComponentGroup<T...>, GameEntity dst, GameEntity src) {
+		CopyComponentIfExists<T...>(dst, src);
+	}
+	template<typename... T>
+	static void CopyComponentIfExists(GameEntity dst, GameEntity src) {
+		([&]() {
+			if (src.HasComponent<T>())
+				dst.AddComponent<T>(src.GetComponent<T>());
+		}(), ...);
+	}
+
+
 	// singular
 	template <typename Dependency, typename Dependent>
 	void register_dependency(entt::registry& registry) {
@@ -34,135 +64,84 @@ namespace Slate {
 			DirectionalLightComponent
 			>;
 	Scene::Scene() {
-		register_group_dependencies<TransformComponent, TransformDependants>(registry);
+		register_group_dependencies<TransformComponent, TransformDependants>(_registry);
+
+		systemManager.registerSystem<TransformSystem>();
+		systemManager.registerSystem<RenderSystem>();
+		systemManager.registerSystem<ShaderSystem>();
+
+		systemManager.startAll(*this);
 	}
-	void Scene::Clear() {
-		this->registry.clear<entt::entity>();
-		this->entityMap.clear();
+	void Scene::Tick(double deltaTime) {
+		systemManager.updateAll(*this);
+	}
+	void Scene::Render() {
+
+	}
+	Scene::~Scene() {
+		systemManager.stopAll(*this);
+		this->_registry.clear<entt::entity>();
 	}
 
-	Entity& Scene::CreateEntity() {
+	GameEntity Scene::CreateEntity() {
 		return CreateEntity("Unnamed Entity");
 	}
-	Entity& Scene::CreateEntity(const std::string& name) {
-		const entt::entity handle = this->registry.create();
-		auto entityptr = CreateUniquePtr<Entity>(handle, this->shared_from_this());
-		entityptr->SetName(name);
-		this->entityMap[handle] = std::move(entityptr);
-		return *this->entityMap[handle];
+	GameEntity Scene::CreateEntity(const std::string& name) {
+		const entt::entity handle = this->_registry.create();
+		_registry.emplace<CoreComponent>(handle, CoreComponent{.name = name});
+		return { handle, this->_registry };
+	}
+	GameEntity Scene::DuplicateEntity(GameEntity entity) {
+		const std::string& name = entity.GetName();
+		const std::string& new_name = GenerateUniqueName(name); // just 1++ to the back of the name
+		GameEntity new_entity = CreateEntity(new_name);
+		CopyComponentIfExists(AllComponents{}, new_entity, entity);
+		return new_entity;
+	}
+	void Scene::DestroyEntity(entt::entity handle) {
+		DestroyEntity({handle, this->_registry});
 	}
 	// recurse through children when destroying
-	void Scene::DestroyEntity(const entt::entity& handle) {
-		auto& trash_entity = this->GetEntity(handle);
-		if (auto parentPtr = trash_entity.GetParentPtr()) {
-			parentPtr->RemoveChild(handle);
+	void Scene::DestroyEntity(GameEntity entity) {
+		if (entity.HasParent()) {
+			entity.GetParent().RemoveChild(entity);
 		}
-		auto children = trash_entity.GetChildrenHandles();
+		std::vector<GameEntity> children = entity.GetChildren();
 		for (auto child : children) {
 			DestroyEntity(child);
 		}
-		this->entityMap.erase(handle);
-		this->registry.destroy(handle);
+		this->_registry.destroy(entity.GetHandle());
 	}
 
-	template<typename... T>
-	static void CopyComponentIfExists(ComponentGroup<T...>, Entity& dst, Entity& src) {
-		CopyComponentIfExists<T...>(dst, src);
-	}
-	template<typename... T>
-	static void CopyComponentIfExists(Entity& dst, Entity& src) {
-		([&]() {
-			if (src.HasComponent<T>())
-				dst.AddComponent<T>(src.GetComponent<T>());
-		}(), ...);
-	}
-
-
-	std::string GenerateUniqueName(const std::string& baseName) {
-		std::regex regex("^(.*?)(\\s(\\d+))?$");
-		std::smatch match;
-
-		if (std::regex_match(baseName, match, regex)) {
-			std::string name_segment = match[1].str();
-			std::string number_segment = match[3].str();
-
-			int newnumber = number_segment.empty() ? 1 : std::stoi(number_segment) + 1;
-			return name_segment + " " + std::to_string(newnumber);
+	std::vector<GameEntity> Scene::GetAllEntities() {
+		std::vector<GameEntity> result;
+		for (entt::entity handle : this->_registry.view<entt::entity>()) {
+			result.emplace_back(handle, this->_registry);
 		}
-		return baseName + " 2";
+		return result;
 	}
-	Entity& Scene::DuplicateEntity(const entt::entity& handle) {
-		const std::string name = entityMap[handle]->GetName();
-		const std::string new_name = GenerateUniqueName(name); // just 1++ to the back of the name
-		auto& new_entity = CreateEntity(new_name);
-		CopyComponentIfExists(AllComponents{}, GetEntity(new_entity.GetHandle()), GetEntity(handle));
-		return new_entity;
-	}
-	Entity& Scene::GetEntity(const entt::entity& handle) {
-		auto it = entityMap.find(handle);
-		if (it != entityMap.end()) {
-			return *it->second;
-		}
-		throw RUNTIME_ERROR("Attempt to get entity ({}), does not exist!", (uint32_t)handle);
-	}
-
-	std::vector<Entity*> Scene::GetAllEntities() {
-		std::vector<Entity*> entities_to_grab;
-		for (const entt::entity& handle : this->registry.view<entt::entity>()) {
-			entities_to_grab.emplace_back(this->entityMap[handle].get());
-		}
-		return entities_to_grab;
-	}
-	std::vector<Entity*> Scene::GetTopLevelEntities() {
-		std::vector<Entity*> entities_to_grab;
-		for (const entt::entity& handle : this->registry.view<entt::entity>()) {
-			const auto& entity = this->entityMap[handle];
-			if (entity->HasParent()) {
+	std::vector<GameEntity> Scene::GetRootEntities() {
+		std::vector<GameEntity> result;
+		for (const entt::entity handle : this->_registry.view<entt::entity>()) {
+			GameEntity entity = GameEntity(handle, this->_registry);
+			if (entity.HasParent()) {
 				continue;
 			}
-			entities_to_grab.emplace_back(entity.get());
+			result.push_back(entity);
 		}
-		return entities_to_grab;
+		return result;
 	}
-
-
-
-	template<typename T>
-	void Scene::OnComponentAdded(Entity entity, T &component) {
-		static_assert(sizeof(T) == 0); // we want every templated component to have its own addition function
+	// dont really use this
+	GameEntity Scene::resolveEntity(entt::entity handle) {
+		return { handle, this->_registry };
 	}
-	template<>
-	void Scene::OnComponentAdded<TransformComponent>(Entity entity, TransformComponent& component) {
-
+	GameEntity Scene::GetEntityByName(const char* name) {
+		for (const entt::entity handle : this->_registry.view<entt::entity>()) {
+			GameEntity entity = GameEntity(handle, this->_registry);
+			if (entity.GetName() == name) {
+				return entity;
+			}
+		}
+		assert(false);
 	}
-	template<>
-	void Scene::OnComponentAdded<GeometryPrimitiveComponent>(Entity entity, GeometryPrimitiveComponent& component) {
-
-	}
-	template<>
-	void Scene::OnComponentAdded<GeometryGLTFComponent>(Entity entity, GeometryGLTFComponent& component) {
-
-	}
-	template<>
-	void Scene::OnComponentAdded<ScriptComponent>(Entity entity, ScriptComponent& component) {
-
-	}
-	template<>
-	void Scene::OnComponentAdded<PointLightComponent>(Entity entity, PointLightComponent& component) {
-
-	}
-	template<>
-	void Scene::OnComponentAdded<SpotLightComponent>(Entity entity, SpotLightComponent& component) {
-
-	}
-	template<>
-	void Scene::OnComponentAdded<DirectionalLightComponent>(Entity entity, DirectionalLightComponent& component) {
-
-	}
-	template<>
-	void Scene::OnComponentAdded<AmbientLightComponent>(Entity entity, AmbientLightComponent& component) {
-
-	}
-
-
 }

@@ -1,20 +1,24 @@
 //
 // Created by Hayden Rivas on 1/16/25.
 //
-#include "Slate/Debug.h"
+#include "Slate/Common/Debug.h"
 
-#include <volk.h>
+#include "Slate/Common/FastSTD.h"
 #include "Slate/PipelineBuilder.h"
 #include "Slate/VK/vkinfo.h"
-#include "Slate/FastSTD.h"
+#include "Slate/VK/vkenums.h"
+
+#include <volk.h>
 
 namespace Slate {
+	// some helper functions //
 	bool isIntegarFormat(VkFormat format) {
 		return (format == VK_FORMAT_R8_UINT || format == VK_FORMAT_R16_UINT || format == VK_FORMAT_R32_UINT ||
 			format == VK_FORMAT_R8G8_UINT || format == VK_FORMAT_R16G16_UINT || format == VK_FORMAT_R32G32_UINT ||
 			format == VK_FORMAT_R8G8B8_UINT || format == VK_FORMAT_R16G16B16_UINT || format == VK_FORMAT_R32G32B32_UINT ||
 			format == VK_FORMAT_R8G8B8A8_UINT || format == VK_FORMAT_R16G16B16A16_UINT || format == VK_FORMAT_R32G32B32A32_UINT);
 	}
+
 	void PipelineBuilder::Clear() {
 		// clear all of the structs we need back to 0 with their correct stype
 		_inputAssembly = { .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
@@ -30,16 +34,16 @@ namespace Slate {
 		_colorBlendAttachment = { };
 		// vector clears
 		_colorAttachmentFormats.clear();
-//		_shaderStages.clear();
+		_shaderStages.clear();
 	}
 	// build() needs to be the last function called on the builder!
 	VkPipeline PipelineBuilder::build(VkDevice device, VkPipelineLayout layout) {
 		// the create info for the pipeline we are building
-		VkGraphicsPipelineCreateInfo new_pipeline_info = { .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO, .pNext = nullptr };
+		VkGraphicsPipelineCreateInfo graphics_pipeline_ci = { .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO, .pNext = nullptr };
 
 		// --- shaders --- //
-		new_pipeline_info.stageCount = static_cast<uint32_t>(_shaderStages.size());
-		new_pipeline_info.pStages = _shaderStages.data();
+		graphics_pipeline_ci.stageCount = static_cast<uint32_t>(_shaderStages.size());
+		graphics_pipeline_ci.pStages = _shaderStages.data();
 
 		// ---- colorblending ---- //
 		VkPipelineColorBlendStateCreateInfo colorBlending = { .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO, .pNext = nullptr };
@@ -57,40 +61,45 @@ namespace Slate {
 		colorBlending.attachmentCount = blendAttachments.size();
 		colorBlending.pAttachments = blendAttachments.data();
 		std::fill(std::begin(colorBlending.blendConstants), std::end(colorBlending.blendConstants), 0.f);
-		new_pipeline_info.pColorBlendState = &colorBlending;
+		graphics_pipeline_ci.pColorBlendState = &colorBlending;
 
 		// ----- dynamic states ----- //
 		VkDynamicState state[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
 		VkPipelineDynamicStateCreateInfo dynamicInfo = vkinfo::CreatePipelineDynamicStateInfo(state, 2);
-		new_pipeline_info.pDynamicState = &dynamicInfo;
+		graphics_pipeline_ci.pDynamicState = &dynamicInfo;
 
 		// ------ vertex input ig doesnt matter because we are using (push constants + device address) ----- //
 		VkPipelineVertexInputStateCreateInfo _vertexInputInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO, .pNext = nullptr };
-		new_pipeline_info.pVertexInputState = &_vertexInputInfo;
+		graphics_pipeline_ci.pVertexInputState = &_vertexInputInfo;
 
 		// ------ viewport state ------ //
 		VkPipelineViewportStateCreateInfo viewportState = { .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO, .pNext = nullptr };
 		viewportState.viewportCount = 1;
 		viewportState.scissorCount = 1;
-		new_pipeline_info.pViewportState = &viewportState;
+		graphics_pipeline_ci.pViewportState = &viewportState;
 
 		// everything else that doesnt need configuring on build()
-		new_pipeline_info.pNext = &_renderInfo;
-		new_pipeline_info.pInputAssemblyState = &_inputAssembly;
-		new_pipeline_info.pRasterizationState = &_rasterizer;
-		new_pipeline_info.pMultisampleState = &_multisampling;
-		new_pipeline_info.pDepthStencilState = &_depthStencil;
-		new_pipeline_info.layout = layout; // just the user given layout
+		graphics_pipeline_ci.pNext = &_renderInfo;
+		graphics_pipeline_ci.pInputAssemblyState = &_inputAssembly;
+		graphics_pipeline_ci.pRasterizationState = &_rasterizer;
+		graphics_pipeline_ci.pMultisampleState = &_multisampling;
+		graphics_pipeline_ci.pDepthStencilState = &_depthStencil;
+		graphics_pipeline_ci.layout = layout; // just the user given layout
 
 		// -- actual creation -- //
-		VkPipeline newPipeline;
-		VK_CHECK(vkCreateGraphicsPipelines(device, nullptr, 1, &new_pipeline_info, nullptr, &newPipeline));
+		VkPipeline newPipeline = VK_NULL_HANDLE;
+		VK_CHECK(vkCreateGraphicsPipelines(device, nullptr, 1, &graphics_pipeline_ci, nullptr, &newPipeline));
 		this->Clear(); // clear the entire pipeline struct to reuse the PipelineBuilder
 		return newPipeline;
 	}
+	PipelineBuilder& PipelineBuilder::set_moduleEXT(const VkShaderModule& vertModule, const VkShaderModule& fragModule) {
+		_shaderStages.clear();
+		_shaderStages.push_back(vkinfo::CreatePipelineShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT, vertModule, "main"));
+		_shaderStages.push_back(vkinfo::CreatePipelineShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT, fragModule, "main"));
+		return *this;
+	}
 	PipelineBuilder& PipelineBuilder::set_module(const VkShaderModule& module) {
 		_shaderStages.clear();
-
 		_shaderStages.push_back(vkinfo::CreatePipelineShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT, module, "vs_main"));
 		_shaderStages.push_back(vkinfo::CreatePipelineShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT, module, "fs_main"));
 
@@ -98,13 +107,13 @@ namespace Slate {
 	}
 
 	PipelineBuilder& PipelineBuilder::set_polygon_mode(PolygonMode polygonMode) {
-		_rasterizer.polygonMode = PolygonModeVkPolygonMap.at(polygonMode);
+		_rasterizer.polygonMode = toVulkan(polygonMode);
 		_rasterizer.lineWidth = 1.0f; // we cant change width, metal doesnt support wide lines
 
 		return *this;
 	}
 	PipelineBuilder& PipelineBuilder::set_topology_mode(TopologyMode topoMode) {
-		VkPrimitiveTopology topology = TopologyModeVkPrimitiveTopologyMap.at(topoMode);
+		VkPrimitiveTopology topology = toVulkan(topoMode);
 		_inputAssembly.topology = topology;
 		_inputAssembly.primitiveRestartEnable = VK_TRUE;
 		if (topology == VK_PRIMITIVE_TOPOLOGY_POINT_LIST 				||
@@ -116,14 +125,14 @@ namespace Slate {
 		return *this;
 	}
 	PipelineBuilder& PipelineBuilder::set_cull_mode(CullMode cullMode) {
-		_rasterizer.cullMode = CullModeVkCullModeFlagMap.at(cullMode);
+		_rasterizer.cullMode = toVulkan(cullMode);
 		_rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 
 		return *this;
 	}
-	PipelineBuilder& PipelineBuilder::set_multisampling_mode(MultisampleMode sampleMode) {
+	PipelineBuilder& PipelineBuilder::set_multisampling_mode(SampleCount count) {
 		_multisampling.sampleShadingEnable = VK_FALSE;
-		_multisampling.rasterizationSamples = MultisampleModeVkSampleCountFlagMap.at(sampleMode);
+		_multisampling.rasterizationSamples = toVulkan(count);
 		_multisampling.minSampleShading = 1.0f;
 		_multisampling.pSampleMask = nullptr;
 		_multisampling.alphaToCoverageEnable = VK_FALSE;
@@ -185,6 +194,7 @@ namespace Slate {
 		}
 		return *this;
 	}
+
 	void PipelineBuilder::_setBlendtoOff() {
 		_colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 		_colorBlendAttachment.blendEnable = VK_FALSE;

@@ -3,43 +3,57 @@ set(PROJECT_NAME "SlateEngine")
 project(${PROJECT_NAME}
         LANGUAGES C CXX
 )
+set(CMAKE_VERBOSE_MAKEFILE ON)
 
 add_library(${PROJECT_NAME}
+        lib/GX.cpp
         lib/IApplication.cpp
+
         lib/Window.cpp
+        lib/WindowService.cpp
         lib/Filesystem.cpp
+        lib/Timer.cpp
+        lib/InputHandler.cpp
 
         lib/vkinfo.cpp
         lib/vkutil.cpp
-        lib/vkdescriptor.cpp
-        lib/PipelineBuilder.cpp
-        lib/Scene.cpp
-        lib/MeshGenerators.cpp
-        lib/Loaders/GLTFLoader.cpp
-        lib/ShaderPass.cpp
-        lib/Entity.cpp
-        lib/Loaders/ShaderLoader.cpp
 
+        lib/PipelineBuilder.cpp
+        lib/MeshGenerators.cpp
+
+        lib/Scene.cpp
+        lib/Entity.cpp
+
+        lib/Loaders/GLTFLoader.cpp
+        lib/Loaders/ShaderLoader.cpp
+        lib/Loaders/ImageLoader.cpp
+
+        lib/Resources/TextureResource.cpp
         lib/Resources/IResource.cpp
         lib/Resources/ShaderResource.cpp
         lib/Resources/MeshResource.cpp
         lib/Resources/ScriptResource.cpp
-        lib/RenderEngineStartup.cpp
-        lib/Systems/InputSystem.cpp
-        lib/Systems/TimeSystem.cpp
-        lib/Systems/WindowSystem.cpp
+
         lib/Systems/RenderSystem.cpp
-        lib/RenderEngineOps.cpp
-        include/Slate/Systems/ShaderSystem.h
         lib/Systems/ShaderSystem.cpp
-        include/Slate/UUID.h
-        include/Slate/FastSTD.h
+        lib/Systems/TransformSystem.cpp
+        lib/Systems/ISystem.cpp
+
+        lib/CommandBuffer.cpp
+        lib/CommandPool.cpp
+        lib/GXBackbone.cpp
+        lib/VulkanSwapchain.cpp
+        lib/VulkanImmediateCommands.cpp
+        lib/VulkanStagingDevice.cpp
+        lib/vkimpl.cpp
+        lib/ShaderCursor.cpp
+        lib/RenderPassBuilder.cpp
 )
 
 # git submodules
 add_subdirectory(third_party/volk)
 add_subdirectory(third_party/vk-bootstrap)
-add_subdirectory(third_party/SPIRV-Cross)
+#add_subdirectory(third_party/SPIRV-Cross)
 
 # locate packages
 find_package(glfw3 REQUIRED)

@@ -1,26 +1,27 @@
 //
 // Created by Hayden Rivas on 1/16/25.
 //
-#include "Slate/Components.h"
+#include <Slate/ECS/Components.h>
 
-#include "IconFontCppHeaders/IconsLucide.h"
+#include <IconFontCppHeaders/IconsLucide.h>
 
-#include "imgui/imgui.h"
-#include "imgui/imgui_internal.h"
+#include <imgui/imgui.h>
+#include <imgui/imgui_internal.h>
 #include <glm/gtc/type_ptr.hpp>
-#include <span>
 
 #include "../Editor.h"
 #include "../Fonts.h"
 #include "../ImGuiComponents.h"
 #include "../ImGuiSnippets.h"
 
+#include <span>
+
 namespace Slate {
-	void EntityHeader(Entity& entity) {
+	void EntityHeader(GameEntity entity) {
 		char buffer[128] = "";
-		std::string currentName = entity.GetName();
+		const std::string& currentName = entity.GetName();
 		strncpy(buffer, currentName.c_str(), sizeof(buffer) - 1);
-		buffer[sizeof(buffer) - 1] = '\0'; // Ensure null-termination
+		buffer[sizeof(buffer) - 1] = '\0';
 
 		ImGui::PushFont(Fonts::iconLargeFont);
 		ImGui::Text(ICON_LC_BOX);
@@ -33,18 +34,18 @@ namespace Slate {
 		}
 		ImGui::PopFont();
 	}
-	void ComponentTransform(Entity& entity) {
-		auto& transform = entity.GetComponent<TransformComponent>();
+	void ComponentTransform(GameEntity entity) {
+		TransformComponent& transform = entity.GetComponent<TransformComponent>();
 
-		Vector3Drag("Position", transform.position, "%.2f", 0.0f, 0.01f);
+		Vector3Drag("Position", &transform.local.position, "%.2f", 0.0f, 0.01f);
 
-		glm::vec3 intermediate = glm::degrees(glm::eulerAngles(transform.rotation));
-		Vector3Drag("Rotation", intermediate, "%.1f", 0.0f, 0.1f);
-		transform.rotation = glm::normalize(glm::quat(glm::radians(intermediate)));
+		glm::vec3 intermediate = glm::degrees(glm::eulerAngles(transform.local.rotation));
+		Vector3Drag("Rotation", &intermediate, "%.1f", 0.0f, 0.1f);
+		transform.local.rotation = glm::normalize(glm::quat(glm::radians(intermediate)));
 
-		Vector3Drag("Scale", transform.scale, "%.3f", 1.0f, 0.01f);
+		Vector3Drag("Scale", &transform.local.scale, "%.3f", 1.0f, 0.01f);
 	}
-	void ComponentMeshPrimitive(Entity& entity) {
+	void ComponentMeshPrimitive(GameEntity entity) {
 		GeometryPrimitiveComponent& mesh_component = entity.GetComponent<GeometryPrimitiveComponent>();
 		MeshPrimitiveType current_type = mesh_component.mesh_type;
 
@@ -107,10 +108,10 @@ namespace Slate {
 //			}
 //		}
 	}
-	void ComponentMeshGLTF(Entity& entity) {
+	void ComponentMeshGLTF(GameEntity entity) {
 
 	}
-	void ComponentScript(Entity& entity) {
+	void ComponentScript(GameEntity entity) {
 
 	}
 
@@ -153,7 +154,7 @@ namespace Slate {
 		ImGui::DragFloat("###hiddenintense", &intensity, 0.05f, 0.f, 1000.0f);
 		ImGui::PopItemWidth();
 	}
-	void ComponentPointLight(Entity& entity) {
+	void ComponentPointLight(GameEntity entity) {
 		auto& light = entity.GetComponent<PointLightComponent>();
 		ComponentILight(light.point.Color, light.point.Intensity);
 
@@ -163,7 +164,7 @@ namespace Slate {
 		ImGui::DragFloat("###hiddenrange", &light.point.Range, 0.5f, 0.f, 100.0f);
 		ImGui::PopItemWidth();
 	}
-	void ComponentSpotLight(Entity& entity) {
+	void ComponentSpotLight(GameEntity entity) {
 		auto& light = entity.GetComponent<SpotLightComponent>();
 		ComponentILight(light.spot.Color, light.spot.Intensity);
 
@@ -179,11 +180,11 @@ namespace Slate {
 		ImGui::DragFloat("###hiddensize", &light.spot.Size, 0.5f, 1.f, 180.f);
 		ImGui::PopItemWidth();
 	}
-	void ComponentDirectionalLight(Entity& entity) {
+	void ComponentDirectionalLight(GameEntity entity) {
 		auto& light = entity.GetComponent<DirectionalLightComponent>();
 		ComponentILight(light.directional.Color, light.directional.Intensity);
 	}
-	void ComponentEnvironmentLight(Entity& entity) {
+	void ComponentEnvironmentLight(GameEntity entity) {
 		auto& light = entity.GetComponent<AmbientLightComponent>();
 		ComponentILight(light.ambient.Color, light.ambient.Intensity);
 	}
@@ -194,7 +195,7 @@ namespace Slate {
 	struct ComponentMetadata { static_assert(sizeof(T) == 0); };
 
 	template <typename... T>
-	void ProcessComponents(Entity& entity, ComponentGroup<T...>) {
+	void ProcessComponents(GameEntity entity, ComponentGroup<T...>) {
 		(..., [&] {
 			if (entity.HasComponent<T>()) {
 				ComponentPropertyPanel<T>(
@@ -208,7 +209,7 @@ namespace Slate {
 	}
 	// templated function for all component panels
 	template <typename T>
-	void ComponentPropertyPanel(Entity& entity, const std::function<void(Entity&)>& func, const char* title, const char* icon) {
+	void ComponentPropertyPanel(GameEntity& entity, const std::function<void(GameEntity)>& func, const char* title, const char* icon) {
 		// require that the componenttype is actually a component lol
 		static_assert(std::is_class<T>::value, "T must be a class/struct!");
 
@@ -255,7 +256,7 @@ namespace Slate {
 	}
 
 	template <typename... T>
-	void ProcessAllComponents(Entity& entity, ComponentGroup<T...>) {
+	void ProcessAllComponents(GameEntity entity, ComponentGroup<T...>) {
 		(..., [&] {
 			bool hasComponent = entity.HasComponent<T>();
 			if (hasComponent) {
@@ -271,11 +272,10 @@ namespace Slate {
 		}());
 	}
 
-	void Editor::OnPropertiesPanelUpdate() {
+	void EditorApplication::_onPropertiesPanelUpdate() {
 		ImGui::Begin("Properties");
-		if (this->activeEntityHandle.has_value()) {
-
-			auto& entity = this->scene->GetEntity(this->activeEntityHandle.value()); // alias active entity
+		if (this->ctx.activeEntity.has_value()) {
+			GameEntity entity = this->ctx.activeEntity.value(); // alias active entity
 			EntityHeader(entity);
 			ImGui::Separator();
 			ImGui::Spacing();

@@ -8,8 +8,8 @@
 #include <cstring>
 #include <nlohmann/json.hpp>
 
+#include "Slate/Common/Debug.h"
 #include "Slate/Filesystem.h"
-#include "Slate/Debug.h"
 
 namespace Slate {
 	nlohmann::json Filesystem::ReadJsonFile(const std::filesystem::path& path) {

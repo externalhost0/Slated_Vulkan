@@ -4,6 +4,7 @@
 
 #pragma once
 #include "IResource.h"
+#include "Slate/Common/Handles.h"
 #include "Slate/VK/vktypes.h"
 #include <vector>
 
@@ -38,48 +39,34 @@ namespace Slate {
 		Unknown
 	};
 
-	struct ShaderCursor {
-	public:
-
-	private:
-
-		VkBuffer        _buffer;
-		std::byte*      _bufferData;
-		size_t			_byteOffset;
-		VkDescriptorSet	_descriptorSet;
-		uint32_t		_bindingIndex;
-		uint32_t 		_bindingArrayIndex;
-
-		slang::TypeLayoutReflection* _typeLayout;
-
-		VmaAllocator _allocator;
-	};
-
 	struct Uniform {
 	public:
-		void write(const void* new_data) {
-
-		};
-
 		void* data = nullptr;
 		std::string name;
 		ShaderType type;
-		size_t size;
+		std::string size;
 		size_t offset;
 	};
 
 	struct ShaderResource : public IResource {
 	public:
-		void CompileToSpirv();
-		void CreateVkModule(VkDevice device);
-		void DestroyVkModule(VkDevice device);
-
-		VkShaderModule GetModule() const { return this->vkModule; }
+		void assignHandle(ShaderHandle handle);
+		inline Slang::ComPtr<ISlangBlob> requestCode() {
+			return _spirvCode;
+		};
+		inline size_t getPushSize() const {
+			return _pushSize;
+		}
+		inline ShaderHandle getHandle() { return _handle; }
 	private:
-		Slang::ComPtr<ISlangBlob> spirv_code = nullptr;
-		VkShaderModule vkModule = VK_NULL_HANDLE;
-		slang::ProgramLayout* programLayout = nullptr;
-		std::vector<Uniform> uniforms;
+		void _compileToSpirv();
+	private:
+		bool isCompiled;
+		size_t _pushSize = 0;
+		ShaderHandle _handle; // connects with vkShaderModule
+		Slang::ComPtr<ISlangBlob> _spirvCode = nullptr;
+		slang::ProgramLayout*_programLayout = nullptr;
+		std::vector<Uniform> _uniforms;
 	private:
 		Result LoadResourceImpl(const std::filesystem::path& path) override;
 

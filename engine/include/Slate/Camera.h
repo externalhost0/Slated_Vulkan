@@ -15,53 +15,53 @@ namespace Slate {
 			Orthographic
 		} projectionType = ProjectionType::Perspective;
 
-		void UpdateMatrices() {
-			this->viewMatrix = glm::lookAt(this->position, this->position + this->frontVector, this->upVector);
+		void updateMatrices() {
+			this->_viewMatrix = glm::lookAt(this->_position, this->_position + this->_frontVector, this->_upVector);
 			switch (this->projectionType) {
 				case ProjectionType::Perspective:
-					this->projectionMatrix = glm::perspective(glm::radians(this->fov), this->aspectRatio, this->near, this->far);
+					this->_projectionMatrix = glm::perspective(glm::radians(this->_fov), this->_aspectRatio, this->_near, this->_far);
 					break;
 				case ProjectionType::Orthographic:
-					this->projectionMatrix = glm::ortho(this->left, this->right, this->bottom, this->top, this->near, this->far);
+					this->_projectionMatrix = glm::ortho(this->_left, this->_right, this->_bottom, this->_top, this->_near, this->_far);
 					break;
 			}
 		};
-		void UpdateAspect(int w, int h) {
+		void updateAspect(int w, int h) {
 			if (w/h <= 0) return;
-			this->aspectRatio = (float)w / (float)h;
+			this->_aspectRatio = (float)w / (float)h;
 		}
-		void UpdateAspect(float w, float h) {
+		void updateAspect(float w, float h) {
 			if (w/h <= 0) return;
-			this->aspectRatio = w / h;
+			this->_aspectRatio = w / h;
 		}
 	public:
-		glm::mat4 GetProjectionMatrix() const { return this->projectionMatrix; }
-		glm::mat4 GetViewMatrix() const { return this->viewMatrix; }
+		glm::mat4 getProjectionMatrix() const { return this->_projectionMatrix; }
+		glm::mat4 getViewMatrix() const { return this->_viewMatrix; }
 
-		glm::vec3 GetUpVector() const { return this->upVector; }
-		glm::vec3 GetFrontVector() const { return this->frontVector; }
-		glm::vec3 GetPosition() const { return this->position; }
+		glm::vec3 getUpVector() const { return this->_upVector; }
+		glm::vec3 getFrontVector() const { return this->_frontVector; }
+		glm::vec3 getPosition() const { return this->_position; }
+
+		float getNearPlaneDistance() const { return this->_near; }
+		float getFarPlaneDistance() const { return this->_far; }
+		float getFOV() const { return this->_fov; }
 	public:
-		float GetNearPlaneDistance() const { return this->near; }
-		float GetFarPlaneDistance() const { return this->far; }
-		float GetFOV() const { return this->fov; }
-
-		void SetNearPlaneDistance(float new_near) { this->near = new_near; }
-		void SetFarPlaneDistance(float new_far) { this->far = new_far; }
-		void SetFOV(float new_fov) { this->fov = new_fov; }
+		void setNearPlaneDistance(float new_near) { this->_near = new_near; }
+		void setFarPlaneDistance(float new_far) { this->_far = new_far; }
+		void setFOV(float new_fov) { this->_fov = new_fov; }
 	protected:
-		glm::vec3 frontVector = {0, 0, -1};
-		glm::vec3 upVector = {0, 1, 0};
+		glm::vec3 _frontVector = {0, 0, -1};
+		glm::vec3 _upVector = {0, 1, 0};
 
-		glm::vec3 position = {0.f, 0.f, 5.f};
+		glm::vec3 _position = {0.f, 0.f, 5.f};
 
-		glm::mat4 projectionMatrix;
-		glm::mat4 viewMatrix;
+		glm::mat4 _projectionMatrix;
+		glm::mat4 _viewMatrix;
 
-		float near = 0.1f;
-		float far = 100.f;
-		float fov = 65.f;
-		float aspectRatio = 1.33f; // TODO: find better way to default this
-		float left, right, bottom, top;
+		float _near = 0.1f;
+		float _far = 100.f;
+		float _fov = 65.f;
+		float _aspectRatio = 1.33f; // TODO: find better way to default this
+		float _left, _right, _bottom, _top;
 	};
 }

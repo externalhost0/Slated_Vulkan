@@ -2,51 +2,64 @@
 // Created by Hayden Rivas on 11/27/24.
 //
 #pragma once
-#include "Slate/SmartPointers.h"
-#include "Slate/SystemManager.h"
+
+#include <atomic>
+
+#include "Slate/GX.h"
+#include "Slate/Timer.h"
 
 namespace Slate {
-	// application, topmost system of Slate engine
 	class IApplication {
 	public:
-		// used to make the users app!
-		template <typename Derived>
-		static UniquePtr<IApplication> Create() {
-			static_assert(std::is_base_of<IApplication, Derived>::value, "Derived must inherit from Application");
-			static bool instanceCreated;
-			if (instanceCreated) throw std::runtime_error("An instance of Application has already been created!");
-			instanceCreated = true;
-			return CreateUniquePtr<Derived>();
-		}
-
-		inline const SystemManager& GetManager() const { return this->manager; }
-		// starts the app, should be done in main() after creation
-		virtual void Run() final; // (init(), loop(), end())
-		virtual void StopLoop() final;
-	protected:
-		SystemManager manager;
-	private:
-		bool continue_loop = true;
-	public:
-		IApplication(const IApplication &) = delete; // delete copy construction
-		virtual IApplication& operator=(const IApplication&) = delete; // delete assignment construction
-	protected:
-		// disallows instancing IApplication and requires user to inherit it themselves
 		IApplication() = default;
 		virtual ~IApplication() = default;
-		// user defined run event sequence
-		// this is where the user will write all their code
-		// therefore it means a Slate app requires inheriting a Application class
-		// not pure virtual ig cause the user should be able to do anything i guess
-		virtual void Initialize() {};
-		virtual void Loop()       {};
-		virtual void Shutdown()   {};
+		// always basically called at main()
+		inline virtual void run() final {
+			start();
+			while (_running) {
+				loop();
+			}
+			stop();
+		}
+		virtual void callTermination() final { _running = false; };
+	public:
+//		virtual void onWindowMouseButton() {};
+//		virtual void onWindowMouseScroll() {};
+//		virtual void onWindowKey()         {};
+		virtual void onWindowClose()       {};
+		virtual void onWindowFocus()       {};
+		virtual void onWindowMinimize()    {};
+		virtual void onWindowMaximize()    {};
+		virtual void onWindowResize(uint16_t width, uint16_t height) {};
+		virtual void onWindowMove(uint16_t xpos, uint16_t ypos) {};
+
+		virtual void onSwapchainResize() {};
+	protected:
+		virtual void onInitialize() = 0;
+		virtual void onTick()       = 0;
+		virtual void onRender()     = 0;
+		virtual void onShutdown()   = 0;
+
+		// function
+		inline virtual void createWindow(WindowSpec spec) final {
+			this->_gx._windowService.createWindow(spec);
+			installAppCallbacksToWindow(_gx._windowService.getFocusedWindow()->getGLFWWindow());
+		}
+
+		inline virtual GX& getGX() final { return this->_gx; }
+		inline virtual Window* getActiveWindow() final { return this->_gx._windowService.getFocusedWindow(); }
+		inline virtual InputHandler& GetInput() final { return this->_gx._windowService.input; }
+		inline virtual const Timer& getTime() const final { return this->_apptime; }
 	private:
-		// general system event steps, only for base Application engine to touch
-		// this is the sequence that exists outside of the users control
-		void BaseSlateApp_Start();
-		void BaseSlateApp_Loop();
-		void BaseSlateApp_End();
+		virtual void start() final;
+		virtual void loop() final;
+		virtual void stop() final;
+
+		virtual void installAppCallbacksToWindow(GLFWwindow* window) final;
+	private:
+		std::atomic<bool> _running = true;
+		GX _gx;
+		Timer _apptime;
 	};
 }
 
