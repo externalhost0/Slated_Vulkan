@@ -15,7 +15,7 @@ namespace Slate {
 	void printVariableLayout(slang::VariableLayoutReflection* variable);
 
 
-	Result ShaderResource::LoadResourceImpl(const std::filesystem::path& path) {
+	Result ShaderResource::_loadResourceImpl(const std::filesystem::path& path) {
 		_compileToSpirv();
 
 		return Result::SUCCESS;
@@ -46,7 +46,7 @@ namespace Slate {
 	}
 
 	void ShaderResource::_compileToSpirv() {
-		const std::string location = this->GetFilepath();
+		const std::string location = this->getFilepath();
 		// MODULE CREATION #1
 		Slang::ComPtr<slang::IModule> module;
 		std::vector<Slang::ComPtr<slang::IModule>> module_dependencies;

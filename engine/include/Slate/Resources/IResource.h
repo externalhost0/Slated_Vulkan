@@ -34,35 +34,35 @@ namespace Slate {
 		IResource() = default;
 		virtual ~IResource() = default;
 		// each resource type needs there own way to load their data, this is implemented in LoadResourceImpl
-		virtual inline Result LoadResource(const std::filesystem::path& path) final {
-			this->PreLoad(path);
-			return this->LoadResourceImpl(path);
+		virtual inline Result loadResource(const std::filesystem::path& path) final {
+			this->preLoad(path);
+			return this->_loadResourceImpl(path);
 		}
-		virtual void MoveResource(const std::filesystem::path& new_path) final;
-		virtual void DeleteResource() final;
+		virtual void moveResource(const std::filesystem::path& new_path) final;
+		virtual void deleteResource() final;
 
-		virtual std::string GetName() const final { return this->filename; };
-		virtual std::string GetFilepath() const final { return this->filepath.string(); };
-		virtual size_t GetFilesize() const final { return this->filesize; };
+		virtual std::string getFilename() const final { return this->filename; };
+		virtual std::string getFilepath() const final { return this->filepath.string(); };
+		virtual size_t getFilesize() const final { return this->filesize; };
 	private:
 		std::string filename;
 		std::filesystem::path filepath;
 		size_t filesize{0};
 	protected:
-		virtual Result LoadResourceImpl(const std::filesystem::path& path) = 0;
+		virtual Result _loadResourceImpl(const std::filesystem::path& path) = 0;
 	private:
-		Result PreLoad(const std::filesystem::path& path);
+		Result preLoad(const std::filesystem::path& path);
 	};
 
 	struct AudioResource : public IResource {
 	public:
 	private:
-		Result LoadResourceImpl(const std::filesystem::path& path) override;
+		Result _loadResourceImpl(const std::filesystem::path& path) override;
 	};
 	struct FontResource : public IResource {
 	public:
 	private:
-		Result LoadResourceImpl(const std::filesystem::path& path) override;
+		Result _loadResourceImpl(const std::filesystem::path& path) override;
 	};
 
 }

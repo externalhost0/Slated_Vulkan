@@ -38,21 +38,6 @@ namespace Slate {
 			glm::mat4 viewMatrix;
 			alignas(16) glm::vec3 position;
 		};
-		struct DrawPushConstantsEditorEXT {
-			CameraData camera;
-			alignas(16) glm::mat4 modelMatrix = glm::mat4(1);
-			alignas(16) glm::vec3 color = {0, 0, 0};
-			alignas(4) uint32_t id = 0;
-			alignas(8) VkDeviceAddress vertexBufferAddress = 0;
-		};
-
-		struct DrawPushConstants2EditorEXT {
-			CameraData camera;
-			alignas(16) glm::mat4 modelMatrix = glm::mat4(1);
-			alignas(4) uint32_t id = 0;
-			alignas(8) VkDeviceAddress vertexBufferAddress = 0;
-		};
-
 ;
 
 		// some of the point options that match their shader counterpart
@@ -102,23 +87,14 @@ namespace Slate {
 		struct PushConstants_EditorPrimitives {
 			alignas(16) glm::mat4 modelMatrix;
 			alignas(8) VkDeviceAddress vertexBufferAddress;
+			alignas(16) glm::vec3 color = { 0.5f, 0.5f, 0.5f };
 		};
-		struct PushConstants_EditorImagesREPLACE {
+		struct PushConstants_EditorSolidShading {
 			alignas(16) glm::mat4 modelMatrix;
-			alignas(16) glm::vec3 color;
 			alignas(8) VkDeviceAddress vertexBufferAddress;
+			alignas(16) glm::vec3 color = { 0.5f, 0.5f, 0.5f };
 			uint32_t id;
-			uint textureId;
 		};
-
-		struct PushConstants_EditorImagesOD2 {
-			glm::mat4 modelMatrix;
-			glm::vec3 color;
-			VkDeviceAddress vertexBufferAddress;
-			uint32_t id;
-			uint textureId;
-		};
-
 		struct PushConstants_EditorImages {
 			glm::mat4 modelMatrix;
 			glm::vec3 color;
@@ -132,6 +108,7 @@ namespace Slate {
 			CameraData camera;
 			LightingData lighting;
 			float time;
+			glm::vec2 resolution;
 		};
 		struct PerObjectData {
 			alignas(16) glm::mat4 modelMatrix;

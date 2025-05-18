@@ -29,34 +29,20 @@ namespace Slate {
 		// whereever the meshdata is built
 		friend class GX;
 	};
-	// either an editor primitive or a assets single shape
-	class MeshBuffer {
-	public:
-		MeshBuffer() = default;
-		~MeshBuffer() = default;
-
-		bool IsIndexed() const { return indexCount > 0; }
-		const AllocatedBuffer& GetIndexBuffer() const { return this->indexBuffer; }
-		const VkDeviceAddress& GetVBA() const { return this->vertexBufferAddress; }
-		uint32_t GetVertexCount() const { return this->vertexCount; }
-		uint32_t GetIndexCount() const { return this->indexCount; }
-	private:
-		AllocatedBuffer indexBuffer;
-		VkDeviceAddress vertexBufferAddress = 0;
-		uint32_t vertexCount = 0;
-		uint32_t indexCount = 0;
-	};
 
 	// a mesh resource is only an imported mesh, not something built in
 	struct MeshResource : public IResource {
 	public:
-		unsigned int GetVertexCount() const { return this->vertexCount; }
-		unsigned int GetIndexCount() const { return this->indexCount; }
+		unsigned int getVertexCount() const { return this->vertexCount; }
+		unsigned int getIndexCount() const { return this->indexCount; }
+		unsigned int getMeshCount() const { return this->meshCount; }
+		const FastVector<MeshData, 64>& getBuffers() const { return buffers; }
 	private:
 		unsigned int vertexCount = 0;
 		unsigned int indexCount = 0;
-		FastVector<MeshBuffer, 64> buffers;
+		unsigned int meshCount = 0;
+		FastVector<MeshData, 64> buffers;
 	private:
-		Result LoadResourceImpl(const std::filesystem::path& path) override;
+		Result _loadResourceImpl(const std::filesystem::path& path) override;
 	};
 }

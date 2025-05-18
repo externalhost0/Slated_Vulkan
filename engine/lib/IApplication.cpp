@@ -4,6 +4,7 @@
 
 #include "Slate/Common/Debug.h"
 #include "Slate/IApplication.h"
+#include "Slate/Filesystem.h"
 
 namespace Slate {
 //	void window_key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {

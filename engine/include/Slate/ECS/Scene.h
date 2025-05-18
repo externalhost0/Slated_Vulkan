@@ -31,8 +31,8 @@ namespace Slate {
 		~Scene();
 
 		// entity interaction
-		GameEntity CreateEntity();
-		GameEntity CreateEntity(const std::string& name);
+		GameEntity createEntity();
+		GameEntity createEntity(const std::string& name);
 		GameEntity DuplicateEntity(GameEntity entity);
 		void DestroyEntity(GameEntity entity);
 		void DestroyEntity(entt::entity handle);
@@ -66,23 +66,6 @@ namespace Slate {
 			} else {
 				entt::entity temp = *_registry.view<DirectionalLightComponent>().begin();
 				return _registry.get<DirectionalLightComponent>(temp);
-			}
-		}
-		template<typename... T, typename Func>
-		void forEach(Func&& callback) {
-			auto view = _registry.view<T...>();
-			for (entt::entity entity : view) {
-				callback(view.template get<T>(entity)...);
-			}
-		}
-		template<typename... T, typename Func>
-		void forEachRoot(Func&& callback) {
-			auto view = _registry.view<CoreComponent, T...>();
-			for (entt::entity entity : view) {
-				const CoreComponent& core = view.template get<CoreComponent>(entity);
-				if (core.parent == entt::null) {
-					callback(view.template get<T>(entity)...);
-				}
 			}
 		}
 	private:

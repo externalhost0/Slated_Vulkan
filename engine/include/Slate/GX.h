@@ -17,14 +17,15 @@
 #include "Slate/VK/vkenums.h"
 #include "Slate/WindowService.h"
 
+#include "Slate/Resources/TextureResource.h"
 #include "Slate/SubmitHandle.h"
-#include "Slate/VulkanStagingDevice.h"
 #include "Slate/Version.h"
+#include "Slate/VulkanStagingDevice.h"
 
 
+#include <future>
 #include <slang/slang-com-ptr.h>
 #include <volk.h>
-#include <future>
 
 namespace Slate {
 	struct DeferredTask
@@ -60,8 +61,6 @@ namespace Slate {
 		TextureUsageBits_Sampled = 1 << 0,
 		TextureUsageBits_Storage = 1 << 1,
 		TextureUsageBits_Attachment = 1 << 2,
-		TextureUsageBits_TransferSrc = 1 << 3,
-		TextureUsageBits_TransferDst = 1 << 4
 	};
 
 	// strict enums can be whatever
@@ -115,6 +114,7 @@ namespace Slate {
 		uint8_t usage = {};
 		StorageType storage = StorageType::Device;
 
+		TextureType type = TextureType::Type_2D;
 		VkFormat format = VK_FORMAT_UNDEFINED;
 
 		const void* data = nullptr;
@@ -127,7 +127,6 @@ namespace Slate {
 		TopologyMode topology = TopologyMode::TRIANGLE;
 		PolygonMode polygon = PolygonMode::FILL;
 		BlendingMode blend = BlendingMode::OFF;
-		DepthMode depth = DepthMode::LESS;
 		CullMode cull = CullMode::BACK;
 		SampleCount multisample = SampleCount::X1;
 
@@ -257,7 +256,7 @@ namespace Slate {
 		VkImageView getTextureImageView(TextureHandle handle) const { return _texturePool.get(handle)->_vkImageView; }
 		inline AllocatedImage* getTexture(TextureHandle handle) { return _texturePool.get(handle); }
 
-		RenderPipeline* requestRuntimeRenderPipeline(PipelineHandle handle);
+		RenderPipeline*resolveRenderPipeline(PipelineHandle handle);
 		inline AllocatedBuffer* getAllocatedBuffer(BufferHandle handle) { return _bufferPool.get(handle); };
 		// this is literally only for the cmd buffer single function, so useless
 		inline RenderPipeline& getPipelineObject(PipelineHandle handle) { return *_pipelinePool.get(handle); }
@@ -316,7 +315,16 @@ namespace Slate {
 		AllocatedBuffer createBufferImpl(VkDeviceSize bufferSize, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memFlags);
 
 		TextureHandle createTexture(TextureSpec spec);
-		AllocatedImage createTextureImpl(VkImageUsageFlags usageFlags, VkMemoryPropertyFlags memFlags, VkExtent3D extent3D, VkFormat format, VkImageType imageType, uint32_t numLevels, uint32_t numLayers, VkSampleCountFlagBits sampleCountFlagBits);
+		AllocatedImage createTextureImpl(VkImageUsageFlags usageFlags,
+										 VkMemoryPropertyFlags memFlags,
+										 VkExtent3D extent3D,
+										 VkFormat format,
+										 VkImageType imageType,
+										 VkImageViewType imageViewType,
+										 uint32_t numLevels,
+										 uint32_t numLayers,
+										 VkSampleCountFlagBits sampleCountFlagBits,
+										 VkImageCreateFlags createFlags = 0);
 
 		SamplerHandle createSampler(SamplerSpec spec);
 		PipelineHandle createPipeline(PipelineSpec spec);

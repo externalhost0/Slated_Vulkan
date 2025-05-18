@@ -14,11 +14,11 @@ namespace Slate {
 	}
 
 	void UpdateGlobalTransforms(GameEntity entity, const Transform& topTransform = {}) {
-		TransformComponent& transform_c = entity.GetComponent<TransformComponent>();
+		TransformComponent& transform_c = entity.getComponent<TransformComponent>();
 		transform_c.global.position += topTransform.position;
 		transform_c.global.rotation += topTransform.rotation;
-		if (entity.HasChildren()) {
-			for (GameEntity child : entity.GetChildren()) {
+		if (entity.hasChildren()) {
+			for (GameEntity child : entity.getChildren()) {
 				UpdateGlobalTransforms(child, transform_c.global);
 			}
 		}

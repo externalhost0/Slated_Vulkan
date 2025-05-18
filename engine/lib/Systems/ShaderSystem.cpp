@@ -116,7 +116,7 @@ namespace Slate {
 
 	void ShaderSystem::RegisterShader(ShaderResource& resource) {
 		if (!this->CanRegister()) {
-			LOG_USER(LogType::Warning, "Unable to register shader: {}", resource.GetFilepath());
+			LOG_USER(LogType::Warning, "Unable to register shader: {}", resource.getFilepath());
 			return;
 		}
 //		resource.CreateVkModule();

@@ -34,8 +34,8 @@ namespace Slate {
 	template<typename... T>
 	static void CopyComponentIfExists(GameEntity dst, GameEntity src) {
 		([&]() {
-			if (src.HasComponent<T>())
-				dst.AddComponent<T>(src.GetComponent<T>());
+			if (src.hasComponent<T>())
+				dst.addComponent<T>(src.getComponent<T>());
 		}(), ...);
 	}
 
@@ -63,6 +63,7 @@ namespace Slate {
 			SpotLightComponent,
 			DirectionalLightComponent
 			>;
+
 	Scene::Scene() {
 		register_group_dependencies<TransformComponent, TransformDependants>(_registry);
 
@@ -83,18 +84,20 @@ namespace Slate {
 		this->_registry.clear<entt::entity>();
 	}
 
-	GameEntity Scene::CreateEntity() {
-		return CreateEntity("Unnamed Entity");
+	GameEntity Scene::createEntity() {
+		return createEntity("Unnamed Entity");
 	}
-	GameEntity Scene::CreateEntity(const std::string& name) {
+	GameEntity Scene::createEntity(const std::string& name) {
 		const entt::entity handle = this->_registry.create();
-		_registry.emplace<CoreComponent>(handle, CoreComponent{.name = name});
+		_registry.emplace<GameEntity::Name>(handle, GameEntity::Name{name});
+		_registry.emplace<GameEntity::Active>(handle);
+		_registry.emplace<GameEntity::Hierarchy>(handle);
 		return { handle, this->_registry };
 	}
 	GameEntity Scene::DuplicateEntity(GameEntity entity) {
-		const std::string& name = entity.GetName();
+		const std::string& name = entity.getName();
 		const std::string& new_name = GenerateUniqueName(name); // just 1++ to the back of the name
-		GameEntity new_entity = CreateEntity(new_name);
+		GameEntity new_entity = createEntity(new_name);
 		CopyComponentIfExists(AllComponents{}, new_entity, entity);
 		return new_entity;
 	}
@@ -103,14 +106,14 @@ namespace Slate {
 	}
 	// recurse through children when destroying
 	void Scene::DestroyEntity(GameEntity entity) {
-		if (entity.HasParent()) {
-			entity.GetParent().RemoveChild(entity);
+		if (entity.hasParent()) {
+			entity.getParent().removeChild(entity);
 		}
-		std::vector<GameEntity> children = entity.GetChildren();
+		std::vector<GameEntity> children = entity.getChildren();
 		for (auto child : children) {
 			DestroyEntity(child);
 		}
-		this->_registry.destroy(entity.GetHandle());
+		this->_registry.destroy(entity.getHandle());
 	}
 
 	std::vector<GameEntity> Scene::GetAllEntities() {
@@ -124,7 +127,7 @@ namespace Slate {
 		std::vector<GameEntity> result;
 		for (const entt::entity handle : this->_registry.view<entt::entity>()) {
 			GameEntity entity = GameEntity(handle, this->_registry);
-			if (entity.HasParent()) {
+			if (entity.hasParent()) {
 				continue;
 			}
 			result.push_back(entity);
@@ -138,7 +141,7 @@ namespace Slate {
 	GameEntity Scene::GetEntityByName(const char* name) {
 		for (const entt::entity handle : this->_registry.view<entt::entity>()) {
 			GameEntity entity = GameEntity(handle, this->_registry);
-			if (entity.GetName() == name) {
+			if (entity.getName() == name) {
 				return entity;
 			}
 		}

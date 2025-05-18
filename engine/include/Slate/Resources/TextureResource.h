@@ -7,9 +7,14 @@
 #include "Slate/Resources/IResource.h"
 
 // forward declare
-struct VkExtent2D;
-struct VkExtent3D;
+class VkExtent2D;
+class VkExtent3D;
 namespace Slate {
+	enum class TextureType {
+		Type_2D,
+		Type_3D,
+		Type_Cube
+	};
 
 	struct TextureResource : public IResource {
 	public:
@@ -18,11 +23,12 @@ namespace Slate {
 		VkExtent2D getDimensions() const;
 		const void* getData() const;
 	private:
-		const void* _data;
+		const void* _data = nullptr;
 		uint32_t _width;
 		uint32_t _height;
 		TextureHandle _handle;
+		TextureType type;
 	private:
-		Result LoadResourceImpl(const std::filesystem::path& path) override;
+		Result _loadResourceImpl(const std::filesystem::path& path) override;
 	};
 }

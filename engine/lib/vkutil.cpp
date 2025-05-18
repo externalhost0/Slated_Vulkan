@@ -9,71 +9,120 @@
 #include "Slate/VK/vkutil.h"
 
 namespace Slate::vkutil {
-	struct TextureFormatProperties {
-		const VkFormat format = VK_FORMAT_UNDEFINED;
-		const uint8_t bytesPerBlock : 5 = 1;
-		const uint8_t blockWidth : 3 = 1;
-		const uint8_t blockHeight : 3 = 1;
-		const uint8_t minBlocksX : 2 = 1;
-		const uint8_t minBlocksY : 2 = 1;
-		const bool depth : 1 = false;
-		const bool stencil : 1 = false;
-		const bool compressed : 1 = false;
-		const uint8_t numPlanes : 2 = 1;
-	};
-	#define PROPS(fmt, bpb, ...) TextureFormatProperties { .format = VK_FORMAT_##fmt, .bytesPerBlock = bpb, ##__VA_ARGS__ }
+//	struct TextureFormatProperties {
+//		const VkFormat format = VK_FORMAT_UNDEFINED;
+//		const uint8_t bytesPerBlock : 5 = 1;
+//		const uint8_t blockWidth : 3 = 1;
+//		const uint8_t blockHeight : 3 = 1;
+//		const uint8_t minBlocksX : 2 = 1;
+//		const uint8_t minBlocksY : 2 = 1;
+//		const bool depth : 1 = false;
+//		const bool stencil : 1 = false;
+//		const bool compressed : 1 = false;
+//		const uint8_t numPlanes : 2 = 1;
+//	};
+//	#define PROPS(fmt, bpb, ...) TextureFormatProperties { .format = VK_FORMAT_##fmt, .bytesPerBlock = bpb, ##__VA_ARGS__ }
+//
+//	static constexpr TextureFormatProperties properties[] = {
+//		PROPS(UNDEFINED, 1),
+//		PROPS(R8_UNORM, 1),                         // R_UN8
+//		PROPS(R16_UINT, 2),                         // R_UI16
+//		PROPS(R32_UINT, 4),                         // R_UI32
+//		PROPS(R16_UNORM, 2),                        // R_UN16
+//		PROPS(R16_SFLOAT, 2),                       // R_F16
+//		PROPS(R32_SFLOAT, 4),                       // R_F32
+//		PROPS(R8G8_UNORM, 2),                       // RG_UN8
+//		PROPS(R16G16_UINT, 4),                      // RG_UI16
+//		PROPS(R32G32_UINT, 8),                      // RG_UI32
+//		PROPS(R16G16_UNORM, 4),                     // RG_UN16
+//		PROPS(R16G16_SFLOAT, 4),                    // RG_F16
+//		PROPS(R32G32_SFLOAT, 8),                    // RG_F32
+//		PROPS(R8G8B8A8_UNORM, 4),                   // RGBA_UN8
+//		PROPS(R32G32B32A32_UINT, 16),               // RGBA_UI32
+//		PROPS(R16G16B16A16_SFLOAT, 8),              // RGBA_F16
+//		PROPS(R32G32B32A32_SFLOAT, 16),             // RGBA_F32
+//		PROPS(R8G8B8A8_SRGB, 4),                    // RGBA_SRGB8
+//		PROPS(B8G8R8A8_UNORM, 4),                   // BGRA_UN8
+//		PROPS(B8G8R8A8_SRGB, 4),                    // BGRA_SRGB8
+//		PROPS(A2B10G10R10_UNORM_PACK32, 4),         // A2B10G10R10_UN
+//		PROPS(A2R10G10B10_UNORM_PACK32, 4),         // A2R10G10B10_UN
+//		PROPS(ETC2_R8G8B8_UNORM_BLOCK, 8, .blockWidth = 4, .blockHeight = 4, .compressed = true),   // ETC2_RGB8
+//		PROPS(ETC2_R8G8B8_SRGB_BLOCK, 8, .blockWidth = 4, .blockHeight = 4, .compressed = true),    // ETC2_SRGB8
+//		PROPS(BC7_UNORM_BLOCK, 16, .blockWidth = 4, .blockHeight = 4, .compressed = true),          // BC7_RGBA
+//		PROPS(D16_UNORM, 2, .depth = true),                    // Z_UN16
+//		PROPS(X8_D24_UNORM_PACK32, 3, .depth = true),          // Z_UN24
+//		PROPS(D32_SFLOAT, 4, .depth = true),                   // Z_F32
+//		PROPS(D24_UNORM_S8_UINT, 4, .depth = true, .stencil = true),     // Z_UN24_S_UI8
+//		PROPS(D32_SFLOAT_S8_UINT, 5, .depth = true, .stencil = true),    // Z_F32_S_UI8
+//		PROPS(G8_B8R8_2PLANE_420_UNORM, 24, .blockWidth = 4, .blockHeight = 4, .compressed = true, .numPlanes = 2), // YUV_NV12
+//		PROPS(G8_B8_R8_3PLANE_420_UNORM, 24, .blockWidth = 4, .blockHeight = 4, .compressed = true, .numPlanes = 3), // YUV_420p
+//	};
 
-	static constexpr TextureFormatProperties properties[] = {
-		PROPS(UNDEFINED, 1),
-		PROPS(R8_UNORM, 1),                         // R_UN8
-		PROPS(R16_UINT, 2),                         // R_UI16
-		PROPS(R32_UINT, 4),                         // R_UI32
-		PROPS(R16_UNORM, 2),                        // R_UN16
-		PROPS(R16_SFLOAT, 2),                       // R_F16
-		PROPS(R32_SFLOAT, 4),                       // R_F32
-		PROPS(R8G8_UNORM, 2),                       // RG_UN8
-		PROPS(R16G16_UINT, 4),                      // RG_UI16
-		PROPS(R32G32_UINT, 8),                      // RG_UI32
-		PROPS(R16G16_UNORM, 4),                     // RG_UN16
-		PROPS(R16G16_SFLOAT, 4),                    // RG_F16
-		PROPS(R32G32_SFLOAT, 8),                    // RG_F32
-		PROPS(R8G8B8A8_UNORM, 4),                   // RGBA_UN8
-		PROPS(R32G32B32A32_UINT, 16),               // RGBA_UI32
-		PROPS(R16G16B16A16_SFLOAT, 8),              // RGBA_F16
-		PROPS(R32G32B32A32_SFLOAT, 16),             // RGBA_F32
-		PROPS(R8G8B8A8_SRGB, 4),                    // RGBA_SRGB8
-		PROPS(B8G8R8A8_UNORM, 4),                   // BGRA_UN8
-		PROPS(B8G8R8A8_SRGB, 4),                    // BGRA_SRGB8
-		PROPS(A2B10G10R10_UNORM_PACK32, 4),         // A2B10G10R10_UN
-		PROPS(A2R10G10B10_UNORM_PACK32, 4),         // A2R10G10B10_UN
-		PROPS(ETC2_R8G8B8_UNORM_BLOCK, 8, .blockWidth = 4, .blockHeight = 4, .compressed = true),   // ETC2_RGB8
-		PROPS(ETC2_R8G8B8_SRGB_BLOCK, 8, .blockWidth = 4, .blockHeight = 4, .compressed = true),    // ETC2_SRGB8
-		PROPS(BC7_UNORM_BLOCK, 16, .blockWidth = 4, .blockHeight = 4, .compressed = true),          // BC7_RGBA
-		PROPS(D16_UNORM, 2, .depth = true),                    // Z_UN16
-		PROPS(X8_D24_UNORM_PACK32, 3, .depth = true),          // Z_UN24
-		PROPS(D32_SFLOAT, 4, .depth = true),                   // Z_F32
-		PROPS(D24_UNORM_S8_UINT, 4, .depth = true, .stencil = true),     // Z_UN24_S_UI8
-		PROPS(D32_SFLOAT_S8_UINT, 5, .depth = true, .stencil = true),    // Z_F32_S_UI8
-		PROPS(G8_B8R8_2PLANE_420_UNORM, 24, .blockWidth = 4, .blockHeight = 4, .compressed = true, .numPlanes = 2), // YUV_NV12
-		PROPS(G8_B8_R8_3PLANE_420_UNORM, 24, .blockWidth = 4, .blockHeight = 4, .compressed = true, .numPlanes = 3), // YUV_420p
+	struct TextureFormatProperties {
+		VkFormat format = VK_FORMAT_UNDEFINED;
+		uint8_t bytesPerBlock = 1;
+		uint8_t blockWidth = 1;
+		uint8_t blockHeight = 1;
+		uint8_t minBlocksX = 1;
+		uint8_t minBlocksY = 1;
+		bool depth = false;
+		bool stencil = false;
+		bool compressed = false;
+		uint8_t numPlanes = 1;
 	};
+	#define PROPS(fmt, bpb, ...) TextureFormatProperties { VK_FORMAT_##fmt, bpb, ##__VA_ARGS__ }
+	static constexpr std::array<TextureFormatProperties, 20> kTextureFormatTable = {{
+			PROPS(R8_UNORM, 1),                       // 9
+			PROPS(R8G8_UNORM, 2),                     // 16
+			PROPS(R8G8B8A8_UNORM, 4),                 // 37
+			PROPS(R8G8B8A8_SRGB, 4),                  // 43
+			PROPS(B8G8R8A8_UNORM, 4),                 // 44
+			PROPS(B8G8R8A8_SRGB, 4),                  // 50
+			PROPS(R16G16B16A16_SFLOAT, 8),            // 97
+			PROPS(R32_UINT, 4),                       // 98
+			PROPS(R32G32_UINT, 8),                    // 99
+			PROPS(R32G32B32A32_UINT, 16),             // 100
+			PROPS(R32G32B32A32_SFLOAT, 16),           // 109 ← your failing format
+			PROPS(D16_UNORM, 2, 1, 1, 1, 1, true),     // 124
+			PROPS(D24_UNORM_S8_UINT, 4, 1, 1, 1, 1, true, true), // 129
+			PROPS(D32_SFLOAT, 4, 1, 1, 1, 1, true),    // 126
+			PROPS(D32_SFLOAT_S8_UINT, 5, 1, 1, 1, 1, true, true),// 130
+			PROPS(BC7_UNORM_BLOCK, 16, 4, 4, 1, 1, false, false, true), // 145
+			PROPS(ETC2_R8G8B8_UNORM_BLOCK, 8, 4, 4, 1, 1, false, false, true), // 147
+			PROPS(ETC2_R8G8B8_SRGB_BLOCK, 8, 4, 4, 1, 1, false, false, true),  // 151
+			PROPS(G8_B8R8_2PLANE_420_UNORM, 24, 4, 4, 1, 1, false, false, true, 2), // 1000157000
+			PROPS(G8_B8_R8_3PLANE_420_UNORM, 24, 4, 4, 1, 1, false, false, true, 3), // 1000157001
+	}};
+
+	constexpr const TextureFormatProperties* GetFormatProperties(VkFormat format) {
+		auto cmp = [](const TextureFormatProperties& a, VkFormat b) {
+			return a.format < b;
+		};
+		auto it = std::lower_bound(kTextureFormatTable.begin(), kTextureFormatTable.end(), format, cmp);
+		if (it != kTextureFormatTable.end() && it->format == format) {
+			return &(*it);
+		}
+		return nullptr;
+	}
 	uint32_t GetTextureBytesPerLayer(uint32_t width, uint32_t height, VkFormat format, uint32_t level) {
-		const uint32_t levelWidth = std::max(width >> level, 1u);
+		const uint32_t levelWidth  = std::max(width >> level, 1u);
 		const uint32_t levelHeight = std::max(height >> level, 1u);
 
-		const TextureFormatProperties props = properties[format];
-		if (!props.compressed) {
-			return props.bytesPerBlock * levelWidth * levelHeight;
+		const TextureFormatProperties* props = GetFormatProperties(format);
+		ASSERT_MSG(props, "Unknown texture format!");
+
+		if (!props->compressed) {
+			return props->bytesPerBlock * levelWidth * levelHeight;
 		}
-		const uint32_t blockWidth = std::max((uint32_t)props.blockWidth, 1u);
-		const uint32_t blockHeight = std::max((uint32_t)props.blockHeight, 1u);
-		const uint32_t widthInBlocks = (levelWidth + props.blockWidth - 1) / props.blockWidth;
-		const uint32_t heightInBlocks = (levelHeight + props.blockHeight - 1) / props.blockHeight;
-		return widthInBlocks * heightInBlocks * props.bytesPerBlock;
+		uint32_t blockWidth = std::max<uint32_t>(props->blockWidth, 1);
+		uint32_t blockHeight = std::max<uint32_t>(props->blockHeight, 1);
+		uint32_t widthInBlocks = (levelWidth + blockWidth - 1) / blockWidth;
+		uint32_t heightInBlocks = (levelHeight + blockHeight - 1) / blockHeight;
+		return widthInBlocks * heightInBlocks * props->bytesPerBlock;
 	}
 	uint32_t GetTextureBytesPerPlane(uint32_t width, uint32_t height, VkFormat format, uint32_t plane) {
-		const TextureFormatProperties props = properties[format];
-		ASSERT(plane < props.numPlanes);
+		const TextureFormatProperties* props = GetFormatProperties(format);
+		ASSERT(plane < props->numPlanes);
 		switch (format) {
 			case VK_FORMAT_G8_B8R8_2PLANE_420_UNORM:
 				return width * height / (plane + 1);
@@ -121,8 +170,8 @@ namespace Slate::vkutil {
 			case VK_FORMAT_D24_UNORM_S8_UINT:
 			case VK_FORMAT_D32_SFLOAT_S8_UINT:
 				return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-
-			default: return VK_IMAGE_ASPECT_COLOR_BIT;
+			default:
+				return VK_IMAGE_ASPECT_COLOR_BIT;
 		}
 	}
 	bool IsFormatDepthOrStencil(VkFormat format) {

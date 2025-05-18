@@ -12,6 +12,7 @@
 #include "Slate/VK/vktypes.h"
 
 #include "Slate/Loaders/GLTFLoader.h"
+#include "Slate/GX.h"
 
 namespace Slate {
 
@@ -44,8 +45,8 @@ namespace Slate {
 		return gltf;
 	}
 
-	std::vector<MeshBuffer> GLTFLoader::ProcessGLTFAsset(const fastgltf::Asset& gltf) {
-		std::vector<MeshBuffer> buffer_vector = {};
+	std::vector<MeshData> GLTFLoader::ProcessGLTFAsset(const fastgltf::Asset& gltf) {
+		std::vector<MeshData> buffer_vector = {};
 		// use the same vectors for all meshes so that the memory doesnt reallocate as
 		std::vector<Vertex> vertices;
 		std::vector<uint32_t> indices;
@@ -114,7 +115,8 @@ namespace Slate {
 					}
 				}
 			}
-//			buffer_vector.emplace_back(pEngine->CreateMeshBuffer(vertices, indices));
+
+			buffer_vector.emplace_back(_gx->createMesh(vertices, indices));
 		}
 		return buffer_vector;
 

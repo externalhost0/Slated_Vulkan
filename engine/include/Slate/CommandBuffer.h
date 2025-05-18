@@ -5,6 +5,7 @@
 #pragma once
 #include <volk.h>
 
+#include "Slate/VK/vkenums.h"
 #include "Slate/Common/Handles.h"
 #include "VulkanImmediateCommands.h"
 
@@ -19,6 +20,11 @@ namespace Slate {
 		enum { kMaxSubmitDependencies = 4 };
 		TextureHandle textures[kMaxSubmitDependencies] = {};
 		BufferHandle buffers[kMaxSubmitDependencies] = {};
+	};
+
+	struct DepthState {
+		CompareOperation compareOp = CompareOperation::CompareOp_AlwaysPass;
+		bool isDepthWriteEnabled = false;
 	};
 
 
@@ -59,6 +65,8 @@ namespace Slate {
 
 		void cmdSetViewport(VkExtent2D extent2D);
 		void cmdSetScissor(VkExtent2D extent2D);
+
+		void cmdBindDepthState(const DepthState& state);
 		void cmdSetDepthBiasEnable(bool enable);
 		void cmdSetDepthBias(float constantFactor, float slopeFactor, float clamp);
 

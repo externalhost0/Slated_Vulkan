@@ -34,7 +34,7 @@ namespace Slate {
 		kNumBindlessBindings = 3,
 	};
 
-	VkMemoryPropertyFlags storageTypeToVkMemoryPropertyFlags(StorageType storage) {
+	VkMemoryPropertyFlags StorageTypeToVkMemoryPropertyFlags(StorageType storage) {
 		VkMemoryPropertyFlags memFlags{0};
 		switch (storage) {
 			case StorageType::Device:
@@ -49,7 +49,20 @@ namespace Slate {
 		}
 		return memFlags;
 	}
-
+	VkSemaphore CreateTimelineSemaphore(VkDevice device, unsigned int numImages) {
+		const VkSemaphoreTypeCreateInfo smeaphore_type_ci = {
+				.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
+				.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
+				.initialValue = numImages,
+		};
+		const VkSemaphoreCreateInfo semaphore_ci = {
+				.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+				.pNext = &smeaphore_type_ci,
+		};
+		VkSemaphore semaphore;
+		VK_CHECK(vkCreateSemaphore(device, &semaphore_ci, nullptr, &semaphore));
+		return semaphore;
+	}
 
 	void GX::create(VulkanInstanceInfo info, GLFWwindow* glfWwindow) {
 		_backend.initialize(glfWwindow, info);
@@ -79,18 +92,7 @@ namespace Slate {
 		// ALWAYS initialize swapchain after dummy textures, as swapcahin creates texture handles of its own!!
 		_swapchain = CreateUniquePtr<VulkanSwapchain>(*this);
 		// timeline semaphore is closely kept to vulkan swapchain
-		{
-			const VkSemaphoreTypeCreateInfo smeaphore_type_ci = {
-					.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
-					.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
-					.initialValue = _swapchain->getNumOfSwapchainImages() - 1,
-			};
-			const VkSemaphoreCreateInfo semaphore_ci = {
-					.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-					.pNext = &smeaphore_type_ci,
-			};
-			VK_CHECK(vkCreateSemaphore(_backend.getDevice(), &semaphore_ci, nullptr, &_timelineSemaphore));
-		}
+		_timelineSemaphore = CreateTimelineSemaphore(_backend.getDevice(), _swapchain->getNumOfSwapchainImages() - 1);
 
 		// default samplers
 		{
@@ -200,22 +202,37 @@ namespace Slate {
 
 		// TODO::fixing the allocation not being proerly freed for VMA
 		if (_shaderPool.numObjects()) {
-			LOG_USER(LogType::Info, "Leaked {} shader modules", _shaderPool.numObjects());
+			LOG_USER(LogType::Warning, "Leaked {} shader modules", _shaderPool.numObjects());
+			for (int i = 0; i < _shaderPool._objects.size(); i++) {
+				destroy(_shaderPool.getHandle(_shaderPool.findObject(&_shaderPool._objects[i]._obj).index()));
+			}
 		}
 		if (_pipelinePool.numObjects()) {
-			LOG_USER(LogType::Info, "Leaked {} render pipelines", _pipelinePool.numObjects());
+			LOG_USER(LogType::Warning, "Leaked {} render pipelines", _pipelinePool.numObjects());
+			for (int i = 0; i < _pipelinePool._objects.size(); i++) {
+				destroy(_pipelinePool.getHandle(_pipelinePool.findObject(&_pipelinePool._objects[i]._obj).index()));
+			}
 		}
 		if (_samplerPool.numObjects() > 1) {
 			// the dummy value is owned by the context
-			LOG_USER(LogType::Info, "Leaked {} samplers", _samplerPool.numObjects() - 1);
+			LOG_USER(LogType::Warning, "Leaked {} samplers", _samplerPool.numObjects() - 1);
+			for (int i = 0; i < _samplerPool._objects.size(); i++) {
+				destroy(_samplerPool.getHandle(_samplerPool.findObject(&_samplerPool._objects[i]._obj).index()));
+			}
 		}
 		if (_texturePool.numObjects()) {
-			LOG_USER(LogType::Info, "Leaked {} textures", _texturePool.numObjects());
+			LOG_USER(LogType::Warning, "Leaked {} textures", _texturePool.numObjects());
+			for (int i = 0; i < _texturePool._objects.size(); i++) {
+				destroy(_texturePool.getHandle(_texturePool.findObject(&_texturePool._objects[i]._obj).index()));
+			}
 		}
 		if (_bufferPool.numObjects()) {
-			LOG_USER(LogType::Info, "Leaked {} buffers", _bufferPool.numObjects());
+			LOG_USER(LogType::Warning, "Leaked {} buffers", _bufferPool.numObjects());
+			for (int i = 0; i < _bufferPool._objects.size(); i++) {
+				destroy(_bufferPool.getHandle(_bufferPool.findObject(&_bufferPool._objects[i]._obj).index()));
+			}
 		}
-		// destroy buffers
+		// wipe buffers
 		_bufferPool.clear();
 		_texturePool.clear();
 		_samplerPool.clear();
@@ -266,10 +283,15 @@ namespace Slate {
 		_currentCommandBuffer = {};
 	}
 	void GX::resizeSwapchain() {
+		vkDeviceWaitIdle(_backend.getDevice());
 		int w, h;
 		glfwGetFramebufferSize(_windowService.getFocusedWindow()->getGLFWWindow(), &w, &h);
-		_swapchain.reset();
+		// delete
+		_swapchain.reset(nullptr);
+		vkDestroySemaphore(_backend.getDevice(), _timelineSemaphore, nullptr);
+		// create
 		_swapchain = CreateUniquePtr<VulkanSwapchain>(*this, w, h);
+		_timelineSemaphore = CreateTimelineSemaphore(_backend.getDevice(), _swapchain->getNumOfSwapchainImages() - 1);
 	}
 	BufferHandle GX::createBuffer(BufferSpec spec) {
 		 VkBufferUsageFlags usage_flags = (spec.storage == StorageType::Device) ? VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT : 0;
@@ -284,7 +306,7 @@ namespace Slate {
 			usage_flags |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 
 		ASSERT_MSG(usage_flags, "Invalid buffer creation specification!");
-		const VkMemoryPropertyFlags mem_flags = storageTypeToVkMemoryPropertyFlags(spec.storage);
+		const VkMemoryPropertyFlags mem_flags = StorageTypeToVkMemoryPropertyFlags(spec.storage);
 
 		AllocatedBuffer obj = this->createBufferImpl(spec.size, usage_flags, mem_flags);
 		snprintf(obj._debugName, sizeof(obj._debugName) - 1, "%s", spec.debugName);
@@ -356,6 +378,7 @@ namespace Slate {
 		return buf;
 	}
 	TextureHandle GX::createTexture(TextureSpec spec) {
+		ASSERT(spec.usage);
 		// resolve usage flags
 		VkImageUsageFlags usage_flags = (spec.storage == StorageType::Device) ? VK_IMAGE_USAGE_TRANSFER_DST_BIT : 0;
 
@@ -373,7 +396,7 @@ namespace Slate {
 			}
 		}
 		if (spec.storage != StorageType::Memoryless) {
-			// For now, always set this flag so we can read it back
+			// for now, always set this flag so we can read it back
 			usage_flags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 		}
 		if (spec.numMipLevels == 0) {
@@ -381,31 +404,57 @@ namespace Slate {
 			spec.numMipLevels = 1;
 		}
 		ASSERT_MSG(usage_flags != 0, "Invalid usage flags for texture creation!");
+		ASSERT_MSG(spec.type == TextureType::Type_2D || spec.type == TextureType::Type_3D || spec.type == TextureType::Type_Cube, "Only 2D, 3D and Cube textures are supported.");
 
 		// resolve sample count
 		const VkSampleCountFlagBits sample_bits = toVulkan(spec.samples);
 		// resolve memory flags
-		const VkMemoryPropertyFlags mem_flags = storageTypeToVkMemoryPropertyFlags(spec.storage);
+		const VkMemoryPropertyFlags mem_flags = StorageTypeToVkMemoryPropertyFlags(spec.storage);
 		// resolve extent ig
 		const VkExtent3D extent3D = { spec.dimension.width, spec.dimension.height, 1 };
 
-		AllocatedImage obj = createTextureImpl(usage_flags, mem_flags, extent3D, spec.format, VK_IMAGE_TYPE_2D, 1, 1, sample_bits);
+		// resolve actions based on texture type
+		uint32_t _numLayers = spec.numLayers;
+		VkImageType _imagetype;
+		VkImageViewType _imageviewtype;
+		VkImageCreateFlags _imageCreateFlags = 0;
+		switch (spec.type) {
+			case TextureType::Type_2D:
+				_imagetype = VK_IMAGE_TYPE_2D;
+				_imageviewtype = (_numLayers > 1) ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D;
+				break;
+			case TextureType::Type_3D:
+				_imagetype = VK_IMAGE_TYPE_3D;
+				_imageviewtype = VK_IMAGE_VIEW_TYPE_3D;
+				break;
+			case TextureType::Type_Cube:
+				_imagetype = VK_IMAGE_TYPE_2D;
+				_imageviewtype = (_numLayers > 1) ? VK_IMAGE_VIEW_TYPE_CUBE_ARRAY : VK_IMAGE_VIEW_TYPE_CUBE;
+				_numLayers *= 6;
+				_imageCreateFlags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+				break;
+			default:
+				ASSERT_MSG(false, "Program should never reach this!");
+		}
+
+		AllocatedImage obj = createTextureImpl(usage_flags, mem_flags, extent3D, spec.format, _imagetype, _imageviewtype, 1, _numLayers, sample_bits, _imageCreateFlags);
 		snprintf(obj._debugName, sizeof(obj._debugName) - 1, "%s", spec.debugName);
 		TextureHandle handle = _texturePool.create(std::move(obj));
 		// if we have some data we want to upload, do that
+		_awaitingCreation = true;
 		if (spec.data) {
+			ASSERT(spec.dataNumMipLevels <= spec.numMipLevels);
+			ASSERT(spec.type == TextureType::Type_2D || spec.type == TextureType::Type_Cube);
 			TexRange range = {
 					.dimensions = extent3D,
-					.numLayers = 1,
+					.numLayers = static_cast<uint32_t>((spec.type == TextureType::Type_Cube) ? 6 : 1),
 					.numMipLevels = spec.dataNumMipLevels
 			};
-			ASSERT(spec.dataNumMipLevels <= spec.numMipLevels);
 			this->upload(handle, spec.data, range);
 			if (spec.generateMipmaps) {
 				this->generateMipmaps(handle);
 			}
 		}
-		_awaitingCreation = true;
 		return {handle};
 	}
 	void GX::generateMipmaps(TextureHandle handle) {
@@ -414,7 +463,7 @@ namespace Slate {
 			return;
 		}
 		AllocatedImage* image = _texturePool.get(handle);
-		if (image->numLevels <= 1) {
+		if (image->_numLevels <= 1) {
 			return;
 		}
 		ASSERT(image->_vkCurrentImageLayout != VK_IMAGE_LAYOUT_UNDEFINED);
@@ -467,14 +516,14 @@ namespace Slate {
 		const VkImageAspectFlags imageAspectFlags = vkutil::AspectMaskFromFormat(_vkFormat);
 		const VkImageLayout originalImageLayout = _vkCurrentImageLayout;
 		ASSERT(originalImageLayout != VK_IMAGE_LAYOUT_UNDEFINED);
-		this->transitionLayout(cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VkImageSubresourceRange{imageAspectFlags, 0, 1, 0, numLayers});
+		this->transitionLayout(cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VkImageSubresourceRange{imageAspectFlags, 0, 1, 0, _numLayers});
 
 		// now make the mipmaps
-		for (uint32_t layer = 0; layer < numLayers; ++layer) {
+		for (uint32_t layer = 0; layer < _numLayers; ++layer) {
 			int32_t mipWidth = (int32_t)_vkExtent.width;
 			int32_t mipHeight = (int32_t)_vkExtent.height;
 
-			for (uint32_t i = 1; i < numLevels; ++i) {
+			for (uint32_t i = 1; i < _numLevels; ++i) {
 				// 1: Transition the i-th level to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL; it will be copied into from the (i-1)-th layer
 				vkutil::ImageMemoryBarrier2(cmd,
 										 _vkImage,
@@ -529,9 +578,11 @@ namespace Slate {
 										 VkExtent3D extent3D,
 										 VkFormat format,
 										 VkImageType imageType,
+										 VkImageViewType imageViewtype,
 										 uint32_t numLevels,
 										 uint32_t numLayers,
-										 VkSampleCountFlagBits sampleCountFlagBits)
+										 VkSampleCountFlagBits sampleCountFlagBits,
+										 VkImageCreateFlags createFlags)
 	{
 		ASSERT_MSG(numLevels > 0, "The image must contain at least one mip-level");
 		ASSERT_MSG(numLayers > 0, "The image must contain at least one layer");
@@ -539,25 +590,26 @@ namespace Slate {
 		ASSERT(extent3D.height > 0);
 		ASSERT(extent3D.depth > 0);
 
-		VkImageCreateFlags image_cf = 0;
-		VkImageCreateInfo image_ci = { .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
-		image_ci.pNext = nullptr;
+		VkImageCreateFlags image_cf = createFlags;
+		const VkImageCreateInfo image_ci = {
+				.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+				.pNext = nullptr,
 
-		image_ci.flags = image_cf;
-		image_ci.usage = usageFlags;
-		image_ci.format = format;
-		image_ci.extent = extent3D;
-		image_ci.imageType = imageType;
-		image_ci.mipLevels = numLevels;
-		image_ci.arrayLayers = numLayers;
-		image_ci.samples = sampleCountFlagBits;
+				.flags = image_cf,
+				.imageType = imageType,
+				.format = format,
+				.extent = extent3D,
+				.mipLevels = numLevels,
+				.arrayLayers = numLayers,
+				.samples = sampleCountFlagBits,
+				.tiling = VK_IMAGE_TILING_OPTIMAL,
+				.usage = usageFlags,
+				.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
 
-		image_ci.tiling = VK_IMAGE_TILING_OPTIMAL;
-		image_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-		image_ci.queueFamilyIndexCount = 0;
-		image_ci.pQueueFamilyIndices = nullptr;
-		image_ci.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+				.queueFamilyIndexCount = 0,
+				.pQueueFamilyIndices = nullptr,
+				.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+		};
 
 		VmaAllocationCreateInfo allocation_ci = {};
 		allocation_ci.usage = (memFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) ? VMA_MEMORY_USAGE_CPU_TO_GPU : VMA_MEMORY_USAGE_AUTO;
@@ -569,6 +621,8 @@ namespace Slate {
 		obj._vkSampleCountFlagBits = sampleCountFlagBits;
 		obj._vkImageType = imageType;
 		obj._vkFormat = format;
+		obj._numLayers = numLayers;
+		obj._numLevels = numLevels;
 		vkGetPhysicalDeviceFormatProperties(_backend.getPhysicalDevice(), obj._vkFormat, &obj._vkFormatProperties);
 
 		// if memory is manually managed on host
@@ -581,19 +635,19 @@ namespace Slate {
 				.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 				.pNext = nullptr,
 				.image = obj._vkImage,
-				.viewType = VK_IMAGE_VIEW_TYPE_2D,
+				.viewType = imageViewtype,
 				.format = format,
 				.subresourceRange = {
 						.aspectMask = aspectMask,
 						.baseMipLevel = 0,
-						.levelCount = 1,
+						.levelCount = VK_REMAINING_MIP_LEVELS,
 						.baseArrayLayer = 0,
-						.layerCount = obj.numLayers
+						.layerCount = numLayers
 				}
 		};
-		vkCreateImageView(_backend.getDevice(), &image_view_ci, nullptr, &obj._vkImageView);
+		VK_CHECK(vkCreateImageView(_backend.getDevice(), &image_view_ci, nullptr, &obj._vkImageView));
 		if (obj._vkUsageFlags & VK_IMAGE_USAGE_STORAGE_BIT) {
-			vkCreateImageView(_backend.getDevice(), &image_view_ci, nullptr, &obj._vkImageViewStorage);
+			VK_CHECK(vkCreateImageView(_backend.getDevice(), &image_view_ci, nullptr, &obj._vkImageViewStorage));
 		}
 		return obj;
 	}
@@ -606,16 +660,23 @@ namespace Slate {
 		VkSamplerAddressMode addressW = toVulkan(spec.wrapW);
 
 		// creating sampler requires little work so we dont need an _Impl function for it
-		VkSamplerCreateInfo info = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO, .pNext = nullptr };
-		info.magFilter = magfilter;
-		info.minFilter = minfilter;
-		info.addressModeU = addressU;
-		info.addressModeV = addressV;
-		info.addressModeW = addressW;
+		VkSamplerCreateInfo info = {
+				.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+				.pNext = nullptr,
 
-		info.minLod = -1000;
-		info.maxLod = 1000;
-		info.maxAnisotropy = 1.0f;
+				.magFilter = magfilter,
+				.minFilter = minfilter,
+				.addressModeU = addressU,
+				.addressModeV = addressV,
+				.addressModeW = addressW,
+
+				.maxAnisotropy = 1.0f,
+				.minLod = -1000,
+				.maxLod = 1000,
+
+				.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+				.unnormalizedCoordinates = false,
+		};
 
 		AllocatedSampler obj = {};
 		vkCreateSampler(_backend.getDevice(), &info, nullptr, &obj._vkSampler);
@@ -654,6 +715,8 @@ namespace Slate {
 		}
 		// necessary for swapchain imges which swapchain is created from
 		if (!image->_isOwning) {
+			_texturePool.destroy(handle);
+			_awaitingCreation = true;
 			return;
 		}
 		if (image->_mappedPtr) {
@@ -682,7 +745,7 @@ namespace Slate {
 				.size = sizeof(Vertex) * vertices.size(),
 				.usage = BufferUsageBits::BufferUsageBits_Storage,
 				.storage = StorageType::Device,
-				.data = vertices.data()
+				.data = vertices.data(),
 		});
 		MeshData mesh = {};
 		mesh._vertexBuffer = vertexHandle;
@@ -724,10 +787,6 @@ namespace Slate {
 		shader.pushConstantSize = spec.pushConstantSize;
 		return _shaderPool.create(std::move(shader));
 	}
-	void GX::bindDefaultDescriptorSets(VkCommandBuffer cmd, VkPipelineBindPoint bindPoint, VkPipelineLayout layout) {
-		const std::array<VkDescriptorSet, 4> descriptor_sets = {  _vkDSet, _vkDSet, _vkDSet, _vkGlobalDSet };
-		vkCmdBindDescriptorSets(cmd, bindPoint, layout, 0, descriptor_sets.size(), descriptor_sets.data(), 0, nullptr);
-	}
 	void GX::checkAndUpdateDescriptorSets() {
 		if (!_awaitingCreation) {
 			return;
@@ -767,11 +826,7 @@ namespace Slate {
 					.imageView = isSampledImage ? view : dummyImageView,
 					.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
 			});
-			LOG_USER(LogType::Info, "Texture index={}, debugName={}, layout={}, sampled={}",
-					 _texturePool.findObject(&obj._obj).index(),
-					 obj._obj._debugName,
-					 toString(obj._obj._vkCurrentImageLayout),
-					 isSampledImage);
+			LOG_USER(LogType::Info, "{} - {}", img._debugName, _texturePool.findObject(&obj._obj).index());
 			ASSERT_MSG(infoSampledImages.back().imageView != VK_NULL_HANDLE, "Sampled imageView is null!");
 			infoStorageImages.push_back(VkDescriptorImageInfo{
 					.sampler = VK_NULL_HANDLE,
@@ -792,9 +847,6 @@ namespace Slate {
 					.imageView = VK_NULL_HANDLE,
 					.imageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
 			});
-			LOG_USER(LogType::Info, "Sampler index={}, debugName={}",
-					 _samplerPool.findObject(&obj._obj).index(),
-					 obj._obj.debugName);
 		}
 
 		// now write to descriptor set //
@@ -841,7 +893,6 @@ namespace Slate {
 		if (numWrites) {
 			_imm->wait(_imm->getLastSubmitHandle());
 			vkUpdateDescriptorSets(_backend.getDevice(), numWrites, write, 0, nullptr);
-			LOG_USER(LogType::Info, "Updated descriptor set with {} writes", numWrites);
 		}
 		_awaitingCreation = false;
 	}
@@ -937,10 +988,12 @@ namespace Slate {
 		}));
 		_pipelinePool.destroy(handle);
 	}
-
-	RenderPipeline* GX::requestRuntimeRenderPipeline(PipelineHandle handle) {
+	void GX::bindDefaultDescriptorSets(VkCommandBuffer cmd, VkPipelineBindPoint bindPoint, VkPipelineLayout layout) {
+		const std::array<VkDescriptorSet, 4> descriptor_sets = {  _vkDSet, _vkDSet, _vkDSet, _vkGlobalDSet };
+		vkCmdBindDescriptorSets(cmd, bindPoint, layout, 0, descriptor_sets.size(), descriptor_sets.data(), 0, nullptr);
+	}
+	RenderPipeline* GX::resolveRenderPipeline(PipelineHandle handle) {
 		RenderPipeline* renderPipeline = _pipelinePool.get(handle);
-
 		if (!renderPipeline) {
 			LOG_USER(LogType::Warning, "Render pipeline does not exist, pass in a valid handle!");
 			return VK_NULL_HANDLE;
@@ -957,7 +1010,6 @@ namespace Slate {
 			renderPipeline->_vkLastDescriptorSetLayout = _vkDSL;
 		}
 
-
 		// RETURN EXISTING PIPELINE //
 		if (renderPipeline->_vkPipeline != VK_NULL_HANDLE) {
 			return renderPipeline;
@@ -970,7 +1022,6 @@ namespace Slate {
 		builder.set_cull_mode(spec.cull);
 		builder.set_polygon_mode(spec.polygon);
 		builder.set_topology_mode(spec.topology);
-		builder.set_depthtest(spec.depth);
 		builder.set_multisampling_mode(spec.multisample);
 		builder.set_blending_mode(spec.blend);
 
@@ -1100,12 +1151,9 @@ namespace Slate {
 			return;
 		}
 		AllocatedImage* image = _texturePool.get(handle);
-		if (!image) {
-			LOG_USER(LogType::Error, "Attempting to get texture with invalid handle!");
-			return;
-		}
-		if (!ValidateRange(image->_vkExtent, image->numLevels, range)) {
-			LOG_USER(LogType::Error, "Image failed validation check!");
+		ASSERT_MSG(image, "Attempting to use texture via invalid handle!");
+		if (!ValidateRange(image->_vkExtent, image->_numLevels, range)) {
+			LOG_USER(LogType::Warning, "Image failed validation check!");
 		}
 		// why is this here
 		if (image->_vkImageType == VK_IMAGE_TYPE_3D) {
@@ -1133,7 +1181,7 @@ namespace Slate {
 			LOG_USER(LogType::Error, "Retrieved image is null, handle must have been invalid!");
 			return;
 		}
-		if (!ValidateRange(image->_vkExtent, image->numLevels, range)) {
+		if (!ValidateRange(image->_vkExtent, image->_numLevels, range)) {
 			LOG_USER(LogType::Warning, "Image validation failed!");
 			return;
 		}

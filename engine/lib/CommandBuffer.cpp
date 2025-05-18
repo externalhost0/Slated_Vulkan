@@ -141,15 +141,20 @@ namespace Slate {
 
 		cmdSetScissor(renderExtent);
 		cmdSetViewport(renderExtent);
+		cmdBindDepthState({});
 
 		_gxCtx->checkAndUpdateDescriptorSets();
-		vkCmdBeginRenderingKHR(_wrapper->_cmdBuf, &rendering_i);
+
+		vkCmdSetDepthCompareOp(_wrapper->_cmdBuf, VK_COMPARE_OP_ALWAYS);
+		vkCmdSetDepthBiasEnable(_wrapper->_cmdBuf, VK_FALSE);
+		vkCmdBeginRendering(_wrapper->_cmdBuf, &rendering_i);
 		_isRendering = true;
 	}
 	void CommandBuffer::cmdEndRendering() {
-		vkCmdEndRenderingKHR(_wrapper->_cmdBuf);
+		vkCmdEndRendering(_wrapper->_cmdBuf);
 		_isRendering = false;
 	}
+
 	void CommandBuffer::cmdDraw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) {
 		vkCmdDraw(_wrapper->_cmdBuf, vertexCount, instanceCount, firstVertex, firstInstance);
 	}
@@ -228,7 +233,7 @@ namespace Slate {
 				.imageMemoryBarrierCount = 1,
 				.pImageMemoryBarriers = &barrier
 		};
-		vkCmdPipelineBarrier2KHR(_wrapper->_cmdBuf, &dependency_i);
+		vkCmdPipelineBarrier2(_wrapper->_cmdBuf, &dependency_i);
 		// set the texture to its new image layout
 		_gxCtx->_texturePool.get(source)->_vkCurrentImageLayout = newLayout;
 	}
@@ -300,6 +305,14 @@ namespace Slate {
 	void CommandBuffer::cmdSetDepthBias(float constantFactor, float slopeFactor, float clamp) {
 		vkCmdSetDepthBias(_wrapper->_cmdBuf, constantFactor, clamp, slopeFactor);
 	}
+	void CommandBuffer::cmdBindDepthState(const DepthState& state) {
+		// https://github.com/corporateshark/lightweightvk/blob/master/lvk/vulkan/VulkanClasses.cpp#L2458
+		const VkCompareOp op = toVulkan(state.compareOp);
+		vkCmdSetDepthWriteEnable(_wrapper->_cmdBuf, state.isDepthWriteEnabled ? VK_TRUE : VK_FALSE);
+		vkCmdSetDepthTestEnable(_wrapper->_cmdBuf, (op != VK_COMPARE_OP_ALWAYS || state.isDepthWriteEnabled) ? VK_TRUE : VK_FALSE);
+		vkCmdSetDepthCompareOp(_wrapper->_cmdBuf, op);
+	}
+
 	void CommandBuffer::cmdPushConstants(const void* data, uint32_t size, uint32_t offset) {
 		ASSERT_MSG(size % 4 == 0, "Push constant size needs to be a multiple of 4. Is size {}", size);
 		const VkPhysicalDeviceLimits& limits = _gxCtx->_backend.getPhysDeviceProperties().limits;
@@ -329,7 +342,7 @@ namespace Slate {
 		VkDependencyInfo info = { .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO, .pNext = nullptr };
 		info.imageMemoryBarrierCount = 1;
 		info.pImageMemoryBarriers = &barrier;
-		vkCmdPipelineBarrier2KHR(_wrapper->_cmdBuf, &info);
+		vkCmdPipelineBarrier2(_wrapper->_cmdBuf, &info);
 
 		_gxCtx->_swapchain->_vkCurrentImageLayout = newLayout;
 	}
@@ -373,7 +386,7 @@ namespace Slate {
 		// use _currentPipeline
 		_currentPipeline = handle;
 
-		const RenderPipeline* pipeline = _gxCtx->requestRuntimeRenderPipeline(_currentPipeline);
+		const RenderPipeline* pipeline = _gxCtx->resolveRenderPipeline(_currentPipeline);
 
 		if (_lastBoundPipeline != pipeline->_vkPipeline) {
 			_lastBoundPipeline = pipeline->_vkPipeline;
@@ -417,7 +430,7 @@ namespace Slate {
 				.bufferMemoryBarrierCount = 1,
 				.pBufferMemoryBarriers = &barrier,
 		};
-		vkCmdPipelineBarrier2KHR(_wrapper->_cmdBuf, &depInfo);
+		vkCmdPipelineBarrier2(_wrapper->_cmdBuf, &depInfo);
 	}
 	// current issues with host buffer
 	void CommandBuffer::cmdUpdateBuffer(BufferHandle bufhandle, size_t offset, size_t size, const void* data) {

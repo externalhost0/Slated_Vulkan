@@ -22,16 +22,12 @@ namespace Slate {
 	void PipelineBuilder::Clear() {
 		// clear all of the structs we need back to 0 with their correct stype
 		_inputAssembly = { .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
-
 		_rasterizer = { .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
-
 		_multisampling = { .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
-
 		_depthStencil = { .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
-
 		_renderInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
 
-		_colorBlendAttachment = { };
+		_colorBlendAttachment = {};
 		// vector clears
 		_colorAttachmentFormats.clear();
 		_shaderStages.clear();
@@ -64,8 +60,15 @@ namespace Slate {
 		graphics_pipeline_ci.pColorBlendState = &colorBlending;
 
 		// ----- dynamic states ----- //
-		VkDynamicState state[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
-		VkPipelineDynamicStateCreateInfo dynamicInfo = vkinfo::CreatePipelineDynamicStateInfo(state, 2);
+		VkDynamicState state[8] = { VK_DYNAMIC_STATE_VIEWPORT,
+								   VK_DYNAMIC_STATE_SCISSOR,
+								   VK_DYNAMIC_STATE_DEPTH_TEST_ENABLE,
+								   VK_DYNAMIC_STATE_DEPTH_WRITE_ENABLE,
+								   VK_DYNAMIC_STATE_DEPTH_COMPARE_OP,
+								   VK_DYNAMIC_STATE_DEPTH_BIAS,
+								   VK_DYNAMIC_STATE_DEPTH_BIAS_ENABLE,
+								   VK_DYNAMIC_STATE_BLEND_CONSTANTS };
+		VkPipelineDynamicStateCreateInfo dynamicInfo = vkinfo::CreatePipelineDynamicStateInfo(state, 8);
 		graphics_pipeline_ci.pDynamicState = &dynamicInfo;
 
 		// ------ vertex input ig doesnt matter because we are using (push constants + device address) ----- //
@@ -83,7 +86,8 @@ namespace Slate {
 		graphics_pipeline_ci.pInputAssemblyState = &_inputAssembly;
 		graphics_pipeline_ci.pRasterizationState = &_rasterizer;
 		graphics_pipeline_ci.pMultisampleState = &_multisampling;
-		graphics_pipeline_ci.pDepthStencilState = &_depthStencil;
+		graphics_pipeline_ci.pDepthStencilState = &_depthStencil; // for setncil operations which are not dynamic
+
 		graphics_pipeline_ci.layout = layout; // just the user given layout
 
 		// -- actual creation -- //
@@ -156,7 +160,7 @@ namespace Slate {
 
 		return *this;
 	}
-	PipelineBuilder& PipelineBuilder::set_depthtest(DepthMode mode) {
+	PipelineBuilder& PipelineBuilder::set_depthtestEXT(DepthMode mode) {
 		// variables that remain the same regardless of mode
 		_depthStencil.depthBoundsTestEnable = VK_FALSE;
 		_depthStencil.stencilTestEnable = VK_FALSE;

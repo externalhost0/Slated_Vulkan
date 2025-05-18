@@ -48,12 +48,13 @@ add_library(${PROJECT_NAME}
         lib/vkimpl.cpp
         lib/ShaderCursor.cpp
         lib/RenderPassBuilder.cpp
+        lib/Bitmap.cpp
+        lib/ScriptEngine.cpp
 )
 
 # git submodules
 add_subdirectory(third_party/volk)
 add_subdirectory(third_party/vk-bootstrap)
-#add_subdirectory(third_party/SPIRV-Cross)
 
 # locate packages
 find_package(glfw3 REQUIRED)
@@ -75,7 +76,7 @@ find_library(SLANG_LIB
         HINTS ${_Vulkan_LIB_DIR}
 )
 if(NOT SLANG_LIB)
-    message(FATAL_ERROR "Slang Lib not found!")
+    message(FATAL_ERROR "Slang library not found!")
 endif()
 
 
@@ -83,15 +84,8 @@ find_package(EnTT REQUIRED)
 find_package(Stb REQUIRED)
 find_package(fmt REQUIRED)
 find_package(fastgltf CONFIG REQUIRED)
+find_package(Ktx CONFIG REQUIRED)
 
-
-
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    target_compile_options(${PROJECT_NAME} PRIVATE
-            -Werror
-            -Wctad-maybe-unsupported
-    )
-endif()
 
 # include and link it
 target_include_directories(${PROJECT_NAME}
@@ -112,6 +106,8 @@ target_link_libraries(${PROJECT_NAME}
         EnTT::EnTT
         PRIVATE # can only be found in engine source files
         ${SLANG_LIB} # i really need a cmake master to help me organize libraries and their target installation
+
+        KTX::ktx
         Vulkan::Vulkan
         glfw
         fmt::fmt

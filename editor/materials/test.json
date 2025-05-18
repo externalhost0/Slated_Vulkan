@@ -1,0 +1,8 @@
+{
+  "properties": {
+    "Transparency": "Opaque"
+  },
+  "files": {
+    "source": "shaders/standard.slang"
+  }
+}

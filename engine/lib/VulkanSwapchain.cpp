@@ -24,6 +24,7 @@ namespace Slate {
 	}
 
 	VulkanSwapchain::VulkanSwapchain(GX& gx, uint16_t width, uint16_t height) : _gxCtx(gx) {
+		ASSERT(_gxCtx._backend.getSurface());
 		// PRIMARY SWAPCHAIN DATA CREATION //
 		{
 			vkb::SwapchainBuilder swapchainBuilder{gx._backend.getPhysicalDevice(), gx._backend.getDevice(), gx._backend.getSurface()};
@@ -91,7 +92,6 @@ namespace Slate {
 	}
 
 	VulkanSwapchain::~VulkanSwapchain() {
-		vkDeviceWaitIdle(_gxCtx._backend.getDevice());
 		// DESTROY MAIN SWAPCHAIN DATA //
 		{
 			for (int i = 0; i < _numSwapchainImages; i++) {

@@ -68,7 +68,7 @@ namespace Slate {
 		slang::ProgramLayout*_programLayout = nullptr;
 		std::vector<Uniform> _uniforms;
 	private:
-		Result LoadResourceImpl(const std::filesystem::path& path) override;
+		Result _loadResourceImpl(const std::filesystem::path& path) override;
 
 		friend class ShaderSystem;
 	};

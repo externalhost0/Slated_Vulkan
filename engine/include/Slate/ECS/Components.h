@@ -11,6 +11,7 @@
 #include <glm/gtc/quaternion.hpp>
 
 #include "Slate/Resources/MeshResource.h"
+#include "Slate/Resources/ScriptResource.h"
 #include "Slate/Resources/ShaderResource.h"
 #include "Slate/SmartPointers.h"
 #include "Slate/VK/vktypes.h"
@@ -71,14 +72,7 @@ namespace Slate {
 		Water
 	};
 	static constexpr unsigned int MAX_CHILD_COUNT = 128;
-	// required data for all entities, given on creation
-	struct CoreComponent {
-		std::string name;
-		Tag tag;
 
-		entt::entity parent = entt::null;
-		FastVector<entt::entity, MAX_CHILD_COUNT> children = {};
-	};
 
 	struct Transform {
 		glm::vec3 position { 0.f };
@@ -131,7 +125,8 @@ namespace Slate {
 		GPU::AmbientLight ambient;
 	};
 
-	static const std::unordered_map<MeshPrimitiveType, const char*> MeshPrimitiveTypeStringMap = {
+
+	static const std::vector<std::pair<MeshPrimitiveType, const char*>> MeshPrimitiveTypeStringMap = {
 			{MeshPrimitiveType::Empty, "Empty"},
 			{MeshPrimitiveType::Quad, "Quad"},
 			{MeshPrimitiveType::Plane, "Plane"},
@@ -140,7 +135,7 @@ namespace Slate {
 	};
 
 	struct ScriptComponent : IComponent<ComponentType::Script> {
-
+		StrongPtr<ScriptResource> script_source;
 	};
 	struct AudioComponent : IComponent<ComponentType::Audio> {
 		std::string name;

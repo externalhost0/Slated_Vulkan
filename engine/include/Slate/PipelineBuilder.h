@@ -38,7 +38,7 @@ namespace Slate {
 		PipelineBuilder& set_multisampling_mode(SampleCount count);
 		PipelineBuilder& set_cull_mode(CullMode mode);
 		PipelineBuilder& set_blending_mode(BlendingMode mode);
-		PipelineBuilder& set_depthtest(DepthMode mode);
+		PipelineBuilder& set_depthtestEXT(DepthMode mode);
 
 		// formats
 		PipelineBuilder& set_color_formats(std::span<VkFormat> formats);

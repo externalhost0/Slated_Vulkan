@@ -10,6 +10,7 @@
 #include <GLFW/glfw3.h>
 #include <imgui_impl_glfw.h>
 
+
 #include <thread>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -43,6 +44,7 @@
 #include "imgui_internal.h"
 // icons!
 #include <IconFontCppHeaders/IconsLucide.h>
+#include <nfd.h>
 
 namespace Slate {
 
@@ -428,9 +430,15 @@ namespace Slate {
 		std::this_thread::sleep_for(std::chrono::milliseconds(500));
 	}
 
-	PipelineHandle standardPipeline;
+	PipelineHandle shadedModePipeline;
+	PipelineHandle wireframeModePipeline;
+	PipelineHandle unshadedModePipeline;
+	PipelineHandle gridShaderPipeline;
+
 	PipelineHandle wireframeVisualizerPipeline;
 	PipelineHandle filledVisualizerPipeline;
+	PipelineHandle fullscreenPipeline;
+	PipelineHandle pureOutlinePipeline;
 
 	// editor provided resources
 
@@ -444,10 +452,15 @@ namespace Slate {
 	TextureResource lightbulbTexture;
 	TextureResource sunTexture;
 	TextureResource spotlightTexture;
+	TextureResource cubemapRes;
 
 	ShaderResource standardShader;
 	ShaderResource primitiveShader;
 	ShaderResource imageShader;
+	ShaderResource solidShader;
+	ShaderResource infiniteGridShader;
+	ShaderResource fullscreenShader;
+	ShaderResource pureMaskShader;
 
 
 	void CreateEditorAttachments(GX& gx, EditorApplication& app) {
@@ -456,7 +469,7 @@ namespace Slate {
 		app.colorResolveImage = gx.createTexture({
 				.dimension = extent2D,
 				.samples = SampleCount::X1,
-				.usage = TextureUsageBits::TextureUsageBits_Sampled | TextureUsageBits::TextureUsageBits_Attachment | TextureUsageBits::TextureUsageBits_TransferSrc,
+				.usage = TextureUsageBits::TextureUsageBits_Sampled | TextureUsageBits::TextureUsageBits_Attachment,
 				.storage = StorageType::Device,
 				.format = VK_FORMAT_R8G8B8A8_UNORM,
 				.debugName = "Color Resolve Image"
@@ -480,7 +493,7 @@ namespace Slate {
 		app.entityResolveImage = gx.createTexture({
 				.dimension = extent2D,
 				.samples = SampleCount::X1,
-				.usage = TextureUsageBits::TextureUsageBits_Attachment | TextureUsageBits::TextureUsageBits_Storage | TextureUsageBits::TextureUsageBits_TransferSrc,
+				.usage = TextureUsageBits::TextureUsageBits_Attachment | TextureUsageBits::TextureUsageBits_Storage,
 				.storage = StorageType::Device,
 				.format = VK_FORMAT_R32_UINT,
 				.debugName = "Entity Image"
@@ -493,10 +506,20 @@ namespace Slate {
 				.format = VK_FORMAT_R32_UINT,
 				.debugName = "Entity MSAA Image"
 		});
+
+		app.outlineImage = gx.createTexture({
+				.dimension = extent2D,
+				.samples = SampleCount::X1,
+				.usage = TextureUsageBits::TextureUsageBits_Attachment | TextureUsageBits::TextureUsageBits_Sampled,
+				.storage = StorageType::Device,
+				.format = VK_FORMAT_R8_UNORM,
+				.debugName = "Outline Selection Image"
+		});
+
 		app.viewportImage = gx.createTexture({
 				.dimension = extent2D,
 				.samples = SampleCount::X1,
-				.usage = TextureUsageBits::TextureUsageBits_Sampled | TextureUsageBits::TextureUsageBits_TransferDst,
+				.usage = TextureUsageBits::TextureUsageBits_Sampled,
 				.storage = StorageType::Device,
 				.format = VK_FORMAT_R8G8B8A8_UNORM,
 				.debugName = "Viewport Image"
@@ -533,7 +556,7 @@ namespace Slate {
 		this->spotmesh = this->getGX().createMesh(vertices);
 	}
 	void LoadEditorTextures(GX& gx) {
-		lightbulbTexture.LoadResource(Filesystem::GetRelativePath("textures/icons/lightbulb.png"));
+		lightbulbTexture.loadResource(Filesystem::GetRelativePath("textures/icons/lightbulb.png"));
 		lightbulbTexture.assignHandle(gx.createTexture({
 				.dimension = lightbulbTexture.getDimensions(),
 				.samples = SampleCount::X1,
@@ -542,7 +565,7 @@ namespace Slate {
 				.data = lightbulbTexture.getData(),
 				.debugName = "Lightbulb Texture"
 		}));
-		sunTexture.LoadResource(Filesystem::GetRelativePath("textures/icons/sun.png"));
+		sunTexture.loadResource(Filesystem::GetRelativePath("textures/icons/sun.png"));
 		sunTexture.assignHandle(gx.createTexture({
 				.dimension = sunTexture.getDimensions(),
 				.samples = SampleCount::X1,
@@ -551,7 +574,7 @@ namespace Slate {
 				.data = sunTexture.getData(),
 				.debugName = "Sun Texture"
 		}));
-		spotlightTexture.LoadResource(Filesystem::GetRelativePath("textures/icons/lamp-ceiling.png"));
+		spotlightTexture.loadResource(Filesystem::GetRelativePath("textures/icons/lamp-ceiling.png"));
 		spotlightTexture.assignHandle(gx.createTexture({
 				.dimension = spotlightTexture.getDimensions(),
 				.samples = SampleCount::X1,
@@ -562,19 +585,39 @@ namespace Slate {
 		}));
 	}
 	void LoadEditorShaders(GX& gx) {
-		standardShader.LoadResource(Filesystem::GetRelativePath("shaders/standard.slang"));
+		standardShader.loadResource(Filesystem::GetRelativePath("shaders/standard.slang"));
 		standardShader.assignHandle(gx.createShader({
 				.spirvBlob = standardShader.requestCode()
 		}));
-		primitiveShader.LoadResource(Filesystem::GetRelativePath("shaders/EditorEXT/editor_primitives.slang"));
+		primitiveShader.loadResource(Filesystem::GetRelativePath("shaders/EditorEXT/editor_primitives.slang"));
 		primitiveShader.assignHandle(gx.createShader({
 				.spirvBlob = primitiveShader.requestCode(),
 				.pushConstantSize = primitiveShader.getPushSize()
 		}));
-		imageShader.LoadResource(Filesystem::GetRelativePath("shaders/EditorEXT/editor_images.slang"));
+		imageShader.loadResource(Filesystem::GetRelativePath("shaders/EditorEXT/editor_images.slang"));
 		imageShader.assignHandle(gx.createShader({
 				.spirvBlob = imageShader.requestCode(),
-				.pushConstantSize = 100
+				.pushConstantSize = imageShader.getPushSize()
+		}));
+		solidShader.loadResource(Filesystem::GetRelativePath("shaders/EditorEXT/solid_shading.slang"));
+		solidShader.assignHandle(gx.createShader({
+				.spirvBlob = solidShader.requestCode(),
+				.pushConstantSize = solidShader.getPushSize()
+		}));
+		infiniteGridShader.loadResource(Filesystem::GetRelativePath("shaders/EditorEXT/editor_grid.slang"));
+		infiniteGridShader.assignHandle(gx.createShader({
+				.spirvBlob = infiniteGridShader.requestCode(),
+				.pushConstantSize = infiniteGridShader.getPushSize()
+		}));
+		fullscreenShader.loadResource(Filesystem::GetRelativePath("shaders/fullscreen_outline.slang"));
+		fullscreenShader.assignHandle(gx.createShader({
+				.spirvBlob = fullscreenShader.requestCode(),
+				.pushConstantSize = fullscreenShader.getPushSize()
+		}));
+		pureMaskShader.loadResource(Filesystem::GetRelativePath("shaders/EditorEXT/mask.slang"));
+		pureMaskShader.assignHandle(gx.createShader({
+				.spirvBlob = pureMaskShader.requestCode(),
+				.pushConstantSize = pureMaskShader.getPushSize()
 		}));
 	}
 
@@ -586,6 +629,7 @@ namespace Slate {
 			.resizeable = true,
 		};
 		createWindow(window_spec);
+		NFD_Init();
 
 		// Vulkan Setup
 		VulkanInstanceInfo vk_info = {
@@ -596,6 +640,7 @@ namespace Slate {
 		};
 		GX& gx = this->getGX();
 		gx.create(vk_info, getActiveWindow()->getGLFWWindow());
+		GLTFLoader::_gx = &gx;
 
 		// editor essentials
 		// hidden editor
@@ -636,21 +681,52 @@ namespace Slate {
 				},
 				.depthFormat = gx.getTextureFormat(depthStencilMSAAImage)
 		};
-		standardPipeline = gx.createPipeline({
+		const PipelineSpec::AttachmentFormats maskFormats = {
+				.colorFormats = {
+						gx.getTextureFormat(outlineImage)
+				}
+		};
+		shadedModePipeline = gx.createPipeline({
 				.topology = TopologyMode::TRIANGLE,
 				.polygon = PolygonMode::FILL,
 				.blend = BlendingMode::OFF,
-				.depth = DepthMode::LESS,
 				.cull = CullMode::BACK,
 				.multisample = SampleCount::X4,
 				.formats = standardFormats,
 				.shaderhandle = standardShader.getHandle()
 		});
+		wireframeModePipeline = gx.createPipeline({
+				.topology = TopologyMode::TRIANGLE,
+				.polygon = PolygonMode::LINE,
+				.blend = BlendingMode::OFF,
+				.cull = CullMode::OFF,
+				.multisample = SampleCount::X4,
+				.formats = standardFormats,
+				.shaderhandle = primitiveShader.getHandle()
+		});
+		unshadedModePipeline = gx.createPipeline({
+			   .topology = TopologyMode::TRIANGLE,
+			   .polygon = PolygonMode::FILL,
+			   .blend = BlendingMode::OFF,
+			   .cull = CullMode::BACK,
+			   .multisample = SampleCount::X4,
+			   .formats = standardFormats,
+			   .shaderhandle = solidShader.getHandle()
+	   });
+		gridShaderPipeline = gx.createPipeline({
+				.topology = TopologyMode::TRIANGLE,
+				.polygon = PolygonMode::FILL,
+				.blend = BlendingMode::ALPHA_BLEND,
+				.cull = CullMode::OFF,
+				.multisample = SampleCount::X4,
+				.formats = standardFormats,
+				.shaderhandle = infiniteGridShader.getHandle()
+		});
+
 		wireframeVisualizerPipeline = gx.createPipeline({
 				.topology = TopologyMode::STRIP,
 				.polygon = PolygonMode::LINE,
 				.blend = BlendingMode::OFF,
-				.depth = DepthMode::LESS,
 				.cull = CullMode::OFF,
 				.multisample = SampleCount::X4,
 				.formats = standardFormats,
@@ -660,59 +736,100 @@ namespace Slate {
 				.topology = TopologyMode::TRIANGLE,
 				.polygon = PolygonMode::FILL,
 				.blend = BlendingMode::ALPHA_BLEND,
-				.depth = DepthMode::LESS,
 				.multisample = SampleCount::X4,
 				.formats = standardFormats,
 				.shaderhandle = imageShader.getHandle(),
 		});
+		fullscreenPipeline = gx.createPipeline({
+				.topology = TopologyMode::TRIANGLE,
+				.polygon = PolygonMode::FILL,
+				.blend = BlendingMode::OFF,
+				.multisample = SampleCount::X1,
+				.formats = noidFormats,
+				.shaderhandle = fullscreenShader.getHandle(),
+		});
+		pureOutlinePipeline = gx.createPipeline({
+				.topology = TopologyMode::TRIANGLE,
+				.polygon = PolygonMode::FILL,
+				.blend = BlendingMode::OFF,
+				.multisample = SampleCount::X1,
+				.formats = maskFormats,
+				.shaderhandle = pureMaskShader.getHandle()
+		});
+
+		cubemapRes.loadResource(Filesystem::GetRelativePath("textures/hdri/qwantani_dusk_2_1k.hdr"));
+		cubemapRes.assignHandle(gx.createTexture({
+				.dimension = cubemapRes.getDimensions(),
+				.usage = TextureUsageBits::TextureUsageBits_Sampled,
+				.type = TextureType::Type_Cube,
+				.format = VK_FORMAT_R32G32B32A32_SFLOAT,
+				.data = cubemapRes.getData(),
+				.debugName = "Cube Map Test"
+		}));
 
 
 		// init scene
 		this->ctx.scene = new Scene();
 		Scene& scene = *ctx.scene;
 
-		GameEntity sphere = scene.CreateEntity("Sphere");
-		sphere.AddComponent<TransformComponent>().global.position = glm::vec3{-2.f, 4.f, 0.f};
-		sphere.AddComponent<GeometryPrimitiveComponent>().mesh_type = MeshPrimitiveType::Cube;
+		MeshResource fishRes;
+		fishRes.loadResource(Filesystem::GetRelativePath("models/BarramundiFish/glTF-Binary/BarramundiFish.glb"));
 
-		GameEntity quady = scene.CreateEntity("Quad");
-		quady.AddComponent<TransformComponent>().global.position = glm::vec3{1.f, 1.f, 1.f};
-		quady.AddComponent<GeometryPrimitiveComponent>().mesh_type = MeshPrimitiveType::Quad;
+		MeshResource suzanneRes;
+		suzanneRes.loadResource(Filesystem::GetRelativePath("models/Suzanne/glTF/Suzanne.gltf"));
 
-		GameEntity standardPlane = scene.CreateEntity("Standard Plane");
-		standardPlane.AddComponent<GeometryPrimitiveComponent>().mesh_type = MeshPrimitiveType::Plane;
-		standardPlane.GetComponent<TransformComponent>().global.scale = {10.f, 1.f, 10.f};
+		GameEntity fish = scene.createEntity("Fishy");
+		fish.addComponent<TransformComponent>().global.scale = glm::vec3{10};
+		fish.addComponent<GeometryGLTFComponent>().mesh_source = CreateStrongPtr<MeshResource>(fishRes);
 
-		sphere.AddChild(quady);
-		sphere.AddChild(standardPlane);
+		GameEntity suzanne = scene.createEntity("Suzanne");
+		suzanne.addComponent<TransformComponent>().global.position = glm::vec3{-5.f, 4.f, 0.f};
+		suzanne.addComponent<GeometryGLTFComponent>().mesh_source = CreateStrongPtr<MeshResource>(suzanneRes);
 
-		GameEntity defaultCube = scene.CreateEntity("Default Cube");
-		defaultCube.AddComponent<TransformComponent>().global.position = glm::vec3{0.f, 0.f, 0.f};
-		defaultCube.AddComponent<GeometryPrimitiveComponent>().mesh_type = MeshPrimitiveType::Cube;
+		GameEntity sphere = scene.createEntity("Cube");
+		sphere.addComponent<TransformComponent>().global.position = glm::vec3{-2.f, 4.f, 0.f};
+		sphere.addComponent<GeometryPrimitiveComponent>().mesh_type = MeshPrimitiveType::Cube;
 
-		GameEntity pointlight1 = scene.CreateEntity("Point Light 1");
-		pointlight1.AddComponent<TransformComponent>().global.position = glm::vec3{2.f, 3.f, 2.f};
-		pointlight1.AddComponent<PointLightComponent>().point.Color = glm::vec3{1.f, 0.f, 0.f};
+		GameEntity quady = scene.createEntity("Quad");
+		quady.addComponent<TransformComponent>().global.position = glm::vec3{1.f, 1.f, 1.f};
+		quady.addComponent<GeometryPrimitiveComponent>().mesh_type = MeshPrimitiveType::Quad;
 
-		GameEntity pointlight2 = scene.CreateEntity("Point Light 2");
-		pointlight2.AddComponent<TransformComponent>().global.position = glm::vec3{-3.f, 3.f, -3.f};
-		pointlight2.AddComponent<PointLightComponent>().point.Color = glm::vec3{0.2f, 0.3f, 0.8f};
+		GameEntity standardPlane = scene.createEntity("Standard Plane");
+		standardPlane.addComponent<GeometryPrimitiveComponent>().mesh_type = MeshPrimitiveType::Plane;
+		standardPlane.getComponent<TransformComponent>().global.scale = {10.f, 1.f, 10.f};
 
-		GameEntity pointlight3 = scene.CreateEntity("Point Light 3");
-		pointlight3.AddComponent<TransformComponent>().global.position = glm::vec3{-3.f, 0.3f, 3.f};
-		pointlight3.AddComponent<PointLightComponent>().point.Color = glm::vec3{0.212f, 0.949f, 0.129f};
+		sphere.addChild(quady);
+		sphere.addChild(standardPlane);
 
-		GameEntity environ = scene.CreateEntity("Environment");
-		environ.AddComponent<TransformComponent>().global.position = glm::vec3{-6.f, 6.f, -7.f};
-		environ.AddComponent<AmbientLightComponent>();
+		quady.addChild(fish);
 
-		GameEntity sunlight = scene.CreateEntity("Sun Light");
-		sunlight.AddComponent<TransformComponent>().global.position = glm::vec3{-7.f, 5.f, -4.f};
-		sunlight.AddComponent<DirectionalLightComponent>().directional.Color = glm::vec3{0.91, 0.882, 0.714};
+		GameEntity defaultCube = scene.createEntity("Sphere");
+		defaultCube.addComponent<TransformComponent>().global.position = glm::vec3{0.f, 5.f, 0.f};
+		defaultCube.addComponent<GeometryPrimitiveComponent>().mesh_type = MeshPrimitiveType::Sphere;
 
-		GameEntity spotlight = scene.CreateEntity("Spot Light 1");
-		spotlight.AddComponent<TransformComponent>().global.position = glm::vec3{2.f, 4.f, -4.f};
-		spotlight.AddComponent<SpotLightComponent>().spot.Color = glm::vec3{0.3f, 0.6f, 0.1f};
+		GameEntity pointlight1 = scene.createEntity("Point Light 1");
+		pointlight1.addComponent<TransformComponent>().global.position = glm::vec3{2.f, 3.f, 2.f};
+		pointlight1.addComponent<PointLightComponent>().point.Color = glm::vec3{1.f, 0.f, 0.f};
+
+		GameEntity pointlight2 = scene.createEntity("Point Light 2");
+		pointlight2.addComponent<TransformComponent>().global.position = glm::vec3{-3.f, 3.f, -3.f};
+		pointlight2.addComponent<PointLightComponent>().point.Color = glm::vec3{0.2f, 0.3f, 0.8f};
+
+		GameEntity pointlight3 = scene.createEntity("Point Light 3");
+		pointlight3.addComponent<TransformComponent>().global.position = glm::vec3{-3.f, 0.3f, 3.f};
+		pointlight3.addComponent<PointLightComponent>().point.Color = glm::vec3{0.212f, 0.949f, 0.129f};
+
+		GameEntity environ = scene.createEntity("Environment");
+		environ.addComponent<TransformComponent>().global.position = glm::vec3{-6.f, 6.f, -7.f};
+		environ.addComponent<AmbientLightComponent>();
+
+		GameEntity sunlight = scene.createEntity("Sun Light");
+		sunlight.addComponent<TransformComponent>().global.position = glm::vec3{-7.f, 5.f, -4.f};
+		sunlight.addComponent<DirectionalLightComponent>().directional.Color = glm::vec3{0.91, 0.882, 0.714};
+
+		GameEntity spotlight = scene.createEntity("Spot Light 1");
+		spotlight.addComponent<TransformComponent>().global.position = glm::vec3{2.f, 4.f, -4.f};
+		spotlight.addComponent<SpotLightComponent>().spot.Color = glm::vec3{0.3f, 0.6f, 0.1f};
 
 		ImGui_ImplGlfw_InstallCallbacks(getActiveWindow()->getGLFWWindow());
 	}
@@ -757,8 +874,8 @@ namespace Slate {
 		lightingData.ClearDynamics();
 
 		for (const GameEntity entity : this->ctx.scene->GetAllEntitiesWithEXT<DirectionalLightComponent>()) {
-			const TransformComponent entity_transform = entity.GetComponent<TransformComponent>();
-			const DirectionalLightComponent entity_light = entity.GetComponent<DirectionalLightComponent>();
+			const TransformComponent entity_transform = entity.getComponent<TransformComponent>();
+			const DirectionalLightComponent entity_light = entity.getComponent<DirectionalLightComponent>();
 
 			lightingData.directional.Direction = entity_transform.global.rotation * glm::vec3(0, -1, 0);
 			// stuff from properties panel
@@ -767,8 +884,8 @@ namespace Slate {
 		}
 		int i = 0;
 		for (const GameEntity entity : this->ctx.scene->GetAllEntitiesWithEXT<PointLightComponent>()) {
-			const TransformComponent entity_transform = entity.GetComponent<TransformComponent>();
-			const PointLightComponent entity_light = entity.GetComponent<PointLightComponent>();
+			const TransformComponent entity_transform = entity.getComponent<TransformComponent>();
+			const PointLightComponent entity_light = entity.getComponent<PointLightComponent>();
 
 			lightingData.points[i].Position = entity_transform.global.position;
 			// stuff from properties panel
@@ -779,8 +896,8 @@ namespace Slate {
 		}
 		i = 0;
 		for (const GameEntity entity : this->ctx.scene->GetAllEntitiesWithEXT<SpotLightComponent>()) {
-			const TransformComponent entity_transform = entity.GetComponent<TransformComponent>();
-			const SpotLightComponent entity_light = entity.GetComponent<SpotLightComponent>();
+			const TransformComponent entity_transform = entity.getComponent<TransformComponent>();
+			const SpotLightComponent entity_light = entity.getComponent<SpotLightComponent>();
 
 			lightingData.spots[i].Position = entity_transform.global.position;
 			lightingData.spots[i].Direction = entity_transform.global.rotation * glm::vec3(0, -1, 0);
@@ -806,7 +923,8 @@ namespace Slate {
 				const GPU::PerFrameData perframedata = {
 						.camera = cameraData,
 						.lighting = lightingData,
-						.time = (float)getTime().getElapsedTime()
+						.time = (float)getTime().getElapsedTime(),
+						.resolution = { gx.getSwapchainExtent().width, gx.getSwapchainExtent().height }
 				};
 				cmd.cmdUpdateBuffer(gx._globalBufferHandle, perframedata);
 
@@ -874,6 +992,25 @@ namespace Slate {
 						}
 				};
 				// gui pass needs store op to be true!
+				RenderPass fullscreenPass = {
+						.color = {
+								RenderPass::ColorAttachmentDesc{
+										.texture = colorResolveImage,
+										.loadOp = LoadOperation::LOAD,
+										.storeOp = StoreOperation::STORE
+								}
+						}
+				};
+				RenderPass outlinePass = {
+						.color = {
+								RenderPass::ColorAttachmentDesc{
+										.texture = outlineImage,
+										.loadOp = LoadOperation::NO_CARE,
+										.storeOp = StoreOperation::STORE,
+										.clear = RGBA{0, 0, 0, 1}
+								}
+						}
+				};
 				RenderPass guiPass = {
 						.color = {
 								RenderPass::ColorAttachmentDesc{
@@ -886,133 +1023,321 @@ namespace Slate {
 
 				// same texture that must be submitted at the end of cmd buffer
 				TextureHandle swapchainTexture = gx.acquireCurrentSwapchainTexture();
+
 				cmd.cmdBeginRendering(first);
-				{
-					// STANDARD DRAW
-					cmd.cmdBindRenderPipeline(standardPipeline);
-					for (const GameEntity& entity: ctx.scene->GetAllEntitiesWithEXT<GeometryPrimitiveComponent>()) {
-						const MeshPrimitiveType type = entity.GetComponent<GeometryPrimitiveComponent>().mesh_type;
+				if (_viewportMode == ViewportModes::SHADED || _viewportMode == ViewportModes::SOLID_WIREFRAME) {
+
+					// for shaded
+					cmd.cmdBindRenderPipeline(shadedModePipeline);
+					cmd.cmdBindDepthState({
+							.compareOp = CompareOperation::CompareOp_Less,
+							.isDepthWriteEnabled = true,
+					});
+					for (const GameEntity &entity: ctx.scene->GetAllEntitiesWithEXT<GeometryPrimitiveComponent>()) {
+						const MeshPrimitiveType type = entity.getComponent<GeometryPrimitiveComponent>().mesh_type;
 						if (type == MeshPrimitiveType::Empty) continue;
-						const MeshData& mesh = defaultMeshPrimitiveTypes[type];
+						const MeshData &mesh = defaultMeshPrimitiveTypes[type];
 
 						GPU::PerObjectData constants = {
-								.modelMatrix = TransformToModelMatrix(entity.GetComponent<TransformComponent>()),
+								.modelMatrix = TransformToModelMatrix(entity.getComponent<TransformComponent>()),
 								.vertexBufferAddress = gx.gpuAddress(mesh.getVertexBufferHandle()),
-								.id = (uint32_t) entity.GetHandle(),
+								.id = (uint32_t) entity.getHandle(),
 						};
-
 						cmd.cmdPushConstants(constants);
 						cmd.cmdBindIndexBuffer(mesh.getIndexBufferHandle());
 						cmd.cmdDrawIndexed(mesh.getIndexCount());
 					}
+					for (const GameEntity& entity : ctx.scene->GetAllEntitiesWithEXT<GeometryGLTFComponent>()) {
+						const auto meshSource = entity.getComponent<GeometryGLTFComponent>().mesh_source;
+						for (int k = 0; k < meshSource->getMeshCount(); k++) {
+							const MeshData& mesh = meshSource->getBuffers()[k];
+							GPU::PerObjectData constants = {
+									.modelMatrix = TransformToModelMatrix(entity.getComponent<TransformComponent>()),
+									.vertexBufferAddress = gx.gpuAddress(mesh.getVertexBufferHandle()),
+									.id = (uint32_t) entity.getHandle(),
+							};
+							cmd.cmdPushConstants(constants);
+							cmd.cmdBindIndexBuffer(mesh.getIndexBufferHandle());
+							cmd.cmdDrawIndexed(mesh.getIndexCount());
+						}
+					}
 				}
-				cmd.cmdEndRendering();
+				if (_viewportMode == ViewportModes::SOLID_WIREFRAME || _viewportMode == ViewportModes::WIREFRAME) {
+					cmd.cmdBindRenderPipeline(wireframeModePipeline);
+					cmd.cmdBindDepthState({
+							.compareOp = CompareOperation::CompareOp_Less,
+							.isDepthWriteEnabled = true,
+					});
+					if (_viewportMode == ViewportModes::SOLID_WIREFRAME) {
+						cmd.cmdSetDepthBiasEnable(true);
+						cmd.cmdSetDepthBias(0.f, -1.f, 0.f);
+					}
 
-				cmd.cmdBeginRendering(intermediate);
-				{
-					// WIREFRAME EDITOR RENDERING //
-					{
-						cmd.cmdBindRenderPipeline(wireframeVisualizerPipeline);
-						// POINT LIGHTS
-						for (const GameEntity &entity: ctx.scene->GetAllEntitiesWithEXT<PointLightComponent>()) {
-							glm::mat4 model = TransformToModelMatrix(entity.GetComponent<TransformComponent>(), false, false);
-							glm::mat4 spheremodel = glm::scale(model, glm::vec3(entity.GetComponent<PointLightComponent>().point.Range));
+					for (const GameEntity& entity: ctx.scene->GetAllEntitiesWithEXT<GeometryPrimitiveComponent>()) {
+						const MeshPrimitiveType type = entity.getComponent<GeometryPrimitiveComponent>().mesh_type;
+						if (type == MeshPrimitiveType::Empty) continue;
+						const MeshData &mesh = defaultMeshPrimitiveTypes[type];
 
+						GPU::PushConstants_EditorPrimitives constants = {
+								.modelMatrix = TransformToModelMatrix(entity.getComponent<TransformComponent>()),
+								.vertexBufferAddress = gx.gpuAddress(mesh.getVertexBufferHandle()),
+								.color = {1, 0, 0}// we just keep red for now
+						};
+						cmd.cmdPushConstants(constants);
+						cmd.cmdBindIndexBuffer(mesh.getIndexBufferHandle());
+						cmd.cmdDrawIndexed(mesh.getIndexCount());
+					}
+					for (const GameEntity& entity : ctx.scene->GetAllEntitiesWithEXT<GeometryGLTFComponent>()) {
+						const auto meshSource = entity.getComponent<GeometryGLTFComponent>().mesh_source;
+						for (int k = 0; k < meshSource->getMeshCount(); k++) {
+							const MeshData& mesh = meshSource->getBuffers()[k];
 							GPU::PushConstants_EditorPrimitives constants = {
-									.modelMatrix = spheremodel,
-									.vertexBufferAddress = gx.gpuAddress(simplespheremesh.getVertexBufferHandle()),
+									.modelMatrix = TransformToModelMatrix(entity.getComponent<TransformComponent>()),
+									.vertexBufferAddress = gx.gpuAddress(mesh.getVertexBufferHandle()),
+									.color = {1, 0, 0}// we just keep red for now
 							};
 							cmd.cmdPushConstants(constants);
-							cmd.cmdDraw(simplespheremesh.getVertexCount());
+							cmd.cmdBindIndexBuffer(mesh.getIndexBufferHandle());
+							cmd.cmdDrawIndexed(mesh.getIndexCount());
 						}
-						// SPOT LIGHTS
-						for (const GameEntity &entity: ctx.scene->GetAllEntitiesWithEXT<SpotLightComponent>()) {
-							glm::mat4 model = TransformToModelMatrix(entity.GetComponent<TransformComponent>(), false);
-							float size = entity.GetComponent<SpotLightComponent>().spot.Size;
-							float halfAngle = glm::radians(size * 0.5f);
-							float radius = sin(halfAngle) / sin(glm::radians(5.0f));
-							float height = radius / tan(halfAngle);
-							glm::mat4 spotmodel = glm::scale(model, glm::vec3{radius, height, radius});
+					}
+				}
+				if (_viewportMode == ViewportModes::UNSHADED) {
+					cmd.cmdBindRenderPipeline(unshadedModePipeline);
+					cmd.cmdBindDepthState({
+							.compareOp = CompareOperation::CompareOp_Less,
+							.isDepthWriteEnabled = true,
+					});
+					for (const GameEntity& entity: ctx.scene->GetAllEntitiesWithEXT<GeometryPrimitiveComponent>()) {
+						const MeshPrimitiveType type = entity.getComponent<GeometryPrimitiveComponent>().mesh_type;
+						if (type == MeshPrimitiveType::Empty) continue;
+						const MeshData &mesh = defaultMeshPrimitiveTypes[type];
 
-							GPU::PushConstants_EditorPrimitives constants = {
-									.modelMatrix = spotmodel,
-									.vertexBufferAddress = gx.gpuAddress(spotmesh.getVertexBufferHandle()),
+						GPU::PushConstants_EditorSolidShading constants = {
+								.modelMatrix = TransformToModelMatrix(entity.getComponent<TransformComponent>()),
+								.vertexBufferAddress = gx.gpuAddress(mesh.getVertexBufferHandle()),
+								.color = glm::vec3{0.4f}, // gray
+								.id = (uint32_t) entity.getHandle()
+						};
+						cmd.cmdPushConstants(constants);
+						cmd.cmdBindIndexBuffer(mesh.getIndexBufferHandle());
+						cmd.cmdDrawIndexed(mesh.getIndexCount());
+					}
+					for (const GameEntity& entity : ctx.scene->GetAllEntitiesWithEXT<GeometryGLTFComponent>()) {
+						const auto meshSource = entity.getComponent<GeometryGLTFComponent>().mesh_source;
+						for (int k = 0; k < meshSource->getMeshCount(); k++) {
+							const MeshData& mesh = meshSource->getBuffers()[k];
+							GPU::PushConstants_EditorSolidShading constants = {
+									.modelMatrix = TransformToModelMatrix(entity.getComponent<TransformComponent>()),
+									.vertexBufferAddress = gx.gpuAddress(mesh.getVertexBufferHandle()),
+									.color = glm::vec3{0.4f}, // gray
+									.id = (uint32_t) entity.getHandle()
 							};
 							cmd.cmdPushConstants(constants);
-							cmd.cmdDraw(spotmesh.getVertexCount());
-						}
-						// DIRECTIONAL LIGHTS
-						for (const GameEntity &entity: ctx.scene->GetAllEntitiesWithEXT<DirectionalLightComponent>()) {
-							glm::mat4 model = TransformToModelMatrix(entity.GetComponent<TransformComponent>(), false);
-							GPU::PushConstants_EditorPrimitives constants = {
-									.modelMatrix = model,
-									.vertexBufferAddress = gx.gpuAddress(arrowmesh.getVertexBufferHandle()),
-							};
-							cmd.cmdPushConstants(constants);
-							cmd.cmdDraw(arrowmesh.getVertexCount());
+							cmd.cmdBindIndexBuffer(mesh.getIndexBufferHandle());
+							cmd.cmdDrawIndexed(mesh.getIndexCount());
 						}
 					}
 				}
 				cmd.cmdEndRendering();
 
-				cmd.cmdBeginRendering(last);
-				{
-					// FILLED EDITOR RENDERING //
+				if (_gridEnabled) {
+					cmd.cmdBeginRendering(intermediate);
 					{
-						cmd.cmdBindRenderPipeline(filledVisualizerPipeline);
-						const MeshData& quad_mesh_ref = defaultMeshPrimitiveTypes[MeshPrimitiveType::Quad];
-						cmd.cmdBindIndexBuffer(quad_mesh_ref.getIndexBufferHandle()); // because we just use the same quad mesh, we can bind once at the beginning
-						// POINT LIGHTS
-						for (const GameEntity& entity: ctx.scene->GetAllEntitiesWithEXT<PointLightComponent>()) {
-							glm::mat4 model = TransformToModelMatrix(entity.GetComponent<TransformComponent>(), false, false);
-							model = BillboardModelMatrix(model, _camera);
-							model = glm::scale(model, glm::vec3{0.5});
+						cmd.cmdBindRenderPipeline(gridShaderPipeline);
+						cmd.cmdBindDepthState({
+								.compareOp = CompareOperation::CompareOp_Less,
+								.isDepthWriteEnabled = true,
+						});
+						cmd.cmdSetDepthBiasEnable(true);
+						cmd.cmdSetDepthBias(0.f, -1.f, 0.f);
+						cmd.cmdDraw(6);
+					}
+					cmd.cmdEndRendering();
+					cmd.cmdBeginRendering(intermediate);
+					{
+						// WIREFRAME EDITOR RENDERING //
+						{
+							cmd.cmdBindRenderPipeline(wireframeVisualizerPipeline);
+							cmd.cmdBindDepthState({
+									.compareOp = CompareOperation::CompareOp_Less,
+									.isDepthWriteEnabled = true,
+							});
+							// POINT LIGHTS
+							for (const GameEntity &entity: ctx.scene->GetAllEntitiesWithEXT<PointLightComponent>()) {
+								glm::mat4 model = TransformToModelMatrix(entity.getComponent<TransformComponent>(), false, false);
+								glm::mat4 spheremodel = glm::scale(model, glm::vec3(entity.getComponent<PointLightComponent>().point.Range));
 
-							GPU::PushConstants_EditorImages constants = {
-									.modelMatrix = model,
-									.color = entity.GetComponent<PointLightComponent>().point.Color,
-									.vertexBufferAddress = gx.gpuAddress(quad_mesh_ref.getVertexBufferHandle()),
-									.id = (uint32_t)entity.GetHandle(),
-									.textureId = lightbulbTexture.getHandle().index()
-							};
-							cmd.cmdPushConstants(constants);
-							cmd.cmdDrawIndexed(quad_mesh_ref.getIndexCount());
+								GPU::PushConstants_EditorPrimitives constants = {
+										.modelMatrix = spheremodel,
+										.vertexBufferAddress = gx.gpuAddress(simplespheremesh.getVertexBufferHandle()),
+								};
+								cmd.cmdPushConstants(constants);
+								cmd.cmdDraw(simplespheremesh.getVertexCount());
+							}
+							// SPOT LIGHTS
+							for (const GameEntity &entity: ctx.scene->GetAllEntitiesWithEXT<SpotLightComponent>()) {
+								glm::mat4 model = TransformToModelMatrix(entity.getComponent<TransformComponent>(), false);
+								float size = entity.getComponent<SpotLightComponent>().spot.Size;
+								float halfAngle = glm::radians(size * 0.5f);
+								float radius = sin(halfAngle) / sin(glm::radians(5.0f));
+								float height = radius / tan(halfAngle);
+								glm::mat4 spotmodel = glm::scale(model, glm::vec3{radius, height, radius});
+
+								GPU::PushConstants_EditorPrimitives constants = {
+										.modelMatrix = spotmodel,
+										.vertexBufferAddress = gx.gpuAddress(spotmesh.getVertexBufferHandle()),
+								};
+								cmd.cmdPushConstants(constants);
+								cmd.cmdDraw(spotmesh.getVertexCount());
+							}
+							// DIRECTIONAL LIGHTS
+							for (const GameEntity &entity: ctx.scene->GetAllEntitiesWithEXT<DirectionalLightComponent>()) {
+								glm::mat4 model = TransformToModelMatrix(entity.getComponent<TransformComponent>(), false);
+								GPU::PushConstants_EditorPrimitives constants = {
+										.modelMatrix = model,
+										.vertexBufferAddress = gx.gpuAddress(arrowmesh.getVertexBufferHandle()),
+								};
+								cmd.cmdPushConstants(constants);
+								cmd.cmdDraw(arrowmesh.getVertexCount());
+							}
 						}
-						// SPOT LIGHTS
-						for (const GameEntity& entity: ctx.scene->GetAllEntitiesWithEXT<SpotLightComponent>()) {
-							glm::mat4 model = TransformToModelMatrix(entity.GetComponent<TransformComponent>(), false, false);
-							model = BillboardModelMatrix(model, _camera);
-							model = glm::scale(model, glm::vec3{0.5});
+					}
+					cmd.cmdEndRendering();
 
-							GPU::PushConstants_EditorImages constants = {
-									.modelMatrix = model,
-									.color = entity.GetComponent<SpotLightComponent>().spot.Color,
-									.vertexBufferAddress = gx.gpuAddress(quad_mesh_ref.getVertexBufferHandle()),
-									.id = (uint32_t)entity.GetHandle(),
-									.textureId = spotlightTexture.getHandle().index()
-							};
-							cmd.cmdPushConstants(constants);
-							cmd.cmdDrawIndexed(quad_mesh_ref.getIndexCount());
+					cmd.cmdBeginRendering(last);
+					{
+						// FILLED EDITOR RENDERING //
+						{
+							cmd.cmdBindRenderPipeline(filledVisualizerPipeline);
+							cmd.cmdBindDepthState({
+									.compareOp = CompareOperation::CompareOp_Less,
+									.isDepthWriteEnabled = true,
+							});
+							const MeshData &quad_mesh_ref = defaultMeshPrimitiveTypes[MeshPrimitiveType::Quad];
+							cmd.cmdBindIndexBuffer(quad_mesh_ref.getIndexBufferHandle());// because we just use the same quad mesh, we can bind once at the beginning
+							// POINT LIGHTS
+							for (const GameEntity &entity: ctx.scene->GetAllEntitiesWithEXT<PointLightComponent>()) {
+								glm::mat4 model = TransformToModelMatrix(entity.getComponent<TransformComponent>(), false, false);
+								model = BillboardModelMatrix(model, _camera);
+								model = glm::scale(model, glm::vec3{0.5});
+
+								GPU::PushConstants_EditorImages constants = {
+										.modelMatrix = model,
+										.color = entity.getComponent<PointLightComponent>().point.Color,
+										.vertexBufferAddress = gx.gpuAddress(quad_mesh_ref.getVertexBufferHandle()),
+										.id = (uint32_t) entity.getHandle(),
+										.textureId = lightbulbTexture.getHandle().index()};
+								cmd.cmdPushConstants(constants);
+								cmd.cmdDrawIndexed(quad_mesh_ref.getIndexCount());
+							}
+							// SPOT LIGHTS
+							for (const GameEntity &entity: ctx.scene->GetAllEntitiesWithEXT<SpotLightComponent>()) {
+								glm::mat4 model = TransformToModelMatrix(entity.getComponent<TransformComponent>(), false, false);
+								model = BillboardModelMatrix(model, _camera);
+								model = glm::scale(model, glm::vec3{0.5});
+
+								GPU::PushConstants_EditorImages constants = {
+										.modelMatrix = model,
+										.color = entity.getComponent<SpotLightComponent>().spot.Color,
+										.vertexBufferAddress = gx.gpuAddress(quad_mesh_ref.getVertexBufferHandle()),
+										.id = (uint32_t) entity.getHandle(),
+										.textureId = spotlightTexture.getHandle().index()};
+								cmd.cmdPushConstants(constants);
+								cmd.cmdDrawIndexed(quad_mesh_ref.getIndexCount());
+							}
+							// DIRECTIONAL LIGHTS
+							for (const GameEntity &entity: ctx.scene->GetAllEntitiesWithEXT<DirectionalLightComponent>()) {
+								glm::mat4 model = TransformToModelMatrix(entity.getComponent<TransformComponent>(), false, false);
+								model = BillboardModelMatrix(model, _camera);
+								model = glm::scale(model, glm::vec3{0.5});
+
+								GPU::PushConstants_EditorImages constants = {
+										.modelMatrix = model,
+										.color = entity.getComponent<DirectionalLightComponent>().directional.Color,
+										.vertexBufferAddress = gx.gpuAddress(quad_mesh_ref.getVertexBufferHandle()),
+										.id = (uint32_t) entity.getHandle(),
+										.textureId = sunTexture.getHandle().index()};
+								cmd.cmdPushConstants(constants);
+								cmd.cmdDrawIndexed(quad_mesh_ref.getIndexCount());
+							}
 						}
-						// DIRECTIONAL LIGHTS
-						for (const GameEntity& entity: ctx.scene->GetAllEntitiesWithEXT<DirectionalLightComponent>()) {
-							glm::mat4 model = TransformToModelMatrix(entity.GetComponent<TransformComponent>(), false, false);
-							model = BillboardModelMatrix(model, _camera);
-							model = glm::scale(model, glm::vec3{0.5});
+					}
+					cmd.cmdEndRendering();
+				} else {
+					cmd.cmdBeginRendering(last);
+					cmd.cmdEndRendering();
+				}
 
-							GPU::PushConstants_EditorImages constants = {
-									.modelMatrix = model,
-									.color = entity.GetComponent<DirectionalLightComponent>().directional.Color,
-									.vertexBufferAddress = gx.gpuAddress(quad_mesh_ref.getVertexBufferHandle()),
-									.id = (uint32_t)entity.GetHandle(),
-									.textureId = sunTexture.getHandle().index()
-							};
-							cmd.cmdPushConstants(constants);
-							cmd.cmdDrawIndexed(quad_mesh_ref.getIndexCount());
+				// render to outline image to be sampled in the next step
+				cmd.cmdTransitionLayout(outlineImage, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+				cmd.cmdBeginRendering(outlinePass);
+				if (ctx.activeEntity.has_value()) {
+					const GameEntity activeEntity = ctx.activeEntity.value();
+					cmd.cmdBindRenderPipeline(pureOutlinePipeline);
+					{
+						if (activeEntity.hasComponent<GeometryPrimitiveComponent>()) {
+							const MeshPrimitiveType type = activeEntity.getComponent<GeometryPrimitiveComponent>().mesh_type;
+							if (type != MeshPrimitiveType::Empty) {
+								const MeshData& mesh = defaultMeshPrimitiveTypes[type];
+								struct P {
+									glm::mat4 modelMatrix;
+									VkDeviceAddress vertexBufferAddress;
+								} constants {
+										.modelMatrix = TransformToModelMatrix(activeEntity.getComponent<TransformComponent>()),
+										.vertexBufferAddress = gx.gpuAddress(mesh.getVertexBufferHandle()),
+								};
+								cmd.cmdPushConstants(constants);
+								cmd.cmdBindIndexBuffer(mesh.getIndexBufferHandle());
+								cmd.cmdDrawIndexed(mesh.getIndexCount());
+							}
+						}
+						if (activeEntity.hasComponent<GeometryGLTFComponent>()) {
+							const auto meshSource = activeEntity.getComponent<GeometryGLTFComponent>().mesh_source;
+							for (int k = 0; k < meshSource->getMeshCount(); k++) {
+								const MeshData& mesh = meshSource->getBuffers()[k];
+								struct P {
+									glm::mat4 modelMatrix;
+									VkDeviceAddress vertexBufferAddress;
+								} constants {
+										.modelMatrix = TransformToModelMatrix(activeEntity.getComponent<TransformComponent>()),
+										.vertexBufferAddress = gx.gpuAddress(mesh.getVertexBufferHandle()),
+								};
+								cmd.cmdPushConstants(constants);
+								cmd.cmdBindIndexBuffer(mesh.getIndexBufferHandle());
+								cmd.cmdDrawIndexed(mesh.getIndexCount());
+							}
 						}
 					}
 				}
 				cmd.cmdEndRendering();
+				cmd.cmdTransitionLayout(outlineImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+				cmd.cmdTransitionLayout(colorResolveImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+				{
+					cmd.cmdTransitionLayout(viewportImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+					cmd.cmdBlitImage(colorResolveImage, viewportImage);
+					cmd.cmdTransitionLayout(colorResolveImage, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+				}
+				cmd.cmdTransitionLayout(viewportImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+
+				// fullscreen shader test
+				cmd.cmdBeginRendering(fullscreenPass);
+				{
+					cmd.cmdBindRenderPipeline(fullscreenPipeline);
+					struct P {
+						uint32_t imageTexId;
+						uint32_t maskTexId;
+					} push {
+							.imageTexId = viewportImage.index(),
+							.maskTexId = outlineImage.index()
+					};
+					cmd.cmdPushConstants(push);
+					cmd.cmdDraw(3);
+				}
+				cmd.cmdEndRendering();
+
 
 				cmd.cmdTransitionLayout(colorResolveImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 				{
@@ -1021,6 +1346,7 @@ namespace Slate {
 					cmd.cmdTransitionLayout(viewportImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 				}
 				cmd.cmdTransitionLayout(colorResolveImage, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
 
 				// render ui
 				{
@@ -1054,7 +1380,7 @@ namespace Slate {
 		gx.destroy(primitiveShader.getHandle());
 		gx.destroy(imageShader.getHandle());
 
-		gx.destroy(standardPipeline);
+		gx.destroy(shadedModePipeline);
 		gx.destroy(wireframeVisualizerPipeline);
 		gx.destroy(filledVisualizerPipeline);
 
@@ -1076,6 +1402,7 @@ namespace Slate {
 		gx.destroy(spotlightTexture.getHandle());
 		gx.destroy(sunTexture.getHandle());
 
+		NFD_Quit();
 		// got to call this prior to imgui shutdown
 		IApplication::getGX().deviceWaitIdle();
 		// this order specifically
@@ -1169,11 +1496,11 @@ namespace Slate {
 				// should be the same if everything is correct
 				ImGui::Text("Slate Delta Time: %.2f", this->getTime().getDeltaTime());
 				ImGui::Text("ImGui Delta Time: %.2f", io.DeltaTime);
-				if (this->ctx.hoveredEntity.has_value()) {
-					GameEntity hovered_entity = this->ctx.hoveredEntity.value();
-					ImGui::Text("Hovered Entity: %s | %u", hovered_entity.GetName().c_str(), static_cast<int>(hovered_entity.GetHandle()));
-				}
-				else ImGui::Text("Hovered Entity: 'NONE'");
+//				if (this->ctx.hoveredEntity.has_value()) {
+//					GameEntity hovered_entity = this->ctx.hoveredEntity.value();
+//					ImGui::Text("Hovered Entity: %s | %u", hovered_entity.getName().c_str(), static_cast<int>(hovered_entity.getHandle()));
+//				}
+//				else ImGui::Text("Hovered Entity: 'NONE'");
 				ImGui::End();
 			}
 			ImGui::End();// last end statement, dont put more imgui calls after this

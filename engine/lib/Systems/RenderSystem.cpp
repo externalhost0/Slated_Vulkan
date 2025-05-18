@@ -13,10 +13,10 @@ namespace Slate {
 	}
 
 	void RenderPrimitive(GameEntity entity) {
-		GeometryPrimitiveComponent& geometry_c = entity.GetComponent<GeometryPrimitiveComponent>();
+		GeometryPrimitiveComponent& geometry_c = entity.getComponent<GeometryPrimitiveComponent>();
 		DrawPrimitive(geometry_c);
-		if (entity.HasChildren()) {
-			for (GameEntity child : entity.GetChildren()) {
+		if (entity.hasChildren()) {
+			for (GameEntity child : entity.getChildren()) {
 				RenderPrimitive(child);
 			}
 		}
@@ -27,9 +27,9 @@ namespace Slate {
 	}
 	void RenderSystem::onUpdate(Scene& scene) {
 		for (GameEntity entity : scene.GetRootEntities()) {
-			if (entity.HasComponent<GeometryPrimitiveComponent>()) {
-				RenderPrimitive(entity);
-			} else if (entity.HasComponent<GeometryGLTFComponent>()) {
+			if (entity.hasComponent<GeometryPrimitiveComponent>()) {
+//				RenderPrimitive(entity);
+			} else if (entity.hasComponent<GeometryGLTFComponent>()) {
 
 			}
 		}

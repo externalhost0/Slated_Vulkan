@@ -143,11 +143,11 @@ namespace Slate {
 				if (ImGui::BeginMenu("Display Modes")) {
 					if (ImGui::Selectable("Shaded", _viewportMode == ViewportModes::SHADED))
 						_viewportMode = ViewportModes::SHADED;
-					if (ImGui::Selectable("Unshaded NW", _viewportMode == ViewportModes::UNSHADED))
+					if (ImGui::Selectable("Solid Shading", _viewportMode == ViewportModes::UNSHADED))
 						_viewportMode = ViewportModes::UNSHADED;
 					if (ImGui::Selectable("Wireframe", _viewportMode == ViewportModes::WIREFRAME))
 						_viewportMode = ViewportModes::WIREFRAME;
-					if (ImGui::Selectable("Solid Wireframe", _viewportMode == ViewportModes::SOLID_WIREFRAME))
+					if (ImGui::Selectable("Shaded + Wireframe", _viewportMode == ViewportModes::SOLID_WIREFRAME))
 						_viewportMode = ViewportModes::SOLID_WIREFRAME;
 
 					ImGui::EndMenu();
@@ -158,9 +158,29 @@ namespace Slate {
 				ImGui::PushItemWidth(120.f);
 
 				ImGui::SliderFloat("Camera Speed", &_camera.cameraSpeed, 1.0f, 10.0f, "%.2f");
-				ImGui::SliderFloat("Camera FOV", &_camera._fov, 30.0f, 120.0f);
+				if (_camera.projectionType == Camera::ProjectionType::Perspective) {
+					ImGui::SliderFloat("Camera FOV", &_camera._fov, 30.0f, 120.0f);
+				}
+				if (_camera.projectionType == Camera::ProjectionType::Orthographic) {
+					float us = _camera._unitSize;
+					ImGui::SliderFloat("Camera Unit Size", &us, 10.0f, 100.0f);
+					_camera.setOrthoHeight(us);
+				}
 				ImGui::SliderFloat("Camera Near Plane", &_camera._near, 0.01f, 10.0f);
 				ImGui::SliderFloat("Camera Far Plane", &_camera._far, 1.0f, 1000.0f);
+
+				switch (_camera.projectionType) {
+					case Camera::ProjectionType::Perspective: {
+						if (ImGui::Button("Orthographic")) {
+							_camera.setProjectionMode(Camera::ProjectionType::Orthographic);
+						}
+					} break;
+					case Camera::ProjectionType::Orthographic: {
+						if (ImGui::Button("Perspective")) {
+							_camera.setProjectionMode(Camera::ProjectionType::Perspective);
+						}
+					} break;
+				}
 				// than apply, cause these properties are privated
 
 				ImGui::PopItemWidth();
@@ -192,8 +212,14 @@ namespace Slate {
 					ImGui::EndPopup();
 				}
 				//toggle viewport helpers, like grid
-				if (ImGui::Button("Grid")) {
-					this->_gridEnabled = !this->_gridEnabled;
+				if (_gridEnabled) {
+					if (ImGui::Button("Disable Visualizers")) {
+						this->_gridEnabled = false;
+					}
+				} else {
+					if (ImGui::Button("Enable Visualizers")) {
+						this->_gridEnabled = true;
+					}
 				}
 				ImGui::EndMenu();
 			}
@@ -230,7 +256,7 @@ namespace Slate {
 
 			if (ctx.activeEntity.has_value() &&
 				!this->_isCameraControlActive &&
-				this->ctx.activeEntity.value().HasComponent<TransformComponent>()) {
+				this->ctx.activeEntity.value().hasComponent<TransformComponent>()) {
 				// gizmo frame
 				ImGuizmo::BeginFrame();
 
@@ -250,8 +276,8 @@ namespace Slate {
 				// put the snapping scale on each axis
 				float snapValues[3] = { snapValue, snapValue, snapValue };
 
-				if (this->ctx.activeEntity.value().HasComponent<TransformComponent>()) {
-					TransformComponent& transform_c = this->ctx.activeEntity.value().GetComponent<TransformComponent>();
+				if (this->ctx.activeEntity.value().hasComponent<TransformComponent>()) {
+					TransformComponent& transform_c = this->ctx.activeEntity.value().getComponent<TransformComponent>();
 					// more snapping logic to round position if i start snapping
 					glm::mat4 transformMatrix = glm::translate(glm::mat4(1.f), transform_c.global.position) *
 												glm::mat4_cast(transform_c.global.rotation) *

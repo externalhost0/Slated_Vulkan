@@ -4,6 +4,7 @@
 
 #pragma once
 #include <fmt/printf.h>
+#include <fmt/color.h>
 #include <fmt/format.h>
 #include <exception>
 namespace Slate {
@@ -18,12 +19,21 @@ namespace Slate {
 			"Info",
 			"Warning",
 			"Error",
-			"FatalError"
+			"Fatal Error"
+	};
+	constexpr fmt::color level_colors[] = {
+			fmt::color::antique_white,
+			fmt::color::gold,
+			fmt::color::red,
+			fmt::color::magenta
 	};
 	constexpr const char* GetLogLevelAsString(LogType level) {
 		return level_strings[(int)level];
 	}
+	constexpr fmt::color GetLogLevelAsColor(LogType level) {
+		return level_colors[(int)level];
+	}
 	#define LOG_EXCEPTION(exception) fmt::println(stderr, "[EXCEPTION] | {}", exception.what())
-	#define LOG_USER(level, message, ...) fmt::println(stdout, "[{}] Function: \"{}\" | {}", GetLogLevelAsString(level), __FUNCTION__, fmt::format(message __VA_OPT__(, __VA_ARGS__)))
+	#define LOG_USER(level, message, ...) fmt::print(fg(GetLogLevelAsColor(level)), "[{}] Source: \"{}\" | {}\n", GetLogLevelAsString(level), __PRETTY_FUNCTION__, fmt::format(message __VA_OPT__(, __VA_ARGS__)))
 	#define RUNTIME_ERROR(message, ...) std::runtime_error(fmt::format(message __VA_OPT__(, __VA_ARGS__)))
 }

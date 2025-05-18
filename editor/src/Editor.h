@@ -31,8 +31,8 @@ namespace Slate {
 
 	struct Context
 	{
-		Optional<GameEntity> activeEntity;
-		Optional<GameEntity> hoveredEntity;
+		Optional<GameEntity> activeEntity = std::nullopt;
+		Optional<GameEntity> hoveredEntity = std::nullopt;
 		Scene* scene;
 	};
 
@@ -50,7 +50,7 @@ namespace Slate {
 
 	private:
 		void _guiUpdate();
-		void _displayEntityNode(GameEntity entity);
+		void _displayEntityNode(GameEntity entity, int index);
 		void _onViewportPanelUpdate();
 		void _onScenePanelUpdate();
 		void _onPropertiesPanelUpdate();
@@ -67,6 +67,7 @@ namespace Slate {
 		TextureHandle entityResolveImage;
 		TextureHandle entityMSAAImage;
 		TextureHandle viewportImage;
+		TextureHandle outlineImage;
 
 		BufferHandle _stagbuf;
 

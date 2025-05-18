@@ -15,6 +15,7 @@ struct Vertex {
 struct PushConstants {
     float4x4 model_matrix;
     Ptr<Vertex> vertexBufferAddress;
+    float3 color;
 }
 [[vk::push_constant]]
 PushConstants pushConstants;
@@ -58,6 +59,6 @@ FSOutput fs_main(v2f input) {
     float depth = input.ClipPos.z / input.ClipPos.w;
     float fade = clamp((fade_end - depth) / (fade_end - fade_start), 0, 1);
 
-    output.FragColor = float4(float3(0.5f), fade);
+    output.FragColor = float4(pushConstants.color, fade);
     return output;
 }

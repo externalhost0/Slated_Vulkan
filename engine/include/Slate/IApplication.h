@@ -7,6 +7,7 @@
 
 #include "Slate/GX.h"
 #include "Slate/Timer.h"
+#include "Slate/ScriptEngine.h"
 
 namespace Slate {
 	class IApplication {
@@ -58,8 +59,12 @@ namespace Slate {
 		virtual void installAppCallbacksToWindow(GLFWwindow* window) final;
 	private:
 		std::atomic<bool> _running = true;
+		// every app has its graphics
 		GX _gx;
+		// time
 		Timer _apptime;
+		// and scripting logic
+		ScriptEngine _script;
 	};
 }
 

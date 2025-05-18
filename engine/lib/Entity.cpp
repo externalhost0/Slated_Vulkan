@@ -10,49 +10,53 @@
 
 namespace Slate {
 	// PUBLIC METHODS //
-	void GameEntity::SetName(const std::string& new_name) const {
-		Core().name = new_name;
+	void GameEntity::setName(const std::string& new_name) {
+		_registry.get<GameEntity::Name>(_handle).name = new_name;
 	}
-	const std::string& GameEntity::GetName() const {
-		return Core().name;
+	const std::string& GameEntity::getName() const {
+		return _registry.get<GameEntity::Name>(_handle).name;
 	}
-	bool GameEntity::HasChildren() const {
-		return !Core().children.empty();
+	bool GameEntity::hasChildren() const {
+		return !_registry.get<GameEntity::Hierarchy>(_handle).children.empty();
 	}
-	bool GameEntity::HasParent() const {
-		return !(Core().parent == entt::null);
+	bool GameEntity::hasParent() const {
+		return !(_registry.get<GameEntity::Hierarchy>(_handle).parent == entt::null);
 	}
-	void GameEntity::AddChild(GameEntity entity) {
-		if (entity.GetHandle() == this->_handle) {
+	void GameEntity::addChild(GameEntity entity) {
+		if (entity.getHandle() == _handle) {
 			LOG_USER(LogType::Warning, "You attempted to add an Entity as a child of itself.");
 			return;
 		}
-		if (std::find(Core().children.begin(), Core().children.end(), entity.GetHandle()) != Core().children.end()) {
+		GameEntity::Hierarchy& hierarchy = _registry.get<GameEntity::Hierarchy>(_handle);
+		if (std::find(hierarchy.children.begin(), hierarchy.children.end(), entity.getHandle()) != hierarchy.children.end()) {
 			LOG_USER(LogType::Warning, "Entity is already a child of the currently parented entity.");
 			return;
 		}
-		Core().children.push_back(entity.GetHandle());
-		_registry.get<CoreComponent>(entity.GetHandle()).parent = this->_handle;
+		hierarchy.children.push_back(entity.getHandle());
+		hierarchy.parent = this->_handle;
 	}
-	void GameEntity::RemoveChild(GameEntity entity) {
-		Core().children.erase_value(entity.GetHandle());
-		_registry.get<CoreComponent>(entity.GetHandle()).parent = entt::null;
+	void GameEntity::removeChild(GameEntity entity) {
+		GameEntity::Hierarchy& hierarchy = _registry.get<GameEntity::Hierarchy>(_handle);
+		hierarchy.children.erase_value(entity.getHandle());
+		hierarchy.parent = entt::null;
 	}
-	GameEntity GameEntity::GetParent() {
-		return {Core().parent, this->_registry};
+
+	GameEntity GameEntity::getParent() {
+		return {_registry.get<Hierarchy>(_handle).parent, _registry};
 	}
-	std::vector<GameEntity> GameEntity::GetChildren() {
+	std::vector<GameEntity> GameEntity::getChildren() {
+		const GameEntity::Hierarchy& hierarchy = _registry.get<GameEntity::Hierarchy>(_handle);
 		std::vector<GameEntity> result;
-		result.reserve(Core().children.size());
-		for (entt::entity child : Core().children) {
-			result.emplace_back(child, this->_registry);
+		result.reserve(hierarchy.children.size());
+		for (const entt::entity& child : hierarchy.children) {
+			result.emplace_back(child, _registry);
 		}
 		return result;
 	}
-	GameEntity GameEntity::GetRoot() {
-		if (!this->HasParent()) {
+	GameEntity GameEntity::getRoot() {
+		if (!this->hasParent()) {
 			return *this;
 		}
-		return this->GetParent().GetRoot();
+		return getParent().getRoot();
 	}
 }

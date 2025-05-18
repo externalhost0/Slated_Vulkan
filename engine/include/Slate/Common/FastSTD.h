@@ -67,6 +67,28 @@ namespace Slate {
 				_data[_count++] = T(std::forward<Args>(args)...);
 			}
 		}
+		bool insert(size_t index, const T& element) noexcept {
+			if (_count >= MaxSize || index > _count) {
+				return false;
+			}
+			for (size_t i = _count; i > index; --i) {
+				_data[i] = std::move(_data[i - 1]);
+			}
+			_data[index] = element;
+			++_count;
+			return true;
+		}
+		bool insert(size_t index, T&& element) noexcept {
+			if (_count >= MaxSize || index > _count) {
+				return false;
+			}
+			for (size_t i = _count; i > index; --i) {
+				_data[i] = std::move(_data[i - 1]);
+			}
+			_data[index] = std::move(element);
+			++_count;
+			return true;
+		}
 
 		// fast removal
 		void remove(size_t index) noexcept {
@@ -127,6 +149,7 @@ namespace Slate {
 		T _data[MaxSize];
 		size_t _count;
 	};
+
 
 
 	template <typename T, size_t MaxSize>

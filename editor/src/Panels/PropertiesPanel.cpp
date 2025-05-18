@@ -2,6 +2,7 @@
 // Created by Hayden Rivas on 1/16/25.
 //
 #include <Slate/ECS/Components.h>
+#include "Slate/Filesystem.h"
 
 #include <IconFontCppHeaders/IconsLucide.h>
 
@@ -19,7 +20,7 @@
 namespace Slate {
 	void EntityHeader(GameEntity entity) {
 		char buffer[128] = "";
-		const std::string& currentName = entity.GetName();
+		const std::string& currentName = entity.getName();
 		strncpy(buffer, currentName.c_str(), sizeof(buffer) - 1);
 		buffer[sizeof(buffer) - 1] = '\0';
 
@@ -30,12 +31,12 @@ namespace Slate {
 		ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 2.0f);
 		ImGui::PushFont(Fonts::largeboldFont);
 		if (ImGui::InputText("##RenameInput", buffer, IM_ARRAYSIZE(buffer),ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll)) {
-			entity.SetName(buffer);
+			entity.setName(buffer);
 		}
 		ImGui::PopFont();
 	}
 	void ComponentTransform(GameEntity entity) {
-		TransformComponent& transform = entity.GetComponent<TransformComponent>();
+		TransformComponent& transform = entity.getComponent<TransformComponent>();
 
 		Vector3Drag("Position", &transform.local.position, "%.2f", 0.0f, 0.01f);
 
@@ -46,13 +47,20 @@ namespace Slate {
 		Vector3Drag("Scale", &transform.local.scale, "%.3f", 1.0f, 0.01f);
 	}
 	void ComponentMeshPrimitive(GameEntity entity) {
-		GeometryPrimitiveComponent& mesh_component = entity.GetComponent<GeometryPrimitiveComponent>();
+		GeometryPrimitiveComponent& mesh_component = entity.getComponent<GeometryPrimitiveComponent>();
 		MeshPrimitiveType current_type = mesh_component.mesh_type;
 
 		ImGui::AlignTextToFramePadding();
 		ImGui::Text("Mesh Type: ");
 		ImGui::SameLine();
-		if (ImGui::BeginCombo("###hidden", MeshPrimitiveTypeStringMap.at(current_type))) {
+		const char* current_label = nullptr;
+		for (const auto& [type, name] : MeshPrimitiveTypeStringMap) {
+			if (type == current_type) {
+				current_label = name;
+				break;
+			}
+		}
+		if (ImGui::BeginCombo("###hidden", current_label)) {
 			for (const auto& [type, name] : MeshPrimitiveTypeStringMap) {
 				bool isSelected = (current_type == type);
 				if (ImGui::Selectable(name, isSelected)) {
@@ -111,8 +119,22 @@ namespace Slate {
 	void ComponentMeshGLTF(GameEntity entity) {
 
 	}
-	void ComponentScript(GameEntity entity) {
 
+
+	void ComponentScript(GameEntity entity) {
+		ScriptComponent& script_component = entity.getComponent<ScriptComponent>();
+		if (!script_component.script_source) {
+			if (ImGui::Button("File Dialog: Null")) {
+				script_component.script_source = CreateStrongPtr<ScriptResource>();
+				script_component.script_source->loadResource(OpenFileDialog({}));
+			}
+		} else {
+			ScriptResource& resource = *script_component.script_source;
+			std::string label = "Counter: " + resource.getFilename();
+			if (ImGui::Button(label.c_str())) {
+				script_component.script_source->loadResource(OpenFileDialog({}));
+			}
+		}
 	}
 
 	ImVec4 BlackbodyToRGB(float temperature) {
@@ -155,7 +177,7 @@ namespace Slate {
 		ImGui::PopItemWidth();
 	}
 	void ComponentPointLight(GameEntity entity) {
-		auto& light = entity.GetComponent<PointLightComponent>();
+		auto& light = entity.getComponent<PointLightComponent>();
 		ComponentILight(light.point.Color, light.point.Intensity);
 
 		ImGui::Text("Range");
@@ -165,7 +187,7 @@ namespace Slate {
 		ImGui::PopItemWidth();
 	}
 	void ComponentSpotLight(GameEntity entity) {
-		auto& light = entity.GetComponent<SpotLightComponent>();
+		auto& light = entity.getComponent<SpotLightComponent>();
 		ComponentILight(light.spot.Color, light.spot.Intensity);
 
 		ImGui::Text("Blend");
@@ -181,11 +203,11 @@ namespace Slate {
 		ImGui::PopItemWidth();
 	}
 	void ComponentDirectionalLight(GameEntity entity) {
-		auto& light = entity.GetComponent<DirectionalLightComponent>();
+		auto& light = entity.getComponent<DirectionalLightComponent>();
 		ComponentILight(light.directional.Color, light.directional.Intensity);
 	}
 	void ComponentEnvironmentLight(GameEntity entity) {
-		auto& light = entity.GetComponent<AmbientLightComponent>();
+		auto& light = entity.getComponent<AmbientLightComponent>();
 		ComponentILight(light.ambient.Color, light.ambient.Intensity);
 	}
 
@@ -197,7 +219,7 @@ namespace Slate {
 	template <typename... T>
 	void ProcessComponents(GameEntity entity, ComponentGroup<T...>) {
 		(..., [&] {
-			if (entity.HasComponent<T>()) {
+			if (entity.hasComponent<T>()) {
 				ComponentPropertyPanel<T>(
 						entity,
 						ComponentMetadata<T>::handler,
@@ -218,7 +240,7 @@ namespace Slate {
 		ImGuiTreeNodeFlags nodeFlags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_AllowOverlap;
 
 		// generate a unique id for the child window
-		const std::string uniqueId = "Child" + std::to_string(typeid(T).hash_code()) + std::to_string(static_cast<uint32_t>(entity.GetHandle()));
+		const std::string uniqueId = "Child" + std::to_string(typeid(T).hash_code()) + std::to_string(static_cast<uint32_t>(entity.getHandle()));
 		ImGui::BeginChild(uniqueId.c_str(), ImVec2(0, 0), childFlags);
 
 		// this constructs the icon -> title -> and set tree visibillity
@@ -250,7 +272,7 @@ namespace Slate {
 		}
 		// remove at end of call
 		if (remove) {
-			entity.RemoveComponent<T>();
+			entity.removeComponent<T>();
 		}
 		ImGui::EndChild();
 	}
@@ -258,13 +280,13 @@ namespace Slate {
 	template <typename... T>
 	void ProcessAllComponents(GameEntity entity, ComponentGroup<T...>) {
 		(..., [&] {
-			bool hasComponent = entity.HasComponent<T>();
+			bool hasComponent = entity.hasComponent<T>();
 			if (hasComponent) {
 				ImGui::BeginDisabled();
 			}
 			const char* componentName = ComponentMetadata<T>::name;
 			if (ImGui::Selectable(componentName)) {
-				entity.AddComponent<T>();
+				entity.addComponent<T>();
 			}
 			if (hasComponent) {
 				ImGui::EndDisabled();

@@ -21,10 +21,6 @@ namespace SlateGui {
 	bool ColorField(glm::vec4& color, const char* label = nullptr, SlateGuiColorEditFlags_ flags = SlateGuiColorEditFlags_None);
 
 
-
-
-
-
 }
 
 

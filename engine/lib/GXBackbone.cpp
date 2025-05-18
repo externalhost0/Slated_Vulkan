@@ -109,7 +109,7 @@ namespace Slate {
 		features.drawIndirectFirstInstance = true;
 		features.samplerAnisotropy = true;
 		features.shaderImageGatherExtended = true;
-
+		features.samplerAnisotropy = true;
 
 		vkb::PhysicalDeviceSelector selector{vkb_instance};
 		auto physical_result = selector
@@ -117,8 +117,10 @@ namespace Slate {
 									   .add_required_extension(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME)
 									   .add_required_extension(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME)
 									   .add_required_extension(VK_KHR_COPY_COMMANDS_2_EXTENSION_NAME)
+
 									   .add_required_extension(VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME)
 									   .add_required_extension(VK_EXT_EXTENDED_DYNAMIC_STATE_2_EXTENSION_NAME)
+
 									   .add_required_extension(VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME)
 									   .add_required_extension(VK_EXT_IMAGE_ROBUSTNESS_EXTENSION_NAME)
 									   .add_required_extension(VK_EXT_INLINE_UNIFORM_BLOCK_EXTENSION_NAME)
@@ -166,6 +168,10 @@ namespace Slate {
 		dynamic_state_feature.pNext = nullptr;
 		dynamic_state_feature.extendedDynamicState = VK_TRUE;
 
+		VkPhysicalDeviceExtendedDynamicState2FeaturesEXT dynamic_state_feature_2 = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_2_FEATURES_EXT };
+		dynamic_state_feature_2.pNext = nullptr;
+		dynamic_state_feature_2.extendedDynamicState2 = VK_TRUE;
+
 
 		// GET DEVICE
 		vkb::DeviceBuilder device_builder{vkbphysdevice};
@@ -173,6 +179,7 @@ namespace Slate {
 									 .add_pNext(&dynamic_rendering_feature)
 									 .add_pNext(&synchronization2_feature)
 									 .add_pNext(&dynamic_state_feature)
+									 .add_pNext(&dynamic_state_feature_2)
 									 .build();
 		ASSERT_MSG(device_result.has_value(), "Failed to create Vulkan device. Error: {}", device_result.error().message().c_str());
 
@@ -181,6 +188,18 @@ namespace Slate {
 		_vkDevice = vkbdevice.device;
 
 		volkLoadDevice(_vkDevice);
+
+		// alias KHR and EXT functions
+#if defined(__APPLE__)
+		vkCmdBeginRendering = vkCmdBeginRenderingKHR;
+		vkCmdEndRendering = vkCmdEndRenderingKHR;
+		vkCmdSetDepthWriteEnable = vkCmdSetDepthWriteEnableEXT;
+		vkCmdSetDepthTestEnable = vkCmdSetDepthTestEnableEXT;
+		vkCmdSetDepthCompareOp = vkCmdSetDepthCompareOpEXT;
+		vkCmdSetDepthBiasEnable = vkCmdSetDepthBiasEnableEXT;
+		vkCmdPipelineBarrier2 = vkCmdPipelineBarrier2KHR;
+		vkQueueSubmit2 = vkQueueSubmit2KHR;
+#endif
 	}
 	void GXBackbone::_createAllocator() {
 		VmaAllocatorCreateInfo allocatorInfo = {};

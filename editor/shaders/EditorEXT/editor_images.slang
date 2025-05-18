@@ -63,7 +63,7 @@ FSOutput fs_main(v2f input) {
 
     float threshold = 0.5f;
     
-    float4 c = kTextures2D[NonUniformResourceIndex(pushConstants.textureId)].Sample(kSamplers[NonUniformResourceIndex(0)], input.UV);
+    float4 c = textureBindless2D(pushConstants.textureId, 0, input.UV);
     float sampled = c.r;
     sampled = clamp(sampled, 0, 1);
     float alpha = 1.0 - sampled;

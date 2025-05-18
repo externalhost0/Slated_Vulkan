@@ -40,8 +40,8 @@ namespace Slate {
 		VkExtent3D _vkExtent = {};
 		VkFormat _vkFormat = VK_FORMAT_UNDEFINED;
 		VkFormatProperties _vkFormatProperties = {};
-		uint32_t numLevels = 1u;
-		uint32_t numLayers = 1u;
+		uint32_t _numLevels = 1u;
+		uint32_t _numLayers = 1u;
 
 		VkImageLayout _vkCurrentImageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		VkImageType _vkImageType = VK_IMAGE_TYPE_MAX_ENUM;

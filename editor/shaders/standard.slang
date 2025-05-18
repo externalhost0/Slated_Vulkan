@@ -1,11 +1,7 @@
 // Standard Lit Shader
-// ===========================
-// === SHARED STRUCTS/DATA ===
-// ===========================
 
 // defines for uniforms can not be imported, only pure logic can be imported
 // we can get around this with specific slang compilation api commands
-// #include "BuiltIn.Common.slang"
 import "BuiltIn.Standard";
 import "BuiltIn.Common";
 import "BuiltIn.Lighting";
@@ -58,7 +54,14 @@ FSOutput fs_main(v2f input) {
     FSOutput output;
 
     float3 lightResult = CalculateLighting(input.Normal, input.WorldPosition);
-    output.FragColor = float4(lightResult, 1.0);
+
+    float3 n = normalize(input.Normal);
+    float3 v = normalize(perFrame.camera.position - input.WorldPosition);
+    float3 r = reflect(-v, n);
+    float4 colorRefl = textureBindlessCube(14, 0, r);
+    float4 Ka = colorRefl * 0.3f;
+
+    output.FragColor = float4(lightResult + Ka.xyz, 1.0);
     output.FragID = input.ID;
 
     return output;

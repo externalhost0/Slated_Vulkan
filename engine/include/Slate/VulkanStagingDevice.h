@@ -32,7 +32,7 @@ namespace Slate {
 						 const VkRect2D& imageRegion,
 						 uint32_t baseMipLevel,
 						 uint32_t numMipLevels,
-						 uint32_t layer,
+						 uint32_t layerCheck,
 						 uint32_t numLayers,
 						 VkFormat format,
 						 const void* data);

@@ -7,12 +7,15 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <fmt/base.h>
+#include <nfd.h>
 #include <cmath>
 
 #include "ImGuiComponents.h"
 #include "Utilities.h"
 
 namespace SlateGui {
+
+
 	// TODO: the entire slategui needs to be properly written
 	bool ToggleButton(const char* label) {
 		static bool state = false;

@@ -7,9 +7,10 @@
 namespace Slate {
 	struct ScriptResource : public IResource {
 	public:
-
+		void loadAssembly();
+		void unloadAssembly();
 	private:
-		Result LoadResourceImpl(const std::filesystem::path& path) override;
+		Result _loadResourceImpl(const std::filesystem::path& path) override;
 	};
 
 }

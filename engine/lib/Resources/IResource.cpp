@@ -6,7 +6,7 @@
 
 namespace Slate {
 
-	Result IResource::PreLoad(const std::filesystem::path& path) {
+	Result IResource::preLoad(const std::filesystem::path& path) {
 		try {
 			if (not std::filesystem::exists(path)) {
 				throw ResourceException("Resource could not be found for", path);
@@ -24,7 +24,7 @@ namespace Slate {
 		return Result::SUCCESS;
 	}
 
-	void IResource::MoveResource(const std::filesystem::path& new_path) {
+	void IResource::moveResource(const std::filesystem::path& new_path) {
 		try {
 			if (std::filesystem::exists(this->filepath)) {
 				std::filesystem::rename(this->filepath, new_path);
@@ -36,7 +36,7 @@ namespace Slate {
 			LOG_EXCEPTION(e);
 		}
 	}
-	void IResource::DeleteResource() {
+	void IResource::deleteResource() {
 		try {
 			if (std::filesystem::exists(this->filepath)) {
 				std::filesystem::remove(this->filepath);

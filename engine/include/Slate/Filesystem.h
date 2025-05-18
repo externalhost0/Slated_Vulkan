@@ -9,6 +9,8 @@
 #include <nlohmann/json.hpp>
 
 namespace Slate {
+	std::filesystem::path OpenFileDialog(const std::filesystem::path& currentPath);
+
 	class Filesystem {
 	public:
 		static std::string GetNameOfFile(const std::filesystem::path& path);
@@ -29,6 +31,8 @@ namespace Slate {
 		static nlohmann::json ReadJsonFile(const std::filesystem::path& path);
 		static std::vector<std::byte> ReadBinaryFile(const std::filesystem::path& path);
 		static std::string ReadTextFile(const std::filesystem::path& path);
+
+
 	private:
 		static inline std::filesystem::path rootFolderPath = "../../editor/";
 	};

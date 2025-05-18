@@ -76,7 +76,7 @@ namespace Slate {
 		}
 	}
 	void VulkanStagingDevice::imageData3D(AllocatedImage& image, const VkOffset3D& offset, const VkExtent3D& extent, VkFormat format, const void* data) {
-		ASSERT_MSG(image.numLevels == 1, "Can handle only 3D images with exactly 1 mip-level");
+		ASSERT_MSG(image._numLevels == 1, "Can handle only 3D images with exactly 1 mip-level");
 		ASSERT_MSG((offset.x == 0) && (offset.y == 0) && (offset.z == 0), "Can upload only full-size 3D images");
 		const uint32_t storageSize = extent.width * extent.height * extent.depth * vkutil::GetBytesPerPixel(format);
 
@@ -138,7 +138,14 @@ namespace Slate {
 		desc.handle_ = _gx._imm->submit(wrapper);
 		_regions.push_back(desc);
 	}
-	void VulkanStagingDevice::imageData2D(AllocatedImage& image, const VkRect2D& imageRegion, uint32_t baseMipLevel, uint32_t numMipLevels, uint32_t layer, uint32_t numLayers, VkFormat format, const void* data) {
+	void VulkanStagingDevice::imageData2D(AllocatedImage& image,
+										  const VkRect2D& imageRegion,
+										  uint32_t baseMipLevel,
+										  uint32_t numMipLevels,
+										  uint32_t layerCheck,
+										  uint32_t numLayers,
+										  VkFormat format,
+										  const void* data) {
 		ASSERT(numMipLevels <= kMaxMipLevels);
 
 		// divide the width and height by 2 until we get to the size of level 'baseMipLevel'
@@ -152,17 +159,16 @@ namespace Slate {
 		// find the storage size for all mip-levels being uploaded
 		uint32_t layerStorageSize = 0;
 		for (uint32_t i = 0; i < numMipLevels; ++i) {
-			const uint32_t mipSize = vkutil::GetTextureBytesPerLayer(image._vkExtent.width, image._vkExtent.height, format, i);
-			layerStorageSize += mipSize;
-			width = width <= 1 ? 1 : width >> 1;
-			height = height <= 1 ? 1 : height >> 1;
+			layerStorageSize += vkutil::GetTextureBytesPerLayer(image._vkExtent.width, image._vkExtent.height, format, i);
+			width = std::max(1u, width >> 1);
+			height = std::max(1u, height >> 1);
+//			width = width <= 1 ? 1 : width >> 1;
+//			height = height <= 1 ? 1 : height >> 1;
 		}
 		const uint32_t storageSize = layerStorageSize * numLayers;
 
 		ensureStagingBufferSize(storageSize);
-
 		ASSERT(storageSize <= _stagingBufferSize);
-
 		MemoryRegionDesc desc = getNextFreeOffset(storageSize);
 		// No support for copying image in multiple smaller chunk sizes. If we get smaller buffer size than storageSize, we will wait for GPU idle
 		// and get bigger chunk.
@@ -175,17 +181,27 @@ namespace Slate {
 		const VulkanImmediateCommands::CommandBufferWrapper& wrapper = _gx._imm->acquire();
 
 		AllocatedBuffer* stagingBuffer = _gx._bufferPool.get(_stagingBuffer);
-
 		stagingBuffer->bufferSubData(_gx, desc.offset_, storageSize, data);
 
 		uint32_t offset = 0;
-		const uint32_t numPlanes = 1;
+		const uint32_t numPlanes = vkutil::GetNumImagePlanes(image._vkFormat);
+		if (numPlanes > 1) {
+			ASSERT(layerCheck == 0 && baseMipLevel == 0);
+			ASSERT(numLayers == 1 && numMipLevels == 1);
+			ASSERT(imageRegion.offset.x == 0 && imageRegion.offset.y == 0);
+			ASSERT(image._vkImageType == VK_IMAGE_TYPE_2D);
+			ASSERT(image._vkExtent.width == imageRegion.extent.width && image._vkExtent.height == imageRegion.extent.height);
+		}
 		VkImageAspectFlags imageAspect = VK_IMAGE_ASPECT_COLOR_BIT;
+		if (numPlanes == 2) {
+			imageAspect = VK_IMAGE_ASPECT_PLANE_0_BIT | VK_IMAGE_ASPECT_PLANE_1_BIT;
+		}
+		if (numPlanes == 3) {
+			imageAspect = VK_IMAGE_ASPECT_PLANE_0_BIT | VK_IMAGE_ASPECT_PLANE_1_BIT | VK_IMAGE_ASPECT_PLANE_2_BIT;
+		}
 
-//		ASSERT_MSG(baseMipLevel + numMipLevels > image.numLevels, "Requested mip levels exceed available image levels.");
 		// https://registry.khronos.org/KTX/specs/1.0/ktxspec.v1.html
 		for (uint32_t mipLevel = 0; mipLevel < numMipLevels; mipLevel++) {
-			// FIXME: no idea how this was supposed to work with layer be redefined
 			for (uint32_t layer = 0; layer != numLayers; layer++) {
 				const uint32_t currentMipLevel = baseMipLevel + mipLevel;
 
@@ -242,7 +258,6 @@ namespace Slate {
 				offset += vkutil::GetTextureBytesPerLayer(imageRegion.extent.width, imageRegion.extent.height, format, currentMipLevel);
 			}
 		}
-
 		image._vkCurrentImageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
 		desc.handle_ = _gx._imm->submit(wrapper);
