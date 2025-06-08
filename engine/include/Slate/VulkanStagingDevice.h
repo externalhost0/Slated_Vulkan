@@ -25,7 +25,7 @@ namespace Slate {
 
 		VulkanStagingDevice(const VulkanStagingDevice&) = delete;
 		VulkanStagingDevice& operator=(const VulkanStagingDevice&) = delete;
-		Holder<BufferHandle> _stagingBuffer;
+		Holder<InternalBufferHandle> _stagingBuffer;
 	public:
 		void bufferSubData(AllocatedBuffer& buffer, size_t dstOffset, size_t size, const void* data);
 		void imageData2D(AllocatedImage& image,

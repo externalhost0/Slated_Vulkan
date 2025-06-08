@@ -35,6 +35,7 @@ namespace Slate {
 
 
 #ifdef SLATE_DEBUG
+// DO NOT PASS SIDE EFFECT FUNCTIONS
 #define ASSERT_MSG(ERROR, FORMAT, ...) do { \
     if (!(ERROR)) { \
         fmt::print(stderr, "[ASSERT] Assertion failed: {}:{} -> {} -> Error:\n\t" FORMAT "\n", __FILE__, __LINE__, __func__ __VA_OPT__(,) __VA_ARGS__); \

@@ -76,6 +76,10 @@ namespace Slate {
 
 		uint32_t _numAvailableCommandBuffers = kMaxCommandBuffers;
 		uint32_t _submitCounter = 1;
+
+		friend class CommandBuffer;
+		friend class VulkanSwapchain;
+		friend class VulkanStagingDevice;
 	};
 
 }

@@ -25,4 +25,17 @@ helper_addExternalDefines()
 
 
 add_subdirectory("${SLATE_BASE_FOLDER}/engine")
-add_subdirectory("${SLATE_BASE_FOLDER}/editor")
+
+# boilerplate project
+add_executable(Slate
+        ${SLATE_BASE_FOLDER}/engine/boilerplate/main.cpp
+)
+target_include_directories(Slate
+        PUBLIC
+        SlateEngine
+)
+target_link_libraries(Slate
+        PUBLIC
+        SlateEngine
+)
+#add_subdirectory("${SLATE_BASE_FOLDER}/editor")

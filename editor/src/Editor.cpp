@@ -15,10 +15,11 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <span>
-
+#include <chrono>
+#include <iostream>
 
 // Slate Headers
-#include "Slate/Common/Debug.h"
+#include "Slate/Common/HelperMacros.h"
 #include "Slate/Common/Logger.h"
 #include "Slate/ECS/Components.h"
 #include "Slate/ECS/Entity.h"
@@ -36,12 +37,22 @@
 // editor headers
 #include "Editor.h"
 #include "Fonts.h"
+#include "ImGuiSnippets.h"
+
 #include "Slate/CommandBuffer.h"
 #include "Slate/Loaders/ImageLoader.h"
 #include "Slate/Resources/TextureResource.h"
 #include "Slate/Systems/ShaderSystem.h"
 #include "Slate/VkObjects.h"
+
+
+#include "Slate/Network/NamedPipe.h"
 #include "imgui_internal.h"
+
+#include "Slate/Network/Socket.h"
+#include "generated/engine.pb.h"
+#include <zpp_bits.h>
+
 // icons!
 #include <IconFontCppHeaders/IconsLucide.h>
 #include <nfd.h>
@@ -79,7 +90,7 @@ namespace Slate {
 		{
 			iconFontCfg.MergeMode = true;
 			iconFontCfg.GlyphMinAdvanceX = iconSize;                 // Use if you want to make the icon monospaced
-			iconFontCfg.GlyphOffset = ImVec2(1.0f, fontSize / 10.0f);// fixes the offset in the text
+			iconFontCfg.GlyphOffset = ImVec2(1.0f, 5.f);// fixes the offset in the text
 			iconFontCfg.PixelSnapH = true;
 		}
 
@@ -99,6 +110,10 @@ namespace Slate {
 		Fonts::iconLargeFont = io.Fonts->AddFontFromFileTTF((path + "NotoSans-Regular.ttf").c_str(), fontSize + largeSize, &fontCfg);
 		io.Fonts->AddFontFromFileTTF((path + FONT_ICON_FILE_NAME_LC).c_str(), iconSize + largeSize, &iconFontCfg, ILC_Range);
 
+		float extraLargeSize = largeSize + 8.f;
+		Fonts::iconExtraLargeFont = io.Fonts->AddFontFromFileTTF((path + "NotoSans-Regular.ttf").c_str(), fontSize + extraLargeSize, &fontCfg);
+		io.Fonts->AddFontFromFileTTF((path + FONT_ICON_FILE_NAME_LC).c_str(), iconSize + extraLargeSize, &iconFontCfg, ILC_Range);
+
 		// variants of the NotoSans main font
 		// must be after the main font as we merge the fonts with the last font that is added to the io
 		Fonts::boldFont = io.Fonts->AddFontFromFileTTF((path + "NotoSans-Bold.ttf").c_str(), fontSize, &fontCfg);
@@ -112,101 +127,267 @@ namespace Slate {
 	namespace Theme {
 		static constexpr float MAIN_COLOR = (0.f);
 	}
+	struct ImGuiThemeProfile {
+		ImVec4 baseBg = ImVec4(0.10f, 0.10f, 0.11f, 1.0f);
+		ImVec4 accent = ImVec4(0.30f, 0.50f, 0.95f, 1.0f);
+		ImVec4 text   = ImVec4(0.95f, 0.96f, 0.98f, 1.0f);
 
-	void StyleStandard(ImGuiStyle *dst = nullptr) {
+		float contrast = 0.05f;
+		float dimness  = 0.15f;
+		float borderStrength = 0.4f;
+	};
+
+
+	void ColorStyleLightBlue() {
+		ImGuiStyle* style = &ImGui::GetStyle();
+		ImVec4* colors = style->Colors;
+		{
+			colors[ImGuiCol_Text]                 = ImVec4(0.95f, 0.96f, 0.98f, 1.00f);
+			colors[ImGuiCol_TextDisabled]         = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
+			colors[ImGuiCol_WindowBg]             = ImVec4(0.13f, 0.14f, 0.17f, 1.00f);
+			colors[ImGuiCol_ChildBg]              = ImVec4(0.10f, 0.11f, 0.13f, 1.00f);
+			colors[ImGuiCol_PopupBg]              = ImVec4(0.16f, 0.18f, 0.22f, 1.00f);
+
+			colors[ImGuiCol_Border]               = ImVec4(0.26f, 0.26f, 0.29f, 0.60f);
+			colors[ImGuiCol_BorderShadow]         = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+
+			colors[ImGuiCol_FrameBg]              = ImVec4(0.20f, 0.21f, 0.25f, 1.00f);
+			colors[ImGuiCol_FrameBgHovered]       = ImVec4(0.30f, 0.31f, 0.36f, 1.00f);
+			colors[ImGuiCol_FrameBgActive]        = ImVec4(0.36f, 0.38f, 0.45f, 1.00f);
+
+			colors[ImGuiCol_TitleBg]              = ImVec4(0.10f, 0.11f, 0.13f, 1.00f);
+			colors[ImGuiCol_TitleBgActive]        = ImVec4(0.15f, 0.16f, 0.19f, 1.00f);
+			colors[ImGuiCol_TitleBgCollapsed]     = ImVec4(0.08f, 0.09f, 0.10f, 1.00f);
+
+			colors[ImGuiCol_MenuBarBg]            = ImVec4(0.15f, 0.16f, 0.19f, 1.00f);
+
+			colors[ImGuiCol_ScrollbarBg]          = ImVec4(0.10f, 0.10f, 0.12f, 0.50f);
+			colors[ImGuiCol_ScrollbarGrab]        = ImVec4(0.25f, 0.25f, 0.30f, 0.70f);
+			colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.30f, 0.30f, 0.35f, 0.80f);
+			colors[ImGuiCol_ScrollbarGrabActive]  = ImVec4(0.35f, 0.35f, 0.40f, 1.00f);
+
+			colors[ImGuiCol_CheckMark]            = ImVec4(0.20f, 0.80f, 0.60f, 1.00f);
+
+			colors[ImGuiCol_SliderGrab]           = ImVec4(0.28f, 0.56f, 0.98f, 0.75f);
+			colors[ImGuiCol_SliderGrabActive]     = ImVec4(0.28f, 0.56f, 0.98f, 1.00f);
+
+			colors[ImGuiCol_Button]               = ImVec4(0.20f, 0.21f, 0.25f, 1.00f);
+			colors[ImGuiCol_ButtonHovered]        = ImVec4(0.28f, 0.29f, 0.35f, 1.00f);
+			colors[ImGuiCol_ButtonActive]         = ImVec4(0.33f, 0.35f, 0.42f, 1.00f);
+
+			colors[ImGuiCol_Header]               = ImVec4(0.25f, 0.27f, 0.32f, 1.00f);
+			colors[ImGuiCol_HeaderHovered]        = ImVec4(0.30f, 0.32f, 0.38f, 1.00f);
+			colors[ImGuiCol_HeaderActive]         = ImVec4(0.35f, 0.37f, 0.44f, 1.00f);
+
+			colors[ImGuiCol_Separator]            = ImVec4(0.25f, 0.27f, 0.30f, 1.00f);
+			colors[ImGuiCol_SeparatorHovered]     = ImVec4(0.30f, 0.32f, 0.35f, 1.00f);
+			colors[ImGuiCol_SeparatorActive]      = ImVec4(0.35f, 0.37f, 0.40f, 1.00f);
+
+			colors[ImGuiCol_ResizeGrip]           = ImVec4(0.25f, 0.27f, 0.30f, 0.70f);
+			colors[ImGuiCol_ResizeGripHovered]    = ImVec4(0.30f, 0.32f, 0.35f, 0.80f);
+			colors[ImGuiCol_ResizeGripActive]     = ImVec4(0.35f, 0.37f, 0.40f, 1.00f);
+
+			colors[ImGuiCol_Tab]                  = ImVec4(0.18f, 0.20f, 0.25f, 0.86f);
+			colors[ImGuiCol_TabHovered]           = ImVec4(0.28f, 0.56f, 0.98f, 0.80f);
+
+			colors[ImGuiCol_PlotLines]            = ImVec4(0.61f, 0.61f, 0.61f, 1.00f);
+			colors[ImGuiCol_PlotLinesHovered]     = ImVec4(1.00f, 0.43f, 0.35f, 1.00f);
+			colors[ImGuiCol_PlotHistogram]        = ImVec4(0.90f, 0.70f, 0.00f, 1.00f);
+			colors[ImGuiCol_PlotHistogramHovered] = ImVec4(1.00f, 0.60f, 0.00f, 1.00f);
+
+			colors[ImGuiCol_TableHeaderBg]        = ImVec4(0.19f, 0.20f, 0.23f, 1.00f);
+			colors[ImGuiCol_TableBorderStrong]    = ImVec4(0.31f, 0.31f, 0.35f, 1.00f);
+			colors[ImGuiCol_TableBorderLight]     = ImVec4(0.23f, 0.23f, 0.25f, 1.00f);
+			colors[ImGuiCol_TableRowBg]           = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+			colors[ImGuiCol_TableRowBgAlt]        = ImVec4(1.00f, 1.00f, 1.00f, 0.03f);
+
+			colors[ImGuiCol_TextSelectedBg]       = ImVec4(0.28f, 0.56f, 0.98f, 0.35f);
+			colors[ImGuiCol_DragDropTarget]       = ImVec4(1.00f, 1.00f, 0.00f, 0.90f);
+			colors[ImGuiCol_NavCursor]            = ImVec4(0.28f, 0.56f, 0.98f, 1.00f);
+			colors[ImGuiCol_NavWindowingHighlight]= ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
+			colors[ImGuiCol_NavWindowingDimBg]    = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
+			colors[ImGuiCol_ModalWindowDimBg]     = ImVec4(0.80f, 0.80f, 0.80f, 0.35f);
+			colors[ImGuiCol_DockingPreview]       = ImVec4(0.28f, 0.56f, 0.98f, 0.70f);
+		}
+	}
+	void ColorStylePurple() {
 		ImGui::StyleColorsDark();
-		ImGuiStyle *style = dst ? dst : &ImGui::GetStyle();
-		{
-			style->DockingSeparatorSize = 1.0f;
-			style->FrameBorderSize = 1.0f;
-			style->FramePadding = ImVec2(10.0f, 4.0f);
+		ImGuiStyle* style = &ImGui::GetStyle();
+		ImVec4* colors = style->Colors;
 
-			style->TabBarBorderSize = 2.0f;
-			style->TabBarOverlineSize = 1.0f;
-			style->WindowBorderSize = 1.0f;// for the thick borders on everything
-			style->PopupBorderSize = 1.0f; // for those nice borders around things like menus
-			style->ScrollbarSize = 13.0f;
+		// Base tones
+		colors[ImGuiCol_Text]                  = ImVec4(0.95f, 0.95f, 0.96f, 1.00f);
+		colors[ImGuiCol_TextDisabled]         = ImVec4(0.50f, 0.50f, 0.55f, 1.00f);
+		colors[ImGuiCol_WindowBg]             = ImVec4(0.11f, 0.11f, 0.14f, 1.00f);
+		colors[ImGuiCol_ChildBg]              = ImVec4(0.12f, 0.12f, 0.15f, 1.00f);
+		colors[ImGuiCol_PopupBg]              = ImVec4(0.14f, 0.14f, 0.17f, 1.00f);
 
-			style->WindowRounding = 2.0f;
-			style->ScrollbarRounding = 0.0f;
-			style->GrabRounding = 1.0f;
-			style->FrameRounding = 1.0f;
-			style->ChildRounding = 2.0f;
-			style->TabRounding = 1.5f;
-		}
-		ImVec4 *colors = style->Colors;
-		{
-			colors[ImGuiCol_Text] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
-			colors[ImGuiCol_TextDisabled] = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
-			colors[ImGuiCol_WindowBg] = ImVec4(0.10f, 0.10f, 0.10f, 1.00f);
-			colors[ImGuiCol_ChildBg] = ImVec4(0.50f, 0.50f, 0.50f, 0.10f);
-			colors[ImGuiCol_PopupBg] = ImVec4(0.19f, 0.19f, 0.19f, 1.0f);
+		// Borders
+		colors[ImGuiCol_Border]               = ImVec4(0.35f, 0.36f, 0.40f, 0.60f);
+		colors[ImGuiCol_BorderShadow]         = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
 
-			colors[ImGuiCol_Border] = ImVec4(0.39f, 0.39f, 0.35f, 0.50f);
-			colors[ImGuiCol_BorderShadow] = ImVec4(0.00f, 0.00f, 0.00f, 0.28f);
+		// Frame & Widgets
+		colors[ImGuiCol_FrameBg]              = ImVec4(0.20f, 0.22f, 0.25f, 1.00f);
+		colors[ImGuiCol_FrameBgHovered]       = ImVec4(0.36f, 0.14f, 0.44f, 1.00f);
+		colors[ImGuiCol_FrameBgActive]        = ImVec4(0.46f, 0.20f, 0.54f, 1.00f);
 
-			colors[ImGuiCol_FrameBg] = ImVec4(0.05f, 0.05f, 0.05f, 0.54f);
-			colors[ImGuiCol_FrameBgHovered] = ImVec4(0.19f, 0.19f, 0.19f, 0.84f);
-			colors[ImGuiCol_FrameBgActive] = ImVec4(0.20f, 0.22f, 0.23f, 1.00f);
+		colors[ImGuiCol_TitleBg]              = ImVec4(0.15f, 0.10f, 0.20f, 1.00f);
+		colors[ImGuiCol_TitleBgActive]        = ImVec4(0.25f, 0.15f, 0.35f, 1.00f);
+		colors[ImGuiCol_TitleBgCollapsed]     = ImVec4(0.10f, 0.07f, 0.13f, 1.00f);
 
-			colors[ImGuiCol_TitleBg] = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
-			colors[ImGuiCol_TitleBgActive] = ImVec4(0.06f, 0.06f, 0.06f, 1.00f);
-			colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
+		// Scrollbar
+		colors[ImGuiCol_ScrollbarBg]          = ImVec4(0.10f, 0.10f, 0.12f, 0.53f);
+		colors[ImGuiCol_ScrollbarGrab]        = ImVec4(0.33f, 0.33f, 0.36f, 0.71f);
+		colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.44f, 0.14f, 0.56f, 0.80f);
+		colors[ImGuiCol_ScrollbarGrabActive]  = ImVec4(0.50f, 0.20f, 0.60f, 1.00f);
 
-			colors[ImGuiCol_MenuBarBg] = ImVec4(0.10f, 0.10f, 0.10f, 1.00f);
+		// Interactive elements
+		colors[ImGuiCol_CheckMark]            = ImVec4(0.90f, 0.40f, 0.95f, 1.00f);
+		colors[ImGuiCol_SliderGrab]           = ImVec4(0.80f, 0.30f, 0.90f, 0.75f);
+		colors[ImGuiCol_SliderGrabActive]     = ImVec4(0.90f, 0.40f, 0.95f, 1.00f);
 
-			// lesser colors
-			colors[ImGuiCol_ScrollbarBg] = ImVec4(0.05f, 0.05f, 0.05f, 0.54f);
-			colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.34f, 0.34f, 0.34f, 0.54f);
-			colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.40f, 0.40f, 0.40f, 0.54f);
-			colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.56f, 0.56f, 0.56f, 0.54f);
-			colors[ImGuiCol_CheckMark] = ImVec4(0.33f, 0.67f, 0.86f, 1.00f);
-			colors[ImGuiCol_SliderGrab] = ImVec4(0.34f, 0.34f, 0.34f, 0.54f);
-			colors[ImGuiCol_SliderGrabActive] = ImVec4(0.56f, 0.56f, 0.56f, 0.54f);
-			colors[ImGuiCol_Button] = ImVec4(0.05f, 0.05f, 0.05f, 0.54f);
-			colors[ImGuiCol_ButtonHovered] = ImVec4(0.19f, 0.19f, 0.19f, 0.74f);
-			colors[ImGuiCol_ButtonActive] = ImVec4(0.20f, 0.22f, 0.23f, 1.00f);
+		colors[ImGuiCol_Button]               = ImVec4(0.25f, 0.27f, 0.30f, 1.00f);
+		colors[ImGuiCol_ButtonHovered]        = ImVec4(0.40f, 0.14f, 0.50f, 1.00f);
+		colors[ImGuiCol_ButtonActive]         = ImVec4(0.48f, 0.20f, 0.56f, 1.00f);
 
-			// menu bar stuff
-			colors[ImGuiCol_Header] = ImVec4(0.03f, 0.03f, 0.03f, 0.72f);
-			colors[ImGuiCol_HeaderHovered] = ImVec4(0.20f, 0.22f, 0.23f, 0.8f);// important
-			colors[ImGuiCol_HeaderActive] = ImVec4(0.20f, 0.22f, 0.23f, 0.53f);
+		// Headers
+		colors[ImGuiCol_Header]               = ImVec4(0.30f, 0.12f, 0.42f, 1.00f);
+		colors[ImGuiCol_HeaderHovered]        = ImVec4(0.38f, 0.15f, 0.50f, 1.00f);
+		colors[ImGuiCol_HeaderActive]         = ImVec4(0.46f, 0.18f, 0.58f, 1.00f);
 
-			colors[ImGuiCol_Separator] = ImVec4(0.28f, 0.28f, 0.28f, 0.49f);
-			colors[ImGuiCol_SeparatorHovered] = ImVec4(0.44f, 0.44f, 0.44f, 0.29f);
-			colors[ImGuiCol_SeparatorActive] = ImVec4(0.40f, 0.44f, 0.47f, 1.00f);
-			colors[ImGuiCol_ResizeGrip] = ImVec4(0.28f, 0.28f, 0.28f, 0.29f);
-			colors[ImGuiCol_ResizeGripHovered] = ImVec4(0.44f, 0.44f, 0.44f, 0.29f);
-			colors[ImGuiCol_ResizeGripActive] = ImVec4(0.40f, 0.44f, 0.47f, 1.00f);
-			colors[ImGuiCol_Tab] = ImVec4(0.00f, 0.00f, 0.00f, 0.52f);
-			colors[ImGuiCol_TabHovered] = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
-			colors[ImGuiCol_TabSelectedOverline] = ImVec4(0.1f, 0.15f, 0.55f, 1.00f);
-			//			colors[ImGuiCol_TabActive] = ImVec4(0.20f, 0.20f, 0.20f, 0.36f);
-			//			colors[ImGuiCol_TabUnfocused] = ImVec4(0.00f, 0.00f, 0.00f, 0.52f);
-			//			colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
-			colors[ImGuiCol_PlotLines] = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
-			colors[ImGuiCol_PlotLinesHovered] = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
-			colors[ImGuiCol_PlotHistogram] = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
-			colors[ImGuiCol_PlotHistogramHovered] = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
-			colors[ImGuiCol_TableHeaderBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.52f);
-			colors[ImGuiCol_TableBorderStrong] = ImVec4(0.00f, 0.00f, 0.00f, 0.52f);
-			colors[ImGuiCol_TableBorderLight] = ImVec4(0.28f, 0.28f, 0.28f, 0.29f);
-			colors[ImGuiCol_TableRowBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
-			colors[ImGuiCol_TableRowBgAlt] = ImVec4(1.00f, 1.00f, 1.00f, 0.06f);
-			colors[ImGuiCol_TextSelectedBg] = ImVec4(0.20f, 0.22f, 0.23f, 1.00f);
+		// Tabs
+		colors[ImGuiCol_Tab]                  = ImVec4(0.22f, 0.20f, 0.30f, 0.80f);
+		colors[ImGuiCol_TabHovered]           = ImVec4(0.40f, 0.14f, 0.50f, 0.85f);
+//		colors[ImGuiCol_TabActive]            = ImVec4(0.45f, 0.20f, 0.55f, 1.00f);
+//		colors[ImGuiCol_TabUnfocused]         = ImVec4(0.16f, 0.16f, 0.20f, 0.90f);
+//		colors[ImGuiCol_TabUnfocusedActive]   = ImVec4(0.25f, 0.18f, 0.35f, 1.00f);
 
-			//			colors[ImGuiCol_NavHighlight] = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
-			colors[ImGuiCol_NavWindowingDimBg] = ImVec4(1.00f, 0.00f, 0.00f, 0.20f);
-			colors[ImGuiCol_ModalWindowDimBg] = ImVec4(1.00f, 0.00f, 0.00f, 0.35f);
+		// Separators
+		colors[ImGuiCol_Separator]            = ImVec4(0.35f, 0.20f, 0.40f, 0.60f);
+		colors[ImGuiCol_SeparatorHovered]     = ImVec4(0.45f, 0.25f, 0.55f, 1.00f);
+		colors[ImGuiCol_SeparatorActive]      = ImVec4(0.55f, 0.30f, 0.65f, 1.00f);
 
-			// HIGHLIGHT COLORS
-			// colors for docking feature on hover
-			colors[ImGuiCol_NavWindowingHighlight] = ImVec4(0.10f, 0.10f, 0.10f, 0.70f);
-			colors[ImGuiCol_DockingPreview] = ImVec4(0.10f, 1.00f, 0.60f, 0.40f);
-			colors[ImGuiCol_DragDropTarget] = ImVec4(0.10f, 1.0f, 0.60f, 1.00f);
+		// Plot
+		colors[ImGuiCol_PlotLines]            = ImVec4(0.75f, 0.60f, 0.85f, 1.00f);
+		colors[ImGuiCol_PlotLinesHovered]     = ImVec4(0.95f, 0.70f, 1.00f, 1.00f);
+		colors[ImGuiCol_PlotHistogram]        = ImVec4(0.70f, 0.30f, 0.80f, 1.00f);
+		colors[ImGuiCol_PlotHistogramHovered] = ImVec4(0.85f, 0.40f, 0.95f, 1.00f);
 
-			colors[ImGuiCol_CheckMark] = ImVec4(0.10f, 1.0f, 0.60f, 1.00f);
-		}
+		// Tables
+		colors[ImGuiCol_TableHeaderBg]        = ImVec4(0.22f, 0.20f, 0.30f, 1.00f);
+		colors[ImGuiCol_TableBorderStrong]    = ImVec4(0.45f, 0.20f, 0.50f, 1.00f);
+		colors[ImGuiCol_TableBorderLight]     = ImVec4(0.35f, 0.15f, 0.45f, 1.00f);
+		colors[ImGuiCol_TableRowBg]           = ImVec4(0.10f, 0.10f, 0.12f, 0.30f);
+		colors[ImGuiCol_TableRowBgAlt]        = ImVec4(0.12f, 0.12f, 0.15f, 0.30f);
+
+		// Misc
+		colors[ImGuiCol_TextSelectedBg]       = ImVec4(0.90f, 0.50f, 1.00f, 0.35f);
+		colors[ImGuiCol_DragDropTarget]       = ImVec4(1.00f, 0.80f, 0.10f, 0.90f);
+		colors[ImGuiCol_NavCursor]            = ImVec4(1.00f, 0.75f, 1.00f, 1.00f);
+		colors[ImGuiCol_NavWindowingHighlight]= ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
+		colors[ImGuiCol_NavWindowingDimBg]    = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
+		colors[ImGuiCol_ModalWindowDimBg]     = ImVec4(0.80f, 0.80f, 0.80f, 0.35f);
+		colors[ImGuiCol_DockingPreview]       = ImVec4(0.95f, 0.70f, 1.00f, 0.30f);
+		// Resize grip styles (bottom-right corner of windows)
+		colors[ImGuiCol_ResizeGrip]           = ImVec4(0.40f, 0.18f, 0.50f, 0.45f);
+		colors[ImGuiCol_ResizeGripHovered]    = ImVec4(0.55f, 0.28f, 0.65f, 0.80f);
+		colors[ImGuiCol_ResizeGripActive]     = ImVec4(0.70f, 0.38f, 0.80f, 1.00f);
+
+		// Tab styling extensions
+		colors[ImGuiCol_TabSelected]          = ImVec4(0.55f, 0.30f, 0.65f, 1.00f); // Strongest tab state
+		colors[ImGuiCol_TabSelectedOverline]          = ImVec4(0.90f, 0.50f, 1.00f, 1.00f); // Line above selected tab (if supported)
+		colors[ImGuiCol_TabDimmed]            = ImVec4(0.20f, 0.18f, 0.25f, 0.60f); // For minimized/inactive tabs
+		colors[ImGuiCol_TabDimmedSelected]    = ImVec4(0.35f, 0.20f, 0.45f, 0.85f); // Dimmed but active (like preview state)
+
+		// Text link styling (underlined text or hyperlink)
+		colors[ImGuiCol_TextLink]             = ImVec4(0.75f, 0.50f, 1.00f, 1.00f); // Vibrant link color
+
+		// Cursor feedback color (hovering on nav via gamepad/keyboard)
+
+	}
+	void ApplyTheme(const ImGuiThemeProfile& profile) {
+		ImVec4* colors = ImGui::GetStyle().Colors;
+
+		// Base backgrounds
+		colors[ImGuiCol_WindowBg]   = profile.baseBg;
+		colors[ImGuiCol_ChildBg]    = Adjust_Brightness(profile.baseBg, 0.03f);
+		colors[ImGuiCol_PopupBg]    = Adjust_Brightness(profile.baseBg, 0.05f);
+		colors[ImGuiCol_MenuBarBg]  = Adjust_Brightness(Adjust_Saturation(profile.baseBg, 0.2f), 0.05f);
+
+		// Text
+		colors[ImGuiCol_Text]              = profile.text;
+		colors[ImGuiCol_TextDisabled]      = Adjust_Saturation(profile.text, profile.dimness);
+		colors[ImGuiCol_TextLink]          = Adjust_Brightness(Adjust_HueShift(profile.accent, 0.1f), 0.1f);
+		colors[ImGuiCol_TextSelectedBg]    = Adjust_Brightness(profile.accent, 0.2f);
+
+		// Frames
+		colors[ImGuiCol_FrameBg]           = Adjust_Brightness(profile.baseBg, 0.04f);
+		colors[ImGuiCol_FrameBgHovered]    = Adjust_Brightness(profile.accent, profile.contrast);
+		colors[ImGuiCol_FrameBgActive]     = Adjust_Brightness(profile.accent, profile.contrast * 2.0f);
+
+		// Titles
+		colors[ImGuiCol_TitleBg]          = Adjust_Brightness(profile.baseBg, 0.03f);
+		colors[ImGuiCol_TitleBgActive]    = Adjust_Brightness(Adjust_HueShift(profile.baseBg, 0.02f), 0.08f);
+		colors[ImGuiCol_TitleBgCollapsed] = Adjust_Saturation(profile.baseBg, 0.1f);
+
+		// Scrollbars
+		colors[ImGuiCol_ScrollbarBg]          = Adjust_Saturation(profile.baseBg, 0.5f);
+		colors[ImGuiCol_ScrollbarGrab]        = Adjust_Brightness(profile.baseBg, 0.2f);
+		colors[ImGuiCol_ScrollbarGrabHovered] = Adjust_Brightness(profile.accent, 0.15f);
+		colors[ImGuiCol_ScrollbarGrabActive]  = Adjust_Brightness(profile.accent, 0.25f);
+
+		// Buttons
+		colors[ImGuiCol_Button]            = Adjust_Brightness(profile.baseBg, 0.07f);
+		colors[ImGuiCol_ButtonHovered]     = Adjust_Brightness(profile.accent, profile.contrast);
+		colors[ImGuiCol_ButtonActive]      = Adjust_Brightness(profile.accent, profile.contrast * 1.5f);
+
+		// Headers
+		colors[ImGuiCol_Header]        = Adjust_Brightness(Adjust_Saturation(profile.accent, 0.5f), -0.5f);
+		colors[ImGuiCol_HeaderHovered] = Adjust_Brightness(Adjust_Saturation(profile.accent, 0.3f), 0.1f);
+		colors[ImGuiCol_HeaderActive]  = Adjust_Brightness(profile.accent, profile.contrast * 0.6f);
+
+		// Tabs
+		colors[ImGuiCol_Tab]                        = Adjust_Saturation(profile.baseBg, 0.25f);
+		colors[ImGuiCol_TabHovered]                 = Adjust_Brightness(profile.accent, profile.contrast * 0.8f);
+		colors[ImGuiCol_TabSelected]                = Adjust_Brightness(profile.baseBg, 0.05f);
+		colors[ImGuiCol_TabSelectedOverline]        = Adjust_Brightness(Adjust_HueShift(profile.accent, 0.1f), 0.3f);
+		colors[ImGuiCol_TabDimmed]                  = Adjust_Saturation(profile.baseBg, 0.4f);
+		colors[ImGuiCol_TabDimmedSelected]          = Adjust_Brightness(profile.baseBg, 0.02f);
+		colors[ImGuiCol_TabDimmedSelectedOverline]  = Adjust_Brightness(Adjust_HueShift(profile.accent, 0.15f), 0.15f);
+
+		// Sliders, checkmarks, grabbers
+		colors[ImGuiCol_SliderGrab]        = profile.accent;
+		colors[ImGuiCol_SliderGrabActive]  = Adjust_Brightness(profile.accent, profile.contrast);
+		colors[ImGuiCol_CheckMark]         = profile.accent;
+
+		// Resize grips
+		colors[ImGuiCol_ResizeGrip]        = Adjust_Saturation(profile.accent, 0.4f);
+		colors[ImGuiCol_ResizeGripHovered] = Adjust_Brightness(profile.accent, 0.2f);
+		colors[ImGuiCol_ResizeGripActive]  = Adjust_Brightness(profile.accent, 0.3f);
+
+		// Navigation highlight
+		colors[ImGuiCol_NavCursor]             = Adjust_Brightness(profile.accent, 0.4f);
+		colors[ImGuiCol_NavWindowingHighlight] = Adjust_Brightness(profile.accent, 0.4f);
+		colors[ImGuiCol_NavWindowingDimBg]     = ImVec4(0, 0, 0, 0.3f);
+
+		// Tables
+		colors[ImGuiCol_TableHeaderBg]     = Adjust_Brightness(profile.baseBg, 0.06f);
+		colors[ImGuiCol_TableBorderStrong] = Adjust_Brightness(profile.baseBg, profile.borderStrength);
+		colors[ImGuiCol_TableBorderLight]  = Adjust_Brightness(profile.baseBg, profile.borderStrength * 0.5f);
+		colors[ImGuiCol_TableRowBg]        = profile.baseBg;
+		colors[ImGuiCol_TableRowBgAlt]     = Adjust_Brightness(profile.baseBg, 0.03f);
+
+		// Misc
+		colors[ImGuiCol_DockingPreview]    = Adjust_Brightness(profile.accent, 0.2f);
+		colors[ImGuiCol_DragDropTarget]    = Adjust_Brightness(profile.accent, 0.4f);
+		colors[ImGuiCol_ModalWindowDimBg]  = ImVec4(0, 0, 0, 0.6f);
+
+		// Seperators
+		colors[ImGuiCol_Separator]         = Adjust_Brightness(profile.baseBg, 0.08f);
+		colors[ImGuiCol_SeparatorHovered]  = Adjust_Brightness(profile.accent, profile.contrast * 0.8f);
+		colors[ImGuiCol_SeparatorActive]   = Adjust_Brightness(profile.accent, profile.contrast * 1.2f);
+	}
+	void ColorStyleGuizmo() {
 		ImGuizmo::Style* guizmostyle = &ImGuizmo::GetStyle();
 		float thickness = 4.0f;
 		{
@@ -226,12 +407,80 @@ namespace Slate {
 			guizmocolors[ImGuizmo::ROTATION_USING_BORDER] = ImVec4(0.5f, 0.3f, 0.05f, 0.8f);
 		}
 	}
+	void StyleStandard(ImGuiStyle *dst = nullptr) {
+		ImGuiStyle* style = dst ? dst : &ImGui::GetStyle();
+		{
+			style->DockingSeparatorSize = 1.0f;
+			style->FrameBorderSize = 1.0f;
+			style->FramePadding = ImVec2(10.0f, 4.0f);
+
+			style->TabBarBorderSize = 2.0f;
+			style->TabBarOverlineSize = 1.0f;
+			style->WindowBorderSize = 1.0f; // for the thick borders on everything
+			style->PopupBorderSize = 1.0f; // for those nice borders around things like menus
+			style->ScrollbarSize = 13.0f;
+
+			style->WindowRounding = 2.0f;
+			style->ScrollbarRounding = 0.0f;
+			style->GrabRounding = 1.0f;
+			style->FrameRounding = 1.0f;
+			style->ChildRounding = 2.0f;
+			style->TabRounding = 1.5f;
+		}
+		ImGuiThemeProfile VioletVoid = {
+				.baseBg = ImVec4(0.08f, 0.06f, 0.10f, 1.0f),
+				.accent = ImVec4(0.75f, 0.40f, 1.00f, 1.0f),
+				.text   = ImVec4(0.93f, 0.94f, 0.96f, 1.0f),
+				.contrast = 0.18f,
+				.dimness  = 0.28f,
+				.borderStrength = 0.35f
+		};
+		ImGuiThemeProfile SlateNeon = {
+				.baseBg = ImVec4(0.10f, 0.12f, 0.14f, 1.0f),
+				.accent = ImVec4(0.20f, 0.80f, 0.95f, 1.0f), // neon cyan
+				.text   = ImVec4(0.95f, 0.96f, 0.98f, 1.0f),
+				.contrast = 0.20f,
+				.dimness  = 0.25f,
+				.borderStrength = 0.4f
+		};
+		ImGuiThemeProfile EmeraldNight = {
+				.baseBg = ImVec4(0.09f, 0.11f, 0.10f, 1.0f),
+				.accent = ImVec4(0.25f, 1.00f, 0.70f, 1.0f),
+				.text   = ImVec4(0.92f, 0.96f, 0.92f, 1.0f),
+				.contrast = 0.22f,
+				.dimness  = 0.3f,
+				.borderStrength = 0.35f
+		};
+		ImGuiThemeProfile SunsetTerminal = {
+				.baseBg = ImVec4(0.12f, 0.08f, 0.06f, 1.0f),
+				.accent = ImVec4(1.00f, 0.55f, 0.25f, 1.0f), // amber
+				.text   = ImVec4(1.00f, 0.95f, 0.85f, 1.0f),
+				.contrast = 0.17f,
+				.dimness  = 0.35f,
+				.borderStrength = 0.45f
+		};
+		ImGuiThemeProfile FrostLight = {
+				.baseBg = ImVec4(0.90f, 0.92f, 0.95f, 1.0f),
+				.accent = ImVec4(0.15f, 0.50f, 0.80f, 1.0f),
+				.text   = ImVec4(0.10f, 0.12f, 0.15f, 1.0f),
+				.contrast = 0.12f,
+				.dimness  = 0.4f,
+				.borderStrength = 0.2f
+		};
+
+		ApplyTheme(SunsetTerminal);
+//		ColorStyleLightBlue();
+//		ColorStylePurple();
+		ColorStyleGuizmo();
+	}
 	void BuildStyle() {
 		// necessary to be done early
 		FontSetup();
 		// our default colors for the user interface
 		StyleStandard();
 	}
+
+
 
 	glm::mat4 TransformToModelMatrix(const TransformComponent &component, bool isScalable = true, bool isRotatable = true) {
 		auto model = glm::mat4(1);
@@ -430,15 +679,15 @@ namespace Slate {
 		std::this_thread::sleep_for(std::chrono::milliseconds(500));
 	}
 
-	PipelineHandle shadedModePipeline;
-	PipelineHandle wireframeModePipeline;
-	PipelineHandle unshadedModePipeline;
-	PipelineHandle gridShaderPipeline;
+	InternalPipelineHandle shadedModePipeline;
+	InternalPipelineHandle wireframeModePipeline;
+	InternalPipelineHandle unshadedModePipeline;
+	InternalPipelineHandle gridShaderPipeline;
 
-	PipelineHandle wireframeVisualizerPipeline;
-	PipelineHandle filledVisualizerPipeline;
-	PipelineHandle fullscreenPipeline;
-	PipelineHandle pureOutlinePipeline;
+	InternalPipelineHandle wireframeVisualizerPipeline;
+	InternalPipelineHandle filledVisualizerPipeline;
+	InternalPipelineHandle fullscreenPipeline;
+	InternalPipelineHandle pureOutlinePipeline;
 
 	// editor provided resources
 
@@ -556,6 +805,7 @@ namespace Slate {
 		this->spotmesh = this->getGX().createMesh(vertices);
 	}
 	void LoadEditorTextures(GX& gx) {
+		// in scene
 		lightbulbTexture.loadResource(Filesystem::GetRelativePath("textures/icons/lightbulb.png"));
 		lightbulbTexture.assignHandle(gx.createTexture({
 				.dimension = lightbulbTexture.getDimensions(),
@@ -624,12 +874,11 @@ namespace Slate {
 	void EditorApplication::onInitialize() {
 		// Window Setup
 		WindowSpec window_spec = {
-			.videomode = VideoMode::Windowed,
-			.title = "Slate Editor",
-			.resizeable = true,
+				.videomode = VideoMode::Windowed,
+				.title = "Slate Editor",
+				.resizeable = true,
 		};
 		createWindow(window_spec);
-		NFD_Init();
 
 		// Vulkan Setup
 		VulkanInstanceInfo vk_info = {
@@ -641,6 +890,9 @@ namespace Slate {
 		GX& gx = this->getGX();
 		gx.create(vk_info, getActiveWindow()->getGLFWWindow());
 		GLTFLoader::_gx = &gx;
+
+		NFD_Init();
+
 
 		// editor essentials
 		// hidden editor
@@ -658,6 +910,18 @@ namespace Slate {
 		LoadEditorTextures(gx);
 		LoadEditorShaders(gx);
 
+		GOOGLE_PROTOBUF_VERIFY_VERSION;
+		ClientSocket client;
+		if (client.connect("/tmp/ipc.sock")) {
+			SocketConnection connection = client.getConnection();
+
+			engine::LoadSceneRequest sceneRequest;
+//			sceneRequest.set_path("../nothing.json");
+//			connection.fullProtoSend(sceneRequest);
+
+		}
+
+
 		// ImGui
 		ImGuiRequiredData imgui_required = gx.requestImGuiRequiredData();
 		this->InitImGui(imgui_required, getActiveWindow()->getGLFWWindow(), VK_FORMAT_R8G8B8A8_UNORM);
@@ -665,6 +929,33 @@ namespace Slate {
 			auto [ sampler, image_view ] = gx.requestViewportImageData(viewportImage);
 			this->_viewportImageDescriptorSet = ImGui_ImplVulkan_AddTexture(sampler, image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		}
+		{
+			int w, h;
+			void* data = stbi_load(Filesystem::GetRelativePath("textures/icons/file.png").c_str(), &w, &h, nullptr, 4);
+			InternalTextureHandle fileIcon = gx.createTexture({
+					.dimension = {static_cast<uint32_t>(w), static_cast<uint32_t>(h)},
+					.usage = TextureUsageBits::TextureUsageBits_Sampled,
+					.format = VK_FORMAT_R8G8B8A8_SRGB,
+					.data = data,
+					.debugName = "File Icon"
+			});
+			this->_fileImageDS = ImGui_ImplVulkan_AddTexture(gx.getLinearSampler(), gx.getTextureImageView(fileIcon), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+			stbi_image_free(data);
+		}
+		{
+			int w, h;
+			void *data = stbi_load(Filesystem::GetRelativePath("textures/icons/folder.png").c_str(), &w, &h, nullptr, 4);
+			InternalTextureHandle folderIcon = gx.createTexture({
+					.dimension = {static_cast<uint32_t>(w), static_cast<uint32_t>(h)},
+					.usage = TextureUsageBits::TextureUsageBits_Sampled,
+					.format = VK_FORMAT_R8G8B8A8_SRGB,
+					.data = data,
+					.debugName = "Folder Icon"
+			});
+			this->_folderImageDS = ImGui_ImplVulkan_AddTexture(gx.getLinearSampler(), gx.getTextureImageView(folderIcon), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+			stbi_image_free(data);
+		}
+
 		// do our themes setting, imgui fonts and style
 		BuildStyle();
 
@@ -772,19 +1063,21 @@ namespace Slate {
 		this->ctx.scene = new Scene();
 		Scene& scene = *ctx.scene;
 
-		MeshResource fishRes;
-		fishRes.loadResource(Filesystem::GetRelativePath("models/BarramundiFish/glTF-Binary/BarramundiFish.glb"));
 
-		MeshResource suzanneRes;
-		suzanneRes.loadResource(Filesystem::GetRelativePath("models/Suzanne/glTF/Suzanne.gltf"));
+
+		MeshHandle fishhandle = _meshPool.create(Filesystem::GetRelativePath("models/BarramundiFish/glTF-Binary/BarramundiFish.glb"));
+		MeshHandle suzannehandle = _meshPool.create(Filesystem::GetRelativePath("models/Suzanne/glTF/Suzanne.gltf"));
+		ScriptHandle basichandle = _scriptPool.create(Filesystem::GetRelativePath("scripts/basic.lua"));
 
 		GameEntity fish = scene.createEntity("Fishy");
 		fish.addComponent<TransformComponent>().global.scale = glm::vec3{10};
-		fish.addComponent<GeometryGLTFComponent>().mesh_source = CreateStrongPtr<MeshResource>(fishRes);
+		fish.addComponent<GeometryGLTFComponent>().handle = fishhandle;
+		fish.addComponent<ScriptComponent>().handle = basichandle;
 
 		GameEntity suzanne = scene.createEntity("Suzanne");
 		suzanne.addComponent<TransformComponent>().global.position = glm::vec3{-5.f, 4.f, 0.f};
-		suzanne.addComponent<GeometryGLTFComponent>().mesh_source = CreateStrongPtr<MeshResource>(suzanneRes);
+		suzanne.addComponent<GeometryGLTFComponent>().handle = suzannehandle;
+		suzanne.addComponent<ScriptComponent>().handle = basichandle;
 
 		GameEntity sphere = scene.createEntity("Cube");
 		sphere.addComponent<TransformComponent>().global.position = glm::vec3{-2.f, 4.f, 0.f};
@@ -836,7 +1129,10 @@ namespace Slate {
 
 	void EditorApplication::onTick() {
 		if (GetInput().IsKeyJustClicked(KeyCode::Q)) {
-			this->callTermination();
+			this->callStop();
+		}
+		for (GameEntity& entity : this->ctx.scene->GetAllEntitiesWithEXT<ScriptComponent>()) {
+			ScriptComponent& component = entity.getComponent<ScriptComponent>();
 		}
 	}
 
@@ -857,6 +1153,7 @@ namespace Slate {
 	}
 
 	void EditorApplication::onRender() {
+
 		GX& gx = getGX();
 
 		_camera.updateMatrices();
@@ -908,6 +1205,8 @@ namespace Slate {
 			lightingData.spots[i].Blend = entity_light.spot.Blend;
 			i++;
 		}
+
+
 
 		ctx.scene->Tick(getTime().getDeltaTime());
 		this->_guiUpdate();
@@ -1022,7 +1321,7 @@ namespace Slate {
 				};
 
 				// same texture that must be submitted at the end of cmd buffer
-				TextureHandle swapchainTexture = gx.acquireCurrentSwapchainTexture();
+				InternalTextureHandle swapchainTexture = gx.acquireCurrentSwapchainTexture();
 
 				cmd.cmdBeginRendering(first);
 				if (_viewportMode == ViewportModes::SHADED || _viewportMode == ViewportModes::SOLID_WIREFRAME) {
@@ -1048,7 +1347,7 @@ namespace Slate {
 						cmd.cmdDrawIndexed(mesh.getIndexCount());
 					}
 					for (const GameEntity& entity : ctx.scene->GetAllEntitiesWithEXT<GeometryGLTFComponent>()) {
-						const auto meshSource = entity.getComponent<GeometryGLTFComponent>().mesh_source;
+						const auto meshSource = _meshPool.get(entity.getComponent<GeometryGLTFComponent>().handle);
 						for (int k = 0; k < meshSource->getMeshCount(); k++) {
 							const MeshData& mesh = meshSource->getBuffers()[k];
 							GPU::PerObjectData constants = {
@@ -1088,7 +1387,7 @@ namespace Slate {
 						cmd.cmdDrawIndexed(mesh.getIndexCount());
 					}
 					for (const GameEntity& entity : ctx.scene->GetAllEntitiesWithEXT<GeometryGLTFComponent>()) {
-						const auto meshSource = entity.getComponent<GeometryGLTFComponent>().mesh_source;
+						const auto meshSource = _meshPool.get(entity.getComponent<GeometryGLTFComponent>().handle);
 						for (int k = 0; k < meshSource->getMeshCount(); k++) {
 							const MeshData& mesh = meshSource->getBuffers()[k];
 							GPU::PushConstants_EditorPrimitives constants = {
@@ -1124,7 +1423,7 @@ namespace Slate {
 						cmd.cmdDrawIndexed(mesh.getIndexCount());
 					}
 					for (const GameEntity& entity : ctx.scene->GetAllEntitiesWithEXT<GeometryGLTFComponent>()) {
-						const auto meshSource = entity.getComponent<GeometryGLTFComponent>().mesh_source;
+						const auto meshSource = _meshPool.get(entity.getComponent<GeometryGLTFComponent>().handle);
 						for (int k = 0; k < meshSource->getMeshCount(); k++) {
 							const MeshData& mesh = meshSource->getBuffers()[k];
 							GPU::PushConstants_EditorSolidShading constants = {
@@ -1293,7 +1592,7 @@ namespace Slate {
 							}
 						}
 						if (activeEntity.hasComponent<GeometryGLTFComponent>()) {
-							const auto meshSource = activeEntity.getComponent<GeometryGLTFComponent>().mesh_source;
+							const auto meshSource = _meshPool.get(activeEntity.getComponent<GeometryGLTFComponent>().handle);
 							for (int k = 0; k < meshSource->getMeshCount(); k++) {
 								const MeshData& mesh = meshSource->getBuffers()[k];
 								struct P {
@@ -1313,12 +1612,8 @@ namespace Slate {
 				cmd.cmdEndRendering();
 				cmd.cmdTransitionLayout(outlineImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-				cmd.cmdTransitionLayout(colorResolveImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-				{
-					cmd.cmdTransitionLayout(viewportImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-					cmd.cmdBlitImage(colorResolveImage, viewportImage);
-					cmd.cmdTransitionLayout(colorResolveImage, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-				}
+				cmd.cmdBlitImage(colorResolveImage, viewportImage);
+				cmd.cmdTransitionLayout(colorResolveImage, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 				cmd.cmdTransitionLayout(viewportImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 
@@ -1339,12 +1634,8 @@ namespace Slate {
 				cmd.cmdEndRendering();
 
 
-				cmd.cmdTransitionLayout(colorResolveImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-				{
-					cmd.cmdTransitionLayout(viewportImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-					cmd.cmdBlitImage(colorResolveImage, viewportImage);
-					cmd.cmdTransitionLayout(viewportImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-				}
+				cmd.cmdBlitImage(colorResolveImage, viewportImage);
+				cmd.cmdTransitionLayout(viewportImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 				cmd.cmdTransitionLayout(colorResolveImage, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
 
@@ -1408,11 +1699,14 @@ namespace Slate {
 		// this order specifically
 		ImGui_ImplVulkan_RemoveTexture(_viewportImageDescriptorSet);
 		ImGui_ImplVulkan_Shutdown();
-		vkDestroyDescriptorPool(gx._backend.getDevice(), _imguiDescriptorPool, nullptr);
+//		vkDestroyDescriptorPool(gx._backend.getDevice(), _imguiDescriptorPool, nullptr);
 		ImGui_ImplGlfw_Shutdown();
 		ImGui::DestroyContext();
 	}
 
+	void EditorApplication::_settingsUpdate() {
+
+	}
 	void EditorApplication::_guiUpdate() {
 		// required imgui opening
 		{
@@ -1455,10 +1749,19 @@ namespace Slate {
 					if (ImGui::MenuItem("Save Scene", "Ctrl+S")) {}
 					if (ImGui::MenuItem("Save Scene As", "Ctrl+Shift+S")) {}
 					ImGui::Separator();
-					if (ImGui::MenuItem("Settings")) {}
+					if (ImGui::MenuItem("Settings")) {
+//						createWindow({
+//								.videomode = VideoMode::Windowed,
+//								.title = "Slate Editor Settings",
+//								.resizeable = false,
+//								.width = 750,
+//								.height = 350,
+//						});
+//						_settingsUpdate();
+					}
 					ImGui::Separator();
 					if (ImGui::MenuItem("Exit", "esc")) {
-						this->callTermination();
+						this->callStop();
 					};
 					ImGui::EndMenu();
 				}
@@ -1488,7 +1791,7 @@ namespace Slate {
 				ImGui::Text("Capturing Mouse: %s", io.WantCaptureMouse ? "True" : "False");
 				ImGui::Text("Display Size: %.1f x %.1f", io.DisplaySize.x, io.DisplaySize.y);
 
-//				ImGui::Text("Swapchain Size: %.1u x %.1u", getGX().getSwapchainExtent().width, getGX().getSwapchainExtent().height);
+				ImGui::Text("Swapchain Size: %.1u x %.1u", getGX().getSwapchainExtent().width, getGX().getSwapchainExtent().height);
 				ImGui::Text("Image Viewport Size: %.1u x %.1u", getGX().getTextureExtent(colorMSAAImage).width, getGX().getTextureExtent(colorMSAAImage).height);
 
 				ImGui::Text("Display Framebuffer Scale: %.1f x %.1f", io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);

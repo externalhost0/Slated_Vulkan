@@ -9,8 +9,7 @@
 
 namespace Slate {
 	Result ScriptResource::_loadResourceImpl(const std::filesystem::path& path) {
-		auto out = Filesystem::ReadTextFile(path);
-
+		text = Filesystem::ReadTextFile(path);
 
 		return Result::SUCCESS;
 	}

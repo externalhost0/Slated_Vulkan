@@ -24,6 +24,11 @@ namespace Slate {
 		static std::filesystem::path GetParentDirectory(const std::filesystem::path& path);
 
 		static void CreateFolder(const std::filesystem::path& path);
+		static void CreateFile(const std::filesystem::path& path);
+
+		static void RenameFile(const std::filesystem::path& path, const std::string& name);
+
+		static void Delete(const std::filesystem::path& path);
 
 		static const std::vector<std::filesystem::path> GetFoldersInDirectory(const std::filesystem::path& path);
 		static const std::vector<std::filesystem::path> GetFilesInDirectory(const std::filesystem::path& path);

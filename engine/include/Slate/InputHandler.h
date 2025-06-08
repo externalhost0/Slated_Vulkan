@@ -4,10 +4,11 @@
 
 #pragma once
 #include "Slate/SmartPointers.h"
+#include "Window.h"
 
-#include <unordered_map>
-#include <tuple>
 #include <GLFW/glfw3.h>
+#include <tuple>
+#include <unordered_map>
 
 namespace Slate {
 	// god bless you chatgpitty
@@ -162,10 +163,9 @@ namespace Slate {
 		CURSOR_NORMAL
 	};
 
-	class WindowService;
 	class InputHandler final {
 	public:
-		explicit InputHandler(WindowService& windowManager) : _windowman(windowManager) {}
+		explicit InputHandler(Window& window) : _windowInjection(window) {}
 		~InputHandler() = default;
 	public:
 		bool IsKeyPressed(KeyCode key); // repeat
@@ -183,7 +183,7 @@ namespace Slate {
 		void SetInputMode(InputMode new_mode);
 	private:
 		// dependency
-		WindowService& _windowman;
+		Window& _windowInjection;
 
 		std::unordered_map<InputState, KeyCode> _keyStates;
 		std::unordered_map<InputState, MouseButtonCode> _mouseButtonStates;

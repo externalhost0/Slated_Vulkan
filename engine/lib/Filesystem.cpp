@@ -7,33 +7,32 @@
 #include <vector>
 #include <cstring>
 #include <nlohmann/json.hpp>
-#include <nfd.h>
 
+#include "Slate/Common/HelperMacros.h"
 #include "Slate/Common/Logger.h"
-#include "Slate/Common/Debug.h"
 #include "Slate/Filesystem.h"
 
 namespace Slate {
-	std::filesystem::path OpenFileDialog(const std::filesystem::path& currentPath) {
-		nfdu8char_t* outPath = const_cast<nfdu8char_t*>(currentPath.c_str());
-		nfdu8filteritem_t filters[] = { { "Script Files", "cs" } };
-		nfdopendialogu8args_t args = {0};
-		args.filterList = filters;
-		args.filterCount = 1;
-		nfdresult_t result = NFD_OpenDialogU8_With(&outPath, &args);
-		if (result == NFD_OKAY) {
-			std::string newPath(outPath);
-			NFD_FreePathU8(outPath);
-			return std::filesystem::path(newPath);
-		}
-		else if (result == NFD_CANCEL) {
-			return {};
-		}
-		else {
-			LOG_USER(LogType::Error, "File dialog had an error: {}", NFD_GetError());
-			return {};
-		}
-	};
+//	std::filesystem::path OpenFileDialog(const std::filesystem::path& currentPath) {
+//		nfdu8char_t* outPath = const_cast<nfdu8char_t*>(currentPath.c_str());
+//		nfdu8filteritem_t filters[] = { { "Script Files", "cs" } };
+//		nfdopendialogu8args_t args = {0};
+//		args.filterList = filters;
+//		args.filterCount = 1;
+//		nfdresult_t result = NFD_OpenDialogU8_With(&outPath, &args);
+//		if (result == NFD_OKAY) {
+//			std::string newPath(outPath);
+//			NFD_FreePathU8(outPath);
+//			return std::filesystem::path(newPath);
+//		}
+//		else if (result == NFD_CANCEL) {
+//			return {};
+//		}
+//		else {
+//			LOG_USER(LogType::Error, "File dialog had an error: {}", NFD_GetError());
+//			return {};
+//		}
+//	};
 
 	nlohmann::json Filesystem::ReadJsonFile(const std::filesystem::path& path) {
 		std::ifstream file(path);
@@ -97,6 +96,13 @@ namespace Slate {
 			throw std::runtime_error("Failed to create directory!");
 		}
 	}
+	void Filesystem::CreateFile(const std::filesystem::path& path) {
+		try {
+			std::ofstream(path).close();
+		} catch (std::filesystem::filesystem_error& e) {
+			throw std::runtime_error("Failed to create directory!");
+		}
+	}
 
 	// simple filesystem operations
 	std::string Filesystem::GetNameOfFile(const std::filesystem::path& path) {
@@ -144,6 +150,22 @@ namespace Slate {
 			file_paths.emplace_back(it->path());
 		}
 		return file_paths;
+	}
+
+	void Filesystem::RenameFile(const std::filesystem::path& path, const std::string& name) {
+		try {
+			std::filesystem::path newPath = path.parent_path() / name;
+			std::filesystem::rename(path, newPath);
+		} catch (const std::filesystem::filesystem_error& e) {
+			LOG_USER(LogType::Error, "Filesystem error: ", e.what());
+		}
+	}
+	void Filesystem::Delete(const std::filesystem::path& path) {
+		if (is_directory(path)) {
+			std::filesystem::remove_all(path);
+		} else {
+			std::filesystem::remove(path);
+		}
 	}
 }
 

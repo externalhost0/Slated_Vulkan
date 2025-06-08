@@ -5,7 +5,7 @@
 #pragma once
 namespace Slate {
 	class GX;
-	void destroy(GX* gx, BufferHandle handle);
+	void destroy(GX* gx, InternalBufferHandle handle);
 
 	template<typename HandleType>
 	class Holder final {

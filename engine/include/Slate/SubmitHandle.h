@@ -6,7 +6,7 @@
 
 #include <cstdint>
 
-#include "Slate/Common/Debug.h"
+#include "Slate/Common/HelperMacros.h"
 
 namespace Slate {
 	struct SubmitHandle

@@ -2,8 +2,8 @@
 // Created by Hayden Rivas on 1/7/25.
 //
 
-#include "Slate/Common/Debug.h"
 #include "Slate/IApplication.h"
+#include "Slate/Common/HelperMacros.h"
 #include "Slate/Filesystem.h"
 
 namespace Slate {
@@ -45,25 +45,37 @@ namespace Slate {
 	}
 
 	void IApplication::start() {
-		ASSERT_MSG(glfwInit() == GLFW_TRUE, "[GLFW] Init of GLFW failed!");
+		int result = glfwInit();
+		ASSERT_MSG(result = GLFW_TRUE, "[GLFW] Failed to initialize GLFW.");
 		this->onInitialize();
+		VulkanInstanceInfo vk_info = {
+				.app_name = "Slate Example App",
+				.app_version = {0, 0, 1},
+				.engine_name = "Slate Engine",
+				.engine_version = {0, 0, 1}
+		};
+		_gx.create(vk_info, _window.getGLFWWindow());
 	}
 	void IApplication::loop() {
 		glfwPollEvents();
 		{
 			this->onTick();
 			if (_gx.isSwapchainDirty()) {
-				_gx.resizeSwapchain();
+				int w, h;
+				glfwGetFramebufferSize(_window.getGLFWWindow(), &w, &h);
+				_gx.resizeSwapchain(w, h);
 				this->onSwapchainResize();
 			}
 			this->onRender();
 		}
-		if (glfwWindowShouldClose(getActiveWindow()->getGLFWWindow())) { callTermination(); }
+		if (glfwWindowShouldClose(_window.getGLFWWindow())) { callStop(); }
 		_apptime.update();
 	}
 	void IApplication::stop() {
 		this->onShutdown();
+		_window.destroy();
 		_gx.destroy();
+		glfwTerminate();
 	}
 	void IApplication::installAppCallbacksToWindow(GLFWwindow* window) {
 		glfwSetWindowUserPointer(window, this);

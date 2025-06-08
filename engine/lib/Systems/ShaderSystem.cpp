@@ -5,7 +5,7 @@
 #include "Slate/Systems/ShaderSystem.h"
 #include "Slate/Resources/ShaderResource.h"
 
-#include "Slate/Common/Debug.h"
+#include "Slate/Common/HelperMacros.h"
 #include "Slate/Common/Logger.h"
 #include "Slate/SmartPointers.h"
 

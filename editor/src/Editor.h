@@ -9,13 +9,18 @@
 #include <Slate/ECS/Scene.h>
 #include <Slate/SmartPointers.h>
 #include <Slate/Window.h>
+#include <Slate/ResourcePool.h>
 
 #include "ViewportCamera.h"
 
-#include "imgui/imgui.h"
-#include "ImGuizmo.h"
+#include "Slate/Network/Socket.h"
+#include "Slate/ResourceRegistry.h"
+
+#include <imgui.h>
+#include <ImGuizmo.h>
 
 namespace Slate {
+
 	enum struct ViewportModes : char {
 		SHADED,
 		UNSHADED,
@@ -56,25 +61,45 @@ namespace Slate {
 		void _onPropertiesPanelUpdate();
 		void _onAssetPanelUpdate();
 
+		void _settingsUpdate();
+
 		void _createVisualizerMeshes();
 
 		bool IsMouseInViewportBounds();
 		void InitImGui(ImGuiRequiredData req, GLFWwindow* glfwWindow, VkFormat format);
 	public:
-		TextureHandle colorResolveImage;
-		TextureHandle colorMSAAImage;
-		TextureHandle depthStencilMSAAImage;
-		TextureHandle entityResolveImage;
-		TextureHandle entityMSAAImage;
-		TextureHandle viewportImage;
-		TextureHandle outlineImage;
+		InternalTextureHandle colorResolveImage;
+		InternalTextureHandle colorMSAAImage;
+		InternalTextureHandle depthStencilMSAAImage;
+		InternalTextureHandle entityResolveImage;
+		InternalTextureHandle entityMSAAImage;
+		InternalTextureHandle viewportImage;
+		InternalTextureHandle outlineImage;
 
-		BufferHandle _stagbuf;
+		VkDescriptorSet _fileImageDS;
+		VkDescriptorSet _folderImageDS;
 
+		InternalBufferHandle _stagbuf;
 
 		MeshData arrowmesh;
 		MeshData simplespheremesh;
 		MeshData spotmesh;
+
+
+		Optional<std::filesystem::path> _selectedEntry;
+		std::filesystem::path _assetsDirectory = "../../editor";
+		std::filesystem::path _currentDirectory = _assetsDirectory;
+
+
+		ResourceRegistry registry;
+		ResourcePool<MeshResource> _meshPool;
+		ResourcePool<ScriptResource> _scriptPool;
+		ResourcePool<ShaderResource> _shaderPool;
+		ResourcePool<TextureResource> _texturePool;
+
+
+
+		glm::vec2 _viewportSize{ 2280, 1720 };
 	private:
 		Context ctx;
 
@@ -89,7 +114,6 @@ namespace Slate {
 		bool _isCameraControlActive = false;
 		bool _gridEnabled = true;
 		glm::vec2 _viewportBounds[2]{};
-		glm::vec2 _viewportSize{};
 
 
 		VkDescriptorSet _viewportImageDescriptorSet = VK_NULL_HANDLE;

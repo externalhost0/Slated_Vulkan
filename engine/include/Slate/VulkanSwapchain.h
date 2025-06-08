@@ -22,7 +22,7 @@ namespace Slate {
 		explicit VulkanSwapchain(GX& gx, uint16_t width = 0, uint16_t height = 0);
 		~VulkanSwapchain();
 	public:
-		TextureHandle acquireCurrentImage();
+		InternalTextureHandle acquireCurrentImage();
 		void present();
 
 		VkImage getCurrentImage() const;
@@ -46,7 +46,7 @@ namespace Slate {
 		bool _isDirty = false;
 		bool _getNextImage = true;
 
-		TextureHandle _swapchainTextures[kMAX_SWAPCHAIN_IMAGES] = {};
+		InternalTextureHandle _swapchainTextures[kMAX_SWAPCHAIN_IMAGES] = {};
 		uint64_t _timelineWaitValues[kMAX_SWAPCHAIN_IMAGES] = {}; // this HERE NEEDS FIXING
 		VkSemaphore _vkAcquireSemaphores[kMAX_SWAPCHAIN_IMAGES] = {};
 

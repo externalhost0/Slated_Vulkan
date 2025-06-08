@@ -2,11 +2,11 @@
 // Created by Hayden Rivas on 4/15/25.
 //
 #include "Slate/CommandBuffer.h"
+#include "Slate/Common/HelperMacros.h"
+#include "Slate/Common/Logger.h"
 #include "Slate/GX.h"
 #include "Slate/VK/vkinfo.h"
 #include "Slate/VK/vkutil.h"
-#include "Slate/Common/Debug.h"
-#include "Slate/Common/Logger.h"
 
 #include <volk.h>
 namespace Slate {
@@ -169,7 +169,7 @@ namespace Slate {
 	}
 
 
-	void CommandBuffer::cmdBindIndexBuffer(BufferHandle handle) {
+	void CommandBuffer::cmdBindIndexBuffer(InternalBufferHandle handle) {
 		AllocatedBuffer* buffer = _gxCtx->getAllocatedBuffer(handle);
 		vkCmdBindIndexBuffer(_wrapper->_cmdBuf, buffer->_vkBuffer, 0, VK_INDEX_TYPE_UINT32);
 	}
@@ -193,10 +193,10 @@ namespace Slate {
 		scissor.extent = extent2D;
 		vkCmdSetScissor(_wrapper->_cmdBuf, 0, 1, &scissor);
 	}
-	void CommandBuffer::cmdTransitionLayout(TextureHandle source, VkImageLayout newLayout) {
+	void CommandBuffer::cmdTransitionLayout(InternalTextureHandle source, VkImageLayout newLayout) {
 		cmdTransitionLayout(source, _gxCtx->getTextureCurrentLayout(source), newLayout);
 	}
-	void CommandBuffer::cmdTransitionLayout(TextureHandle source, VkImageLayout currentLayout, VkImageLayout newLayout) {
+	void CommandBuffer::cmdTransitionLayout(InternalTextureHandle source, VkImageLayout currentLayout, VkImageLayout newLayout) {
 
 		vkutil::StageAccess srcStage = vkutil::getPipelineStageAccess(currentLayout);
 		vkutil::StageAccess dstStage = vkutil::getPipelineStageAccess(newLayout);
@@ -237,10 +237,16 @@ namespace Slate {
 		// set the texture to its new image layout
 		_gxCtx->_texturePool.get(source)->_vkCurrentImageLayout = newLayout;
 	}
-	void CommandBuffer::cmdBlitImage(TextureHandle source, TextureHandle destination) {
-		cmdBlitImage(source, destination, _gxCtx->getTextureExtent(source), _gxCtx->getTextureExtent(destination));
+	void CommandBuffer::cmdBlitImage(InternalTextureHandle source, InternalTextureHandle destination) {
+		if (_gxCtx->getTextureCurrentLayout(source) != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
+			this->cmdTransitionLayout(source, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+		}
+		if (_gxCtx->getTextureCurrentLayout(destination) != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+			this->cmdTransitionLayout(destination, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+		}
+		_cmdBlitImage(source, destination, _gxCtx->getTextureExtent(source), _gxCtx->getTextureExtent(destination));
 	}
-	void CommandBuffer::cmdBlitImage(TextureHandle source, TextureHandle destination, VkExtent2D srcSize, VkExtent2D dstSize) {
+	void CommandBuffer::_cmdBlitImage(InternalTextureHandle source, InternalTextureHandle destination, VkExtent2D srcSize, VkExtent2D dstSize) {
 		VkImageBlit2 blitRegion = { .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2, .pNext = nullptr };
 
 		blitRegion.srcOffsets[1].x = static_cast<int32_t>(srcSize.width);
@@ -272,7 +278,7 @@ namespace Slate {
 
 		vkCmdBlitImage2KHR(_wrapper->_cmdBuf, &blitInfo);
 	}
-	void CommandBuffer::cmdCopyImage(TextureHandle source, TextureHandle destination, VkExtent2D size) {
+	void CommandBuffer::cmdCopyImage(InternalTextureHandle source, InternalTextureHandle destination, VkExtent2D size) {
 		VkImageCopy2 copyRegion = { .sType = VK_STRUCTURE_TYPE_IMAGE_COPY_2, .pNext = nullptr };
 
 		copyRegion.extent.width = static_cast<uint32_t>(size.width);
@@ -346,7 +352,7 @@ namespace Slate {
 
 		_gxCtx->_swapchain->_vkCurrentImageLayout = newLayout;
 	}
-	void CommandBuffer::cmdBlitToSwapchain(TextureHandle source) {
+	void CommandBuffer::cmdBlitToSwapchain(InternalTextureHandle source) {
 		VkImageBlit2 blitRegion = { .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2, .pNext = nullptr };
 
 		blitRegion.srcOffsets[1].x = static_cast<int32_t>(_gxCtx->getTextureExtent(source).width);
@@ -378,7 +384,7 @@ namespace Slate {
 
 		vkCmdBlitImage2KHR(_wrapper->_cmdBuf, &blitInfo);
 	}
-	void CommandBuffer::cmdBindRenderPipeline(PipelineHandle handle) {
+	void CommandBuffer::cmdBindRenderPipeline(InternalPipelineHandle handle) {
 		if (handle.empty()) {
 			LOG_USER(LogType::Warning, "Binded render pipeline was empty/invalid!");
 			return;
@@ -394,7 +400,7 @@ namespace Slate {
 			_gxCtx->bindDefaultDescriptorSets(_wrapper->_cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->_vkPipelineLayout);
 		}
 	}
-	void CommandBuffer::bufferBarrier(BufferHandle bufhandle, VkPipelineStageFlags2 srcStage, VkPipelineStageFlags2 dstStage) {
+	void CommandBuffer::bufferBarrier(InternalBufferHandle bufhandle, VkPipelineStageFlags2 srcStage, VkPipelineStageFlags2 dstStage) {
 		AllocatedBuffer* buf = _gxCtx->_bufferPool.get(bufhandle);
 
 		VkBufferMemoryBarrier2 barrier = {
@@ -433,7 +439,7 @@ namespace Slate {
 		vkCmdPipelineBarrier2(_wrapper->_cmdBuf, &depInfo);
 	}
 	// current issues with host buffer
-	void CommandBuffer::cmdUpdateBuffer(BufferHandle bufhandle, size_t offset, size_t size, const void* data) {
+	void CommandBuffer::cmdUpdateBuffer(InternalBufferHandle bufhandle, size_t offset, size_t size, const void* data) {
 		ASSERT(bufhandle.valid());
 		ASSERT(size && size <= 65536);
 		ASSERT(size % 4 == 0);
@@ -454,7 +460,7 @@ namespace Slate {
 		}
 		bufferBarrier(bufhandle, VK_PIPELINE_STAGE_2_TRANSFER_BIT, dstStage);
 	}
-	void CommandBuffer::cmdCopyImageToBuffer(TextureHandle source, BufferHandle destination, const VkBufferImageCopy& region) {
+	void CommandBuffer::cmdCopyImageToBuffer(InternalTextureHandle source, InternalBufferHandle destination, const VkBufferImageCopy& region) {
 		VkImageLayout currentLayout = _gxCtx->getTextureCurrentLayout(source);
 		if (currentLayout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL || currentLayout != VK_IMAGE_LAYOUT_GENERAL) {
 			cmdTransitionLayout(source, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);

@@ -18,15 +18,15 @@ namespace Slate {
 
 	struct TextureResource : public IResource {
 	public:
-		TextureHandle getHandle();
-		void assignHandle(TextureHandle handle);
+		InternalTextureHandle getHandle();
+		void assignHandle(InternalTextureHandle handle);
 		VkExtent2D getDimensions() const;
 		const void* getData() const;
 	private:
 		const void* _data = nullptr;
 		uint32_t _width;
 		uint32_t _height;
-		TextureHandle _handle;
+		InternalTextureHandle _handle;
 		TextureType type;
 	private:
 		Result _loadResourceImpl(const std::filesystem::path& path) override;

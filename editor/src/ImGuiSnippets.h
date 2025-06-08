@@ -14,9 +14,9 @@
 #include "Fonts.h"
 
 namespace Slate {
-	ImVec4 Brighten(const ImVec4& color, float amount);
-	ImVec4 Desaturate(const ImVec4& color, float amount);
-	ImVec4 HueShift(const ImVec4& color, float amount);
+	ImVec4 Adjust_Brightness(const ImVec4& color, float amount);
+	ImVec4 Adjust_Saturation(const ImVec4& color, float amount);
+	ImVec4 Adjust_HueShift(const ImVec4& color, float amount);
 
 
 	// short imgui widhets

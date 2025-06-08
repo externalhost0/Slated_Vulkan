@@ -10,6 +10,7 @@ namespace Slate {
 	public:
 		inline static ImFont* iconMediumFont;
 		inline static ImFont* iconLargeFont;
+		inline static ImFont* iconExtraLargeFont;
 		inline static ImFont* boldFont;
 		inline static ImFont* largeboldFont;
 		inline static ImFont* italicFont;

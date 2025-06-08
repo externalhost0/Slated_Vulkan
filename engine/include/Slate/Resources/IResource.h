@@ -8,6 +8,7 @@
 #include <exception>
 
 namespace Slate {
+
 	// a "resource" is how a file with an intended purpose is to be used throughout the engine
 	// base class for all other external assets that can be stored
 	// resources should ONLY contain essential storage information, that being the RAW DATA that the engine needs to access, nothing abstracted

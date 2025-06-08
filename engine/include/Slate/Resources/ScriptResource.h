@@ -9,8 +9,10 @@ namespace Slate {
 	public:
 		void loadAssembly();
 		void unloadAssembly();
+		std::string text;
 	private:
 		Result _loadResourceImpl(const std::filesystem::path& path) override;
+
 	};
 
 }

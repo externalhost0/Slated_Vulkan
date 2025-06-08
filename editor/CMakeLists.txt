@@ -14,6 +14,8 @@ add_executable(${PROJECT_NAME}
         src/ImGuiSnippets.cpp
         src/ImGuiComponents.cpp
         src/Utilities.cpp
+
+        src/generated/engine.pb.cc
 )
 
 # // ----- ImGui Setup ---- //
@@ -49,6 +51,7 @@ target_compile_options(imguizmo PRIVATE -Wno-nested-anon-types)
 # // --- DONE ----- //
 
 find_package(nfd CONFIG REQUIRED)
+find_package(Protobuf CONFIG REQUIRED)
 
 target_include_directories(${PROJECT_NAME}
         PUBLIC
@@ -60,5 +63,8 @@ target_link_libraries(${PROJECT_NAME}
         PUBLIC
         imguizmo # includes imgui
         nfd::nfd
+        protobuf::libprotoc
+        protobuf::libprotobuf
+        protobuf::libprotobuf-lite
 )
 

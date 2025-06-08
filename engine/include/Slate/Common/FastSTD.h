@@ -3,9 +3,12 @@
 //
 
 #pragma once
+#include "Logger.h"
+#include "Invalids.h"
+
+#include <algorithm>
 #include <cstddef>
 #include <stdexcept>
-#include <algorithm>
 
 namespace Slate {
 	template <typename T, size_t MaxSize>
@@ -148,6 +151,94 @@ namespace Slate {
 	private:
 		T _data[MaxSize];
 		size_t _count;
+	};
+
+	template <typename T, size_t MaxSize>
+	class FastHandlePool {
+		// HANDLE //
+		class AbstractHandle {
+		public:
+			AbstractHandle() = default;
+			AbstractHandle(uint32_t idx, uint32_t gen) : _index(idx), _gen(gen) {};
+		public:
+			uint32_t index() const { return _index; }
+			uint32_t gen() const { return _gen; }
+			bool valid() const { return _gen != 0; }
+		private:
+			uint32_t _index = 0;
+			uint32_t _gen = 0;
+		};
+		// ENTRY //
+		struct ResourceEntry {
+			explicit ResourceEntry(T&& obj) : _obj(std::move(obj)) {}
+			T _obj = {};
+			uint32_t _gen = 1;
+			uint32_t _nextFreeIndex = Invalid<uint32_t>;
+		};
+	public:
+		AbstractHandle create(T&& obj) {
+			uint32_t idx;
+			// if: the first free isnt set (we have no available free slots!)
+			// else: we have slots that could be freed
+			if (_firstFreeIndex == Invalid<uint32_t>) {
+				// create new allocation space for vector
+				idx = static_cast<uint32_t>(_objects.size());
+				_objects.emplace_back(std::move(obj));
+			} else {
+				// reuse vector's allocated space
+				idx = _firstFreeIndex;
+				_firstFreeIndex = _objects[idx]._nextFreeIndex;
+				_objects[idx]._obj = std::move(obj);
+			}
+			_numObjects++;
+			return AbstractHandle{idx, _objects[idx]._gen};
+		}
+		void destroy(AbstractHandle handle) {
+			if (!handle.valid()) {
+				LOG_USER(LogType::Warning, "Request to 'destroy' invalid handle intercepted.");
+				return;
+			}
+			const uint32_t index = handle.index();
+			assert(index < _objects.size());
+			assert(handle.gen() == _objects[index]._gen);
+
+			// destruction made need to be rewritten
+			_objects[index]._obj = T{};
+			_objects[index]._gen++;
+			_objects[index]._nextFree = _firstFreeIndex;
+			_firstFreeIndex = index;
+			_numObjects--;
+		}
+		// retrieval
+		T* get(AbstractHandle handle) {
+			if (!handle.valid()) {
+				LOG_USER(LogType::Warning, "Request to 'get' invalid handle intercepted.");
+				return nullptr;
+			}
+			const uint32_t index = handle.index();
+			if (index >= _objects.size()) return nullptr;
+			if (handle.gen() != _objects[index]._gen) return nullptr;
+			return &_objects[index]._obj;
+		}
+		// const retrieval
+		const T* get(AbstractHandle handle) const {
+			if (!handle.valid()) {
+				LOG_USER(LogType::Warning, "Request to 'get' invalid handle intercepted.");
+				return nullptr;
+			}
+			const uint32_t index = handle.index();
+			if (index >= _objects.size()) return nullptr;
+			if (handle.gen() != _objects[index]._gen) return nullptr;
+			return &_objects[index]._obj;
+		}
+		uint32_t getNumActiveSlots() const { return _numObjects; }
+		uint32_t getNumAllocatedSlots() const { return _objects.size(); }
+	private:
+		uint32_t _firstFreeIndex = Invalid<uint32_t>;
+		uint32_t _numObjects = 0;
+
+		FastVector<ResourceEntry, MaxSize> _objects;
+//		std::vector<ResourceEntry> _objects;
 	};
 
 

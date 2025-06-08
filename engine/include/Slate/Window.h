@@ -9,8 +9,6 @@
 #include <utility>
 
 namespace Slate {
-	using WindowHandle = uint8_t;
-
 	enum class VideoMode : char {
 		Windowed = 0,
 		BorderlessFullscreen,
@@ -27,6 +25,7 @@ namespace Slate {
 
 	class Window final {
 	public:
+		Window() = default;
 		~Window() { destroy(); };
 
 		void create(const WindowSpec& new_spec);
@@ -48,7 +47,6 @@ namespace Slate {
 		inline bool isHovered() const { return glfwGetWindowAttrib(this->glfwWindow, GLFW_HOVERED); }
 	private:
 		WindowSpec spec;
-		Window* parent = nullptr;
 		GLFWwindow* glfwWindow = nullptr;
 	};
 }

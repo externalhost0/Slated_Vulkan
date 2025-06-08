@@ -1,0 +1,64 @@
+// description
+syntax = "proto3";
+package engine;
+
+message Empty {}
+
+message LoadSceneRequest {
+  string path = 1;
+}
+
+message LoadSceneReply {
+  bool success = 1;
+  string message = 2;
+}
+
+message SceneGraphReply {
+  repeated EntityNode entities = 1;
+}
+
+message EntityNode {
+  string name = 1;
+  int32 id = 2;
+  repeated EntityNode children = 3;
+}
+
+message SetTransformRequest {
+  int32 entity_id = 1;
+  Vector3 position = 2;
+  Quaternion rotation = 3;
+  Vector3 scale = 4;
+}
+
+message EntityComponentDump {
+  int32 entity_id = 1;
+  repeated ComponentEntry components = 2;
+}
+
+message ComponentEntry {
+  string type = 1;
+  string json_payload = 2;
+}
+
+message Vector2 {
+  float x = 1;
+  float y = 2;
+}
+message Vector3 {
+  float x = 1;
+  float y = 2;
+  float z = 3;
+}
+message Vector4 {
+  float x = 1;
+  float y = 2;
+  float z = 3;
+  float w = 4;
+}
+
+message Quaternion {
+  float x = 1;
+  float y = 2;
+  float z = 3;
+  float w = 4;
+}

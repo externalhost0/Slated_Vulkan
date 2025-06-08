@@ -30,7 +30,7 @@ namespace Slate {
 		ImGui::SameLine();
 		ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 2.0f);
 		ImGui::PushFont(Fonts::largeboldFont);
-		if (ImGui::InputText("##RenameInput", buffer, IM_ARRAYSIZE(buffer),ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll)) {
+		if (ImGui::InputText("##RenameInput", buffer, IM_ARRAYSIZE(buffer), ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll)) {
 			entity.setName(buffer);
 		}
 		ImGui::PopFont();
@@ -60,6 +60,7 @@ namespace Slate {
 				break;
 			}
 		}
+		ImGui::PushItemWidth(120.f);
 		if (ImGui::BeginCombo("###hidden", current_label)) {
 			for (const auto& [type, name] : MeshPrimitiveTypeStringMap) {
 				bool isSelected = (current_type == type);
@@ -71,6 +72,7 @@ namespace Slate {
 				}
 			}
 			ImGui::EndCombo();
+			ImGui::PopItemWidth();
 		}
 
 //		std::string shader_name = mesh_component.shader->GetName();
@@ -117,24 +119,24 @@ namespace Slate {
 //		}
 	}
 	void ComponentMeshGLTF(GameEntity entity) {
+		GeometryGLTFComponent& mesh_component = entity.getComponent<GeometryGLTFComponent>();
 
 	}
 
 
 	void ComponentScript(GameEntity entity) {
-		ScriptComponent& script_component = entity.getComponent<ScriptComponent>();
-		if (!script_component.script_source) {
-			if (ImGui::Button("File Dialog: Null")) {
-				script_component.script_source = CreateStrongPtr<ScriptResource>();
-				script_component.script_source->loadResource(OpenFileDialog({}));
-			}
-		} else {
-			ScriptResource& resource = *script_component.script_source;
-			std::string label = "Counter: " + resource.getFilename();
-			if (ImGui::Button(label.c_str())) {
-				script_component.script_source->loadResource(OpenFileDialog({}));
-			}
-		}
+//		ScriptComponent& script_component = entity.getComponent<ScriptComponent>();
+//		if (!script_component.handle.valid()) {
+//			if (ImGui::Button("File Dialog: Null")) {
+//				script_component.handle.->loadResource(OpenFileDialog({}));
+//			}
+//		} else {
+//			ScriptResource& resource = *script_component.handle;
+//			std::string label = "Counter: " + resource.getFilename();
+//			if (ImGui::Button(label.c_str())) {
+//				script_component.script_source->loadResource(OpenFileDialog({}));
+//			}
+//		}
 	}
 
 	ImVec4 BlackbodyToRGB(float temperature) {
@@ -211,6 +213,22 @@ namespace Slate {
 		ComponentILight(light.ambient.Color, light.ambient.Intensity);
 	}
 
+	template <typename T>
+	struct ResourceMetadata { static_assert(sizeof(T) == 0); };
+
+	template <typename... T>
+	void ProcessResource(GameEntity entity, ComponentGroup<T...>) {
+		(..., [&] {
+			if (entity.hasComponent<T>()) {
+				ComponentPropertyPanel<T>(
+						entity,
+						ResourceMetadata<T>::handler,
+						ResourceMetadata<T>::name,
+						ResourceMetadata<T>::icon
+				);
+			}
+		}());
+	}
 
 	// ensure every component has at least something to display in panel
 	template <typename T>
@@ -294,8 +312,18 @@ namespace Slate {
 		}());
 	}
 
+	void ResourceMesh() {
+
+	}
+
+	void ResolveResource(const std::filesystem::path& filepath) {
+
+	};
+
 	void EditorApplication::_onPropertiesPanelUpdate() {
 		ImGui::Begin("Properties");
+		ImGui::ShowStyleEditor();
+
 		if (this->ctx.activeEntity.has_value()) {
 			GameEntity entity = this->ctx.activeEntity.value(); // alias active entity
 			EntityHeader(entity);
@@ -314,6 +342,8 @@ namespace Slate {
 				ProcessAllComponents(entity, AllComponents{});
 				ImGui::EndPopup();
 			}
+		} else if (this->_selectedEntry) {
+			ResolveResource(_selectedEntry.value());
 		}
 		ImGui::End();
 	}
@@ -374,6 +404,13 @@ namespace Slate {
 		static constexpr const char* name = "Ambient Light";
 		static constexpr const char* icon = ICON_LC_GLOBE;
 		static constexpr auto handler = ComponentEnvironmentLight;
+	};
+
+	template<>
+	struct ResourceMetadata<MeshResource> {
+		static constexpr const char* name = "Mesh Resource";
+		static constexpr const char* icon = ICON_LC_BLOCKS;
+		static constexpr auto handler = ResourceMesh;
 	};
 
 }

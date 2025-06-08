@@ -3,7 +3,7 @@
 //
 #include <GLFW/glfw3.h>
 
-#include "Slate/Common/Debug.h"
+#include "Slate/Common/HelperMacros.h"
 #include "Slate/Window.h"
 
 namespace Slate {

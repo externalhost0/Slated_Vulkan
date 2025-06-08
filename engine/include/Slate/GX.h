@@ -4,23 +4,24 @@
 
 #pragma once
 
-#include "Slate/GXBackbone.h"
+#include "Slate/GXBackend.h"
 #include "Slate/VkObjects.h"
 #include "Slate/CommandBuffer.h"
 #include "Slate/VulkanSwapchain.h"
 #include "Slate/VulkanImmediateCommands.h"
 
-#include "Slate/Common/Debug.h"
 #include "Slate/Common/Handles.h"
+#include "Slate/Common/HelperMacros.h"
 #include "Slate/PipelineBuilder.h"
 #include "Slate/Resources/MeshResource.h"
 #include "Slate/VK/vkenums.h"
-#include "Slate/WindowService.h"
 
+#include "ResourcePool.h"
 #include "Slate/Resources/TextureResource.h"
 #include "Slate/SubmitHandle.h"
 #include "Slate/Version.h"
 #include "Slate/VulkanStagingDevice.h"
+#include "SmartPointers.h"
 
 
 #include <future>
@@ -42,8 +43,6 @@ namespace Slate {
 		const char* engine_name = "Unnamed_Engine";
 		Version engine_version;
 	};
-
-
 
 
 	// forward declare
@@ -136,7 +135,7 @@ namespace Slate {
 			VkFormat depthFormat;
 		} formats = {};
 
-		ShaderHandle shaderhandle;
+		InternalShaderHandle shaderhandle;
 	};
 	struct RenderPipeline
 	{
@@ -176,16 +175,16 @@ namespace Slate {
 	struct RenderPass
 	{
 		struct ColorAttachmentDesc {
-			TextureHandle texture;
-			TextureHandle resolveTexture = {};
+			InternalTextureHandle texture;
+			InternalTextureHandle resolveTexture = {};
 			ResolveMode resolveMode = ResolveMode::AVERAGE;
 			LoadOperation loadOp = LoadOperation::NO_CARE;
 			StoreOperation storeOp = StoreOperation::NO_CARE;
 			Optional<RGBA> clear = std::nullopt;
 		};
 		struct DepthAttachmentDesc {
-			TextureHandle texture;
-			TextureHandle resolveTexture = {};
+			InternalTextureHandle texture;
+			InternalTextureHandle resolveTexture = {};
 			ResolveMode resolveMode = ResolveMode::AVERAGE;
 			LoadOperation loadOp = LoadOperation::NO_CARE;
 			StoreOperation storeOp = StoreOperation::NO_CARE;
@@ -199,8 +198,8 @@ namespace Slate {
 	struct Framebuffer
 	{
 		struct FramebufferDesc {
-			TextureHandle texture;
-			TextureHandle resolveTexture;
+			InternalTextureHandle texture;
+			InternalTextureHandle resolveTexture;
 		};
 		std::vector<FramebufferDesc> colorAttachments;
 		FramebufferDesc depthAttachment;
@@ -231,11 +230,12 @@ namespace Slate {
 		void create(VulkanInstanceInfo info, GLFWwindow* glfWwindow);
 		void destroy();
 
-		void resizeSwapchain();
+		void resizeSwapchain(int w, int h);
+		VkSampler getLinearSampler() const { return _samplerPool.get(_linearSamplerHandle)->_vkSampler; }
 	public:
 		inline void deviceWaitIdle() const { vkDeviceWaitIdle(_backend.getDevice()); }
 		// swapchain
-		TextureHandle acquireCurrentSwapchainTexture();
+		InternalTextureHandle acquireCurrentSwapchainTexture();
 
 		inline uint32_t getFrameNum() const { return _swapchain->_currentFrameNum; }
 		inline bool isSwapchainDirty() const { return _swapchain->isDirty(); }
@@ -243,23 +243,23 @@ namespace Slate {
 		inline VkImage getCurrentSwapchainImage() const { return _swapchain->getCurrentImage(); }
 
 		CommandBuffer& acquireCommand();
-		void submitCommand(CommandBuffer& cmd, TextureHandle texture = {});
+		void submitCommand(CommandBuffer& cmd, InternalTextureHandle texture = {});
 
 		// helpers
-		void generateMipmaps(TextureHandle handle);
-		VkDeviceAddress gpuAddress(BufferHandle handle, size_t offset = 0);
+		void generateMipmaps(InternalTextureHandle handle);
+		VkDeviceAddress gpuAddress(InternalBufferHandle handle, size_t offset = 0);
 
-		VkImageLayout getTextureCurrentLayout(TextureHandle handle) const { return _texturePool.get(handle)->_vkCurrentImageLayout; }
-		VkFormat getTextureFormat(TextureHandle handle) const { return _texturePool.get(handle)->_vkFormat; };
-		VkExtent2D getTextureExtent(TextureHandle handle) const { VkExtent3D extent = _texturePool.get(handle)->_vkExtent; return {extent.width, extent.height}; }
-		VkImage getTextureImage(TextureHandle handle) const { return _texturePool.get(handle)->_vkImage; }
-		VkImageView getTextureImageView(TextureHandle handle) const { return _texturePool.get(handle)->_vkImageView; }
-		inline AllocatedImage* getTexture(TextureHandle handle) { return _texturePool.get(handle); }
+		VkImageLayout getTextureCurrentLayout(InternalTextureHandle handle) const { return _texturePool.get(handle)->_vkCurrentImageLayout; }
+		VkFormat getTextureFormat(InternalTextureHandle handle) const { return _texturePool.get(handle)->_vkFormat; };
+		VkExtent2D getTextureExtent(InternalTextureHandle handle) const { VkExtent3D extent = _texturePool.get(handle)->_vkExtent; return {extent.width, extent.height}; }
+		VkImage getTextureImage(InternalTextureHandle handle) const { return _texturePool.get(handle)->_vkImage; }
+		VkImageView getTextureImageView(InternalTextureHandle handle) const { return _texturePool.get(handle)->_vkImageView; }
+		inline AllocatedImage* getTexture(InternalTextureHandle handle) { return _texturePool.get(handle); }
 
-		RenderPipeline*resolveRenderPipeline(PipelineHandle handle);
-		inline AllocatedBuffer* getAllocatedBuffer(BufferHandle handle) { return _bufferPool.get(handle); };
+		RenderPipeline*resolveRenderPipeline(InternalPipelineHandle handle);
+		inline AllocatedBuffer* getAllocatedBuffer(InternalBufferHandle handle) { return _bufferPool.get(handle); };
 		// this is literally only for the cmd buffer single function, so useless
-		inline RenderPipeline& getPipelineObject(PipelineHandle handle) { return *_pipelinePool.get(handle); }
+		inline RenderPipeline& getPipelineObject(InternalPipelineHandle handle) { return *_pipelinePool.get(handle); }
 	public:
 		// confusing things
 		void bindDefaultDescriptorSets(VkCommandBuffer cmd, VkPipelineBindPoint bindPoint, VkPipelineLayout layout);
@@ -271,20 +271,19 @@ namespace Slate {
 		void processDeferredTasks() const;
 		void waitDeferredTasks();
 
-		WindowService _windowService;
 		RGBA _clearColor = { 0.1, 0.1, 0.1, 1 };
 
 
-		void upload(BufferHandle handle, const void* data, size_t size, size_t offset = 0);
-		void download(BufferHandle handle, void* data, size_t size, size_t offset);
+		void upload(InternalBufferHandle handle, const void* data, size_t size, size_t offset = 0);
+		void download(InternalBufferHandle handle, void* data, size_t size, size_t offset);
 
-		void upload(TextureHandle handle, const void* data, const TexRange& range);
-		void download(TextureHandle handle, void* data, const TexRange& range);
-		BufferHandle _globalBufferHandle;
+		void upload(InternalTextureHandle handle, const void* data, const TexRange& range);
+		void download(InternalTextureHandle handle, void* data, const TexRange& range);
+		InternalBufferHandle _globalBufferHandle;
 	private:
-		SamplerHandle _linearSamplerHandle;
-		SamplerHandle _nearestSamplerHandle;
-		TextureHandle _dummyTextureHandle;
+		InternalSamplerHandle _linearSamplerHandle;
+		InternalSamplerHandle _nearestSamplerHandle;
+		InternalTextureHandle _dummyTextureHandle;
 
 		mutable std::vector<DeferredTask> _deferredTasks;
 
@@ -307,14 +306,14 @@ namespace Slate {
 		UniquePtr<VulkanSwapchain> _swapchain = nullptr;
 		UniquePtr<VulkanStagingDevice> _staging = nullptr;
 	public:
-		GXBackbone _backend;
+		GXBackend _backend;
 		UniquePtr<VulkanImmediateCommands> _imm = nullptr;
 
 		// both buffer and texture creation logic can be a little lengthy so we split it into two parts
-		BufferHandle createBuffer(BufferSpec spec);
+		InternalBufferHandle createBuffer(BufferSpec spec);
 		AllocatedBuffer createBufferImpl(VkDeviceSize bufferSize, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memFlags);
 
-		TextureHandle createTexture(TextureSpec spec);
+		InternalTextureHandle createTexture(TextureSpec spec);
 		AllocatedImage createTextureImpl(VkImageUsageFlags usageFlags,
 										 VkMemoryPropertyFlags memFlags,
 										 VkExtent3D extent3D,
@@ -326,24 +325,24 @@ namespace Slate {
 										 VkSampleCountFlagBits sampleCountFlagBits,
 										 VkImageCreateFlags createFlags = 0);
 
-		SamplerHandle createSampler(SamplerSpec spec);
-		PipelineHandle createPipeline(PipelineSpec spec);
-		ShaderHandle createShader(ShaderSpec spec);
+		InternalSamplerHandle createSampler(SamplerSpec spec);
+		InternalPipelineHandle createPipeline(PipelineSpec spec);
+		InternalShaderHandle createShader(ShaderSpec spec);
 
 		MeshData createMesh(const std::vector<Vertex>& vertices);
 		MeshData createMesh(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
 
-		void destroy(BufferHandle handle);
-		void destroy(TextureHandle handle);
-		void destroy(SamplerHandle handle);
-		void destroy(PipelineHandle handle);
-		void destroy(ShaderHandle handle);
-		HandlePool<ShaderHandle, ShaderData> _shaderPool;
+		void destroy(InternalBufferHandle handle);
+		void destroy(InternalTextureHandle handle);
+		void destroy(InternalSamplerHandle handle);
+		void destroy(InternalPipelineHandle handle);
+		void destroy(InternalShaderHandle handle);
 	private:
-		HandlePool<TextureHandle, AllocatedImage> _texturePool;
-		HandlePool<BufferHandle, AllocatedBuffer> _bufferPool;
-		HandlePool<SamplerHandle, AllocatedSampler> _samplerPool;
-		HandlePool<PipelineHandle, RenderPipeline> _pipelinePool;
+		HandlePool<InternalShaderHandle, ShaderData> _shaderPool;
+		HandlePool<InternalTextureHandle, AllocatedImage> _texturePool;
+		HandlePool<InternalBufferHandle, AllocatedBuffer> _bufferPool;
+		HandlePool<InternalSamplerHandle, AllocatedSampler> _samplerPool;
+		HandlePool<InternalPipelineHandle, RenderPipeline> _pipelinePool;
 		// these two may be closely intertwined
 
 		friend class VulkanActions;
@@ -362,7 +361,7 @@ namespace Slate {
 					.graphicsqueue = _backend.getGraphicsQueue()
 			};
 		};
-		inline std::pair<VkSampler, VkImageView> requestViewportImageData(TextureHandle texturehandle) {
+		inline std::pair<VkSampler, VkImageView> requestViewportImageData(InternalTextureHandle texturehandle) {
 			return {_samplerPool.get(_linearSamplerHandle)->_vkSampler, _texturePool.get(texturehandle)->_vkImageView};
 		}
 	};

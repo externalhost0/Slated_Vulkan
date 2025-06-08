@@ -7,7 +7,7 @@
 
 #include "Slate/GX.h"
 #include "Slate/Timer.h"
-#include "Slate/ScriptEngine.h"
+#include "Slate/Window.h"
 
 namespace Slate {
 	class IApplication {
@@ -22,7 +22,7 @@ namespace Slate {
 			}
 			stop();
 		}
-		virtual void callTermination() final { _running = false; };
+		virtual void callStop() final { _running = false; };
 	public:
 //		virtual void onWindowMouseButton() {};
 //		virtual void onWindowMouseScroll() {};
@@ -42,15 +42,16 @@ namespace Slate {
 		virtual void onShutdown()   = 0;
 
 		// function
-		inline virtual void createWindow(WindowSpec spec) final {
-			this->_gx._windowService.createWindow(spec);
-			installAppCallbacksToWindow(_gx._windowService.getFocusedWindow()->getGLFWWindow());
+		inline virtual void createWindow(const WindowSpec& spec) final {
+			_window.create(spec);
+			installAppCallbacksToWindow(_window.getGLFWWindow());
 		}
 
-		inline virtual GX& getGX() final { return this->_gx; }
-		inline virtual Window* getActiveWindow() final { return this->_gx._windowService.getFocusedWindow(); }
-		inline virtual InputHandler& GetInput() final { return this->_gx._windowService.input; }
-		inline virtual const Timer& getTime() const final { return this->_apptime; }
+//		inline virtual ScriptEngine& getScripting() final { return _script; }
+//		inline virtual GX& getGX() final { return this->_gx; }
+//		inline virtual Window* getActiveWindow() final { return this->_gx._windowService.getFocusedWindow(); }
+//		inline virtual InputHandler& GetInput() final { return this->_gx._windowService._input; }
+//		inline virtual const Timer& getTime() const final { return this->_apptime; }
 	private:
 		virtual void start() final;
 		virtual void loop() final;
@@ -61,10 +62,9 @@ namespace Slate {
 		std::atomic<bool> _running = true;
 		// every app has its graphics
 		GX _gx;
+		Window _window;
 		// time
 		Timer _apptime;
-		// and scripting logic
-		ScriptEngine _script;
 	};
 }
 

@@ -7,8 +7,8 @@
 
 #include <vector>
 
-#include "Slate/Common/Debug.h"
 #include "Slate/Common/FastSTD.h"
+#include "Slate/Common/HelperMacros.h"
 #include "Slate/ECS/Components.h"
 
 namespace Slate {

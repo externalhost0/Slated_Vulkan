@@ -10,7 +10,7 @@
 namespace Slate {
 
 	struct IAttachment {
-		TextureHandle texture = {};
+		InternalTextureHandle texture = {};
 		LoadOperation loadOp = LoadOperation::NO_CARE;
 		StoreOperation storeOp = StoreOperation::NO_CARE;
 	};
@@ -32,8 +32,8 @@ namespace Slate {
 		RenderPassBuilder() { Clear(); }
 		~RenderPassBuilder() = default;
 	public:
-		RenderPassBuilder& addColorAttachment(TextureHandle texture);
-		RenderPassBuilder& addDepthStencilAttachment(TextureHandle texture);
+		RenderPassBuilder& addColorAttachment(InternalTextureHandle texture);
+		RenderPassBuilder& addDepthStencilAttachment(InternalTextureHandle texture);
 
 		RenderPassBuilder& addMultisampledColorAttachment();
 

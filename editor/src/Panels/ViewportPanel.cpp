@@ -313,8 +313,10 @@ namespace Slate {
 			// mouse interaction with clicked object must be after guizmo
 			// required so that overlapping guizmo and different object dont interfere
 			if (glfwGetMouseButton(this->getActiveWindow()->getGLFWWindow(), GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-				if (ctx.hoveredEntity.has_value() && !ImGuizmo::IsUsing())
+				if (ctx.hoveredEntity.has_value() && !ImGuizmo::IsUsing()) {
 					this->ctx.activeEntity.emplace(this->ctx.hoveredEntity.value());
+					_selectedEntry = std::nullopt;
+				}
 			}
 			// right now will currently go off in menu that overlaps the image
 			if (ImGui::IsMouseDoubleClicked(GLFW_MOUSE_BUTTON_LEFT) && IsMouseInViewportBounds() && !this->ctx.hoveredEntity.has_value()) {

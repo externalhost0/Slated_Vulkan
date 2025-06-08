@@ -3,9 +3,9 @@
 //
 #include <Slate/VK/vkimpl.h>
 
-#include "Slate/GX.h"
-#include "Slate/Common/Debug.h"
+#include "Slate/Common/HelperMacros.h"
 #include "Slate/Common/Logger.h"
+#include "Slate/GX.h"
 
 #include "Slate/Resources/MeshResource.h"
 
@@ -250,7 +250,7 @@ namespace Slate {
 
 		_backend.terminate();
 	}
-	VkDeviceAddress GX::gpuAddress(BufferHandle handle, size_t offset) {
+	VkDeviceAddress GX::gpuAddress(InternalBufferHandle handle, size_t offset) {
 		const AllocatedBuffer* buf = _bufferPool.get(handle);
 		ASSERT_MSG(buf && buf->_vkDeviceAddress, "Buffer doesnt have a valid device address!");
 		return buf->_vkDeviceAddress + offset;
@@ -261,7 +261,7 @@ namespace Slate {
 		_currentCommandBuffer = CommandBuffer(this);
 		return _currentCommandBuffer;
 	}
-	void GX::submitCommand(CommandBuffer& cmd, TextureHandle texture) {
+	void GX::submitCommand(CommandBuffer& cmd, InternalTextureHandle texture) {
 		ASSERT(cmd._gxCtx);
 		ASSERT(cmd._wrapper);
 		bool itspresenttime = !texture.empty();
@@ -282,10 +282,8 @@ namespace Slate {
 		// reset
 		_currentCommandBuffer = {};
 	}
-	void GX::resizeSwapchain() {
+	void GX::resizeSwapchain(int w, int h) {
 		vkDeviceWaitIdle(_backend.getDevice());
-		int w, h;
-		glfwGetFramebufferSize(_windowService.getFocusedWindow()->getGLFWWindow(), &w, &h);
 		// delete
 		_swapchain.reset(nullptr);
 		vkDestroySemaphore(_backend.getDevice(), _timelineSemaphore, nullptr);
@@ -293,7 +291,7 @@ namespace Slate {
 		_swapchain = CreateUniquePtr<VulkanSwapchain>(*this, w, h);
 		_timelineSemaphore = CreateTimelineSemaphore(_backend.getDevice(), _swapchain->getNumOfSwapchainImages() - 1);
 	}
-	BufferHandle GX::createBuffer(BufferSpec spec) {
+	InternalBufferHandle GX::createBuffer(BufferSpec spec) {
 		 VkBufferUsageFlags usage_flags = (spec.storage == StorageType::Device) ? VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT : 0;
 
 		if (spec.usage & BufferUsageBits::BufferUsageBits_Index)
@@ -310,7 +308,7 @@ namespace Slate {
 
 		AllocatedBuffer obj = this->createBufferImpl(spec.size, usage_flags, mem_flags);
 		snprintf(obj._debugName, sizeof(obj._debugName) - 1, "%s", spec.debugName);
-		BufferHandle handle = _bufferPool.create(std::move(obj));
+		InternalBufferHandle handle = _bufferPool.create(std::move(obj));
 		if (spec.data) {
 			upload(handle, spec.data, spec.size);
 		}
@@ -377,7 +375,7 @@ namespace Slate {
 		}
 		return buf;
 	}
-	TextureHandle GX::createTexture(TextureSpec spec) {
+	InternalTextureHandle GX::createTexture(TextureSpec spec) {
 		ASSERT(spec.usage);
 		// resolve usage flags
 		VkImageUsageFlags usage_flags = (spec.storage == StorageType::Device) ? VK_IMAGE_USAGE_TRANSFER_DST_BIT : 0;
@@ -439,7 +437,7 @@ namespace Slate {
 
 		AllocatedImage obj = createTextureImpl(usage_flags, mem_flags, extent3D, spec.format, _imagetype, _imageviewtype, 1, _numLayers, sample_bits, _imageCreateFlags);
 		snprintf(obj._debugName, sizeof(obj._debugName) - 1, "%s", spec.debugName);
-		TextureHandle handle = _texturePool.create(std::move(obj));
+		InternalTextureHandle handle = _texturePool.create(std::move(obj));
 		// if we have some data we want to upload, do that
 		_awaitingCreation = true;
 		if (spec.data) {
@@ -457,7 +455,7 @@ namespace Slate {
 		}
 		return {handle};
 	}
-	void GX::generateMipmaps(TextureHandle handle) {
+	void GX::generateMipmaps(InternalTextureHandle handle) {
 		if (handle.empty()) {
 			LOG_USER(LogType::Warning, "Generate mipmap request with empty handle!");
 			return;
@@ -652,7 +650,7 @@ namespace Slate {
 		return obj;
 	}
 
-	SamplerHandle GX::createSampler(SamplerSpec spec) {
+	InternalSamplerHandle GX::createSampler(SamplerSpec spec) {
 		VkFilter minfilter = toVulkan(spec.minFilter);
 		VkFilter magfilter = toVulkan(spec.magFilter);
 		VkSamplerAddressMode addressU = toVulkan(spec.wrapU);
@@ -681,11 +679,11 @@ namespace Slate {
 		AllocatedSampler obj = {};
 		vkCreateSampler(_backend.getDevice(), &info, nullptr, &obj._vkSampler);
 		snprintf(obj.debugName, sizeof(obj.debugName) - 1, "%s", spec.debugName);
-		SamplerHandle handle = _samplerPool.create(std::move(obj));
+		InternalSamplerHandle handle = _samplerPool.create(std::move(obj));
 		_awaitingCreation = true;
 		return {handle};
 	}
-	void GX::destroy(BufferHandle handle) {
+	void GX::destroy(InternalBufferHandle handle) {
 		AllocatedBuffer* buf = _bufferPool.get(handle);
 		if (!buf) {
 			return;
@@ -699,7 +697,7 @@ namespace Slate {
 		}));
 		_bufferPool.destroy(handle);
 	}
-	void GX::destroy(TextureHandle handle) {
+	void GX::destroy(InternalTextureHandle handle) {
 		AllocatedImage* image = _texturePool.get(handle);
 
 		if (!image) {
@@ -728,20 +726,20 @@ namespace Slate {
 		_texturePool.destroy(handle);
 		_awaitingCreation = true;
 	}
-	void GX::destroy(SamplerHandle handle) {
+	void GX::destroy(InternalSamplerHandle handle) {
 		AllocatedSampler sampler = *_samplerPool.get(handle);
 		_samplerPool.destroy(handle);
 		deferredTask(std::packaged_task<void()>([device = _backend.getDevice(), sampler = sampler._vkSampler]() {
 			vkDestroySampler(device, sampler, nullptr);
 		}));
 	}
-	void GX::destroy(ShaderHandle handle) {
+	void GX::destroy(InternalShaderHandle handle) {
 		VkShaderModule module = _shaderPool.get(handle)->_vkModule;
 		vkDestroyShaderModule(_backend.getDevice(), module, nullptr);
 		_shaderPool.destroy(handle);
 	}
 	MeshData GX::createMesh(const std::vector<Vertex>& vertices) {
-		BufferHandle vertexHandle = this->createBuffer({
+		InternalBufferHandle vertexHandle = this->createBuffer({
 				.size = sizeof(Vertex) * vertices.size(),
 				.usage = BufferUsageBits::BufferUsageBits_Storage,
 				.storage = StorageType::Device,
@@ -754,13 +752,13 @@ namespace Slate {
 	}
 
 	MeshData GX::createMesh(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices) {
-		BufferHandle vertexHandle = this->createBuffer({
+		InternalBufferHandle vertexHandle = this->createBuffer({
 				.size = sizeof(Vertex) * vertices.size(),
 				.usage = BufferUsageBits::BufferUsageBits_Storage,
 				.storage = StorageType::Device,
 				.data = vertices.data()
 		});
-		BufferHandle indexHandle = this->createBuffer({
+		InternalBufferHandle indexHandle = this->createBuffer({
 				.size = sizeof(uint32_t) * indices.size(),
 				.usage = BufferUsageBits::BufferUsageBits_Index,
 				.storage = StorageType::Device,
@@ -774,7 +772,7 @@ namespace Slate {
 		return mesh;
 	}
 
-	ShaderHandle GX::createShader(ShaderSpec spec) {
+	InternalShaderHandle GX::createShader(ShaderSpec spec) {
 		VkShaderModuleCreateInfo create_info = { .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
 		create_info.pCode = static_cast<uint32_t const*>(spec.spirvBlob->getBufferPointer());
 		create_info.codeSize = spec.spirvBlob->getBufferSize();
@@ -969,13 +967,13 @@ namespace Slate {
 		_awaitingNewImmutableSamplers = false;
 	}
 
-	PipelineHandle GX::createPipeline(PipelineSpec spec) {
+	InternalPipelineHandle GX::createPipeline(PipelineSpec spec) {
 		RenderPipeline pipeline = {};
 		pipeline._spec = std::move(spec);
-		PipelineHandle handle = _pipelinePool.create(std::move(pipeline));
+		InternalPipelineHandle handle = _pipelinePool.create(std::move(pipeline));
 		return {handle};
 	}
-	void GX::destroy(PipelineHandle handle) {
+	void GX::destroy(InternalPipelineHandle handle) {
 		RenderPipeline* rps = _pipelinePool.get(handle);
 		if (!rps) {
 			return;
@@ -992,7 +990,7 @@ namespace Slate {
 		const std::array<VkDescriptorSet, 4> descriptor_sets = {  _vkDSet, _vkDSet, _vkDSet, _vkGlobalDSet };
 		vkCmdBindDescriptorSets(cmd, bindPoint, layout, 0, descriptor_sets.size(), descriptor_sets.data(), 0, nullptr);
 	}
-	RenderPipeline* GX::resolveRenderPipeline(PipelineHandle handle) {
+	RenderPipeline* GX::resolveRenderPipeline(InternalPipelineHandle handle) {
 		RenderPipeline* renderPipeline = _pipelinePool.get(handle);
 		if (!renderPipeline) {
 			LOG_USER(LogType::Warning, "Render pipeline does not exist, pass in a valid handle!");
@@ -1113,7 +1111,7 @@ namespace Slate {
 		}
 		return true;
 	}
-	void GX::upload(BufferHandle handle, const void* data, size_t size, size_t offset) {
+	void GX::upload(InternalBufferHandle handle, const void* data, size_t size, size_t offset) {
 		if (!data) {
 			LOG_USER(LogType::Warning, "Attempting to upload data which is null!");
 			return;
@@ -1128,7 +1126,7 @@ namespace Slate {
 		}
 		_staging->bufferSubData(*buffer, offset, size, data);
 	}
-	void GX::download(BufferHandle handle, void* data, size_t size, size_t offset) {
+	void GX::download(InternalBufferHandle handle, void* data, size_t size, size_t offset) {
 		if (!data) {
 			LOG_USER(LogType::Warning, "Data is null");
 			return;
@@ -1145,7 +1143,7 @@ namespace Slate {
 		}
 		buffer->getBufferSubData(*this, offset, size, data);
 	}
-	void GX::upload(TextureHandle handle, const void* data, const TexRange& range) {
+	void GX::upload(InternalTextureHandle handle, const void* data, const TexRange& range) {
 		if (!data) {
 			LOG_USER(LogType::Warning, "Attempting to upload data which is null!");
 			return;
@@ -1171,7 +1169,7 @@ namespace Slate {
 			_staging->imageData2D(*image, image_region, range.mipLevel, range.numMipLevels, range.layer, range.numLayers, image->_vkFormat, data);
 		}
 	}
-	void GX::download(TextureHandle handle, void* data, const TexRange &range) {
+	void GX::download(InternalTextureHandle handle, void* data, const TexRange &range) {
 		if (!data) {
 			LOG_USER(LogType::Warning, "Data is null.");
 			return;
@@ -1239,7 +1237,7 @@ namespace Slate {
 		}
 		vmaInvalidateAllocation(ctx._backend.getAllocator(), _vmaAllocation, offset, size);
 	}
-	TextureHandle GX::acquireCurrentSwapchainTexture() {
+	InternalTextureHandle GX::acquireCurrentSwapchainTexture() {
 		return _swapchain->acquireCurrentImage();
 	}
 	const char* toString(VkImageLayout layout) {
@@ -1322,7 +1320,7 @@ namespace Slate {
 	}
 	// to make smart object happy in its header file
 	// we only implement bufferhandle because we only use the smart holder type for the staging buffer
-	void destroy(GX* gx, BufferHandle handle) {
+	void destroy(GX* gx, InternalBufferHandle handle) {
 		if (gx) {
 			gx->destroy(handle);
 		}

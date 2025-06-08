@@ -2,15 +2,29 @@
 // Created by Hayden Rivas on 4/27/25.
 //
 
+//#if defined(SLATE_OS_MACOS)
+//#define VK_USE_PLATFORM_MACOS_MVK
+//#define GLFW_EXPOSE_NATIVE_COCOA
+//#elif defined(SLATE_OS_WINDOWS)
+//#define VK_USE_PLATFORM_WIN32_KHR
+//#define GLFW_EXPOSE_NATIVE_WIN32
+//#include <windows.h>
+//#elif defined(SLATE_OS_LINUX)
+//#define VK_USE_PLATFORM_WAYLAND_KHR
+//#define GLFW_EXPOSE_NATIVE_WAYLAND
+//#endif
+
+
+#include "Slate/GXBackend.h"
+#include "Slate/Common/HelperMacros.h"
 #include "Slate/GX.h"
-#include "Slate/GXBackbone.h"
-#include "Slate/Common/Debug.h"
 
 #include <GLFW/glfw3.h>
+#include <GLFW/glfw3native.h>
 #include <VkBootstrap.h>
 
 namespace Slate {
-	void GXBackbone::initialize(GLFWwindow* glfWwindow, Slate::VulkanInstanceInfo info) {
+	void GXBackend::initialize(GLFWwindow* glfWwindow, Slate::VulkanInstanceInfo info) {
 		static bool initz = false;
 		ASSERT_MSG(!initz, "You can NEVER have more than one GXBackbone instance!");
 		vkb::Instance vkb_instance;
@@ -22,19 +36,21 @@ namespace Slate {
 		_createQueues(vkb_device);
 		initz = true;
 	}
-	void GXBackbone::terminate() {
+	void GXBackend::terminate() {
 		// destroy vma allocator
 		// if you get validation errors regarding "device memory not destroyed" its this guy
 		vmaDestroyAllocator(_vmaAllocator);
 		// destroy pure vk objects
 		vkDestroyDevice(_vkDevice, nullptr);
-		vkDestroySurfaceKHR(_vkInstance, _vkSurfaceKHR, nullptr);
 		vkDestroyDebugUtilsMessengerEXT(_vkInstance, _vkDebugMessenger, nullptr);
+		vkDestroySurfaceKHR(_vkInstance, _vkSurfaceKHR, nullptr);
 		vkDestroyInstance(_vkInstance, nullptr);
 	}
 
-	void GXBackbone::_createInstance(vkb::Instance& vkb_instance, Slate::VulkanInstanceInfo info) {
-		ASSERT_MSG(volkInitialize() == VK_SUCCESS, "Volk failed to initialize!"); // kinda important
+	void GXBackend::_createInstance(vkb::Instance& vkb_instance, Slate::VulkanInstanceInfo info) {
+		VkResult volk_result = volkInitialize();
+		ASSERT_MSG(volk_result == VK_SUCCESS, "Volk failed to initialize!");
+
 
 		vkb::InstanceBuilder builder;
 		auto instance_result = builder
@@ -42,10 +58,7 @@ namespace Slate {
 									   .set_app_version(info.app_version.major, info.app_version.minor, info.app_version.patch)
 									   .set_engine_name(info.engine_name)
 									   .set_engine_version(info.engine_version.major, info.engine_version.minor, info.engine_version.patch)
-
 #if defined(SLATE_DEBUG)
-//									   .add_validation_feature_enable(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT)
-//									   .add_validation_feature_enable(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT)
 									   .request_validation_layers()
 									   .use_default_debug_messenger()
 #endif
@@ -60,10 +73,37 @@ namespace Slate {
 
 		volkLoadInstance(_vkInstance);
 	}
-	void GXBackbone::_createSurface(GLFWwindow* glfWwindow) {
-		ASSERT_MSG(glfwCreateWindowSurface(_vkInstance, glfWwindow, nullptr, &_vkSurfaceKHR) == VK_SUCCESS, "Failed surface creation");
+	void GXBackend::_createSurface(GLFWwindow* glfWwindow) {
+		VkResult surface_result = VK_NOT_READY;
+#if defined(VK_USE_PLATFORM_MACOS_MVK) && defined(GLFW_EXPOSE_NATIVE_COCOA)
+		VkMacOSSurfaceCreateInfoMVK surface_ci = {};
+		surface_ci.sType = VK_STRUCTURE_TYPE_MACOS_SURFACE_CREATE_INFO_MVK;
+		surface_ci.pNext = nullptr;
+		surface_ci.flags = 0;
+		surface_ci.pView = glfwGetCocoaWindow(glfWwindow);
+		surface_result = vkCreateMacOSSurfaceMVK(_vkInstance, &surface_ci, nullptr, &_vkSurfaceKHR);
+#elif defined(VK_USE_PLATFORM_WIN32_KHR) && defined(GLFW_EXPOSE_NATIVE_WIN32)
+		VkWin32SurfaceCreateInfoKHR surface_ci = {};
+		surface_ci.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+		surface_ci.pNext = nullptr;
+		surface_ci.flags = 0;
+		surface_ci.hwnd = glfwGetWin32Window(glfWwindow);
+		surface_ci.hinstance = GetModuleHandle(nullptr);
+		surface_result = vkCreateWin32SurfaceKHR(_vkInstance, &surface_ci, nullptr, &_vkSurfaceKHR);
+#elif defined(VK_USE_PLATFORM_WAYLAND_KHR) && defined(GLFW_EXPOSE_NATIVE_WAYLAND)
+		VkWaylandSurfaceCreateInfoKHR surface_ci = {};
+		surface_ci.sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR;
+		surface_ci.pNext = nullptr;
+		surface_ci.flags = 0;
+		surface_ci.surface = glfwGetWaylandWindow(glfWwindow);
+		surface_ci.display = glfwGetWaylandDisplay();
+		surface_result = vkCreateWaylandSurfaceKHR(_vkInstance, &surface_ci, nullptr, &_vkSurfaceKHR);
+#else
+		surface_result = glfwCreateWindowSurface(_vkInstance, glfWwindow, nullptr, &_vkSurfaceKHR);
+		ASSERT_MSG(surface_result == VK_SUCCESS, "Failed window surface creation!");
+#endif
 	}
-	void GXBackbone::_createDevices(vkb::Instance& vkb_instance, vkb::Device& vkb_device) {
+	void GXBackend::_createDevices(vkb::Instance& vkb_instance, vkb::Device& vkb_device) {
 		// vulkan 1.3 features
 		VkPhysicalDeviceVulkan13Features features13 = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };
 		features13.synchronization2 = true;
@@ -201,7 +241,7 @@ namespace Slate {
 		vkQueueSubmit2 = vkQueueSubmit2KHR;
 #endif
 	}
-	void GXBackbone::_createAllocator() {
+	void GXBackend::_createAllocator() {
 		VmaAllocatorCreateInfo allocatorInfo = {};
 		allocatorInfo.physicalDevice = _vkPhysicalDevice;
 		allocatorInfo.device = _vkDevice;
@@ -215,7 +255,7 @@ namespace Slate {
 		allocatorInfo.pVulkanFunctions = &functions;
 		ASSERT_MSG(vmaCreateAllocator(&allocatorInfo, &_vmaAllocator) == VK_SUCCESS, "Failed to create vma Allocator!");
 	}
-	void GXBackbone::_createQueues(vkb::Device& vkb_device) {
+	void GXBackend::_createQueues(vkb::Device& vkb_device) {
 		// graphics queue
 		auto graphics_queue_result = vkb_device.get_queue(vkb::QueueType::graphics);
 		ASSERT_MSG(graphics_queue_result.has_value(), "Failed to get graphics queue. Error: {}", graphics_queue_result.error().message().c_str());

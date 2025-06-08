@@ -11,9 +11,12 @@
 [submodule "engine/third_party/volk"]
 	path = engine/third_party/volk
 	url = https://github.com/zeux/volk.git
-[submodule "engine/third_party/SPIRV-Cross"]
-	path = engine/third_party/SPIRV-Cross
-	url = https://github.com/KhronosGroup/SPIRV-Cross.git
 [submodule "editor/third_party/IconFontCppHeaders"]
 	path = editor/third_party/IconFontCppHeaders
 	url = https://github.com/juliettef/IconFontCppHeaders.git
+[submodule "engine/third_party/luajit"]
+	path = engine/third_party/luajit
+	url = https://luajit.org/git/luajit.git
+[submodule "engine/third_party/sol2"]
+	path = engine/third_party/sol2
+	url = https://github.com/ThePhD/sol2.git

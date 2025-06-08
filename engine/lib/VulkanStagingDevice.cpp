@@ -369,7 +369,7 @@ namespace Slate {
 			AllocatedBuffer obj = _gx.createBufferImpl(_stagingBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 			snprintf(obj._debugName, sizeof(obj._debugName) - 1, "staging buffer %u", _stagingBufferCounter++);
 			vmaSetAllocationName(_gx._backend.getAllocator(), obj._vmaAllocation, obj._debugName);
-			BufferHandle handle = _gx._bufferPool.create(std::move(obj));
+			InternalBufferHandle handle = _gx._bufferPool.create(std::move(obj));
 			_stagingBuffer = {&_gx, handle};
 		}
 

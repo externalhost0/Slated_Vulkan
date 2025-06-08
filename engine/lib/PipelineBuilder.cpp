@@ -1,7 +1,7 @@
 //
 // Created by Hayden Rivas on 1/16/25.
 //
-#include "Slate/Common/Debug.h"
+#include "Slate/Common/HelperMacros.h"
 
 #include "Slate/Common/FastSTD.h"
 #include "Slate/PipelineBuilder.h"

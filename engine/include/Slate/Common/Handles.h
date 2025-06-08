@@ -14,10 +14,10 @@ namespace Slate {
 	// having this templated forces us to alias handles with using
 	// so we cant just have a "ResourceHandle" itself
 	template<typename Type>
-	class ResourceHandle final {
+	class ObjectHandle final {
 	public:
-		ResourceHandle() = default;
-		ResourceHandle(uint32_t index, uint32_t gen) : _index(index), _generation(gen) {};
+		ObjectHandle() = default;
+		ObjectHandle(uint32_t index, uint32_t gen) : _index(index), _generation(gen) {};
 
 		uint32_t index() const {
 			return _index;
@@ -35,11 +35,11 @@ namespace Slate {
 		uint32_t _index = 0;
 		uint32_t _generation = 0;
 	};
-	using BufferHandle = ResourceHandle<struct Buffer>;
-	using TextureHandle = ResourceHandle<struct Texture>;
-	using SamplerHandle = ResourceHandle<struct Sampler>;
-	using PipelineHandle = ResourceHandle<struct Pipeline>;
-	using ShaderHandle = ResourceHandle<struct Shader>;
+	using InternalBufferHandle = ObjectHandle<struct Buffer>;
+	using InternalTextureHandle = ObjectHandle<struct Texture>;
+	using InternalSamplerHandle = ObjectHandle<struct Sampler>;
+	using InternalPipelineHandle = ObjectHandle<struct Pipeline>;
+	using InternalShaderHandle = ObjectHandle<struct Shader>;
 
 
 

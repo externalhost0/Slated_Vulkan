@@ -4,7 +4,7 @@
 #pragma once
 #include <filesystem>
 
-#include "Slate/Common/Debug.h"
+#include "Slate/Common/HelperMacros.h"
 namespace Slate::vkutil {
 	struct StageAccess
 	{

@@ -50,20 +50,20 @@ namespace Slate {
 
 	struct ShaderResource : public IResource {
 	public:
-		void assignHandle(ShaderHandle handle);
+		void assignHandle(InternalShaderHandle handle);
 		inline Slang::ComPtr<ISlangBlob> requestCode() {
 			return _spirvCode;
 		};
 		inline size_t getPushSize() const {
 			return _pushSize;
 		}
-		inline ShaderHandle getHandle() { return _handle; }
+		inline InternalShaderHandle getHandle() { return _handle; }
 	private:
 		void _compileToSpirv();
 	private:
 		bool isCompiled;
 		size_t _pushSize = 0;
-		ShaderHandle _handle; // connects with vkShaderModule
+		InternalShaderHandle _handle; // connects with vkShaderModule
 		Slang::ComPtr<ISlangBlob> _spirvCode = nullptr;
 		slang::ProgramLayout*_programLayout = nullptr;
 		std::vector<Uniform> _uniforms;

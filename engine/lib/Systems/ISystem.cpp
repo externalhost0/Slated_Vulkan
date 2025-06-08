@@ -34,7 +34,7 @@ namespace Slate {
 	}
 	void ISystem::stop(Slate::Scene& scene) {
 		if (currentState != SystemState::Updating) {
-			LOG_USER(LogType::Warning, "Shutdown can only be called if system is active!");
+			LOG_USER(LogType::Warning, "callShutdown can only be called if system is active!");
 			return;
 		}
 		currentState = SystemState::Stopping;

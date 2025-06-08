@@ -2,7 +2,7 @@
 // Created by Hayden Rivas on 3/16/25.
 //
 #include "Slate/Resources/ShaderResource.h"
-#include "Slate/Common/Debug.h"
+#include "Slate/Common/HelperMacros.h"
 #include "Slate/Filesystem.h"
 #include "Slate/Loaders/ShaderLoader.h"
 #include "Slate/Systems/ShaderSystem.h"
@@ -115,7 +115,7 @@ namespace Slate {
 //		static_assert(sizeof(GPU::PushConstants_EditorPrimitives) == 80, "PushConstants size mismatch!");
 
 	}
-	void ShaderResource::assignHandle(ShaderHandle handle) {
+	void ShaderResource::assignHandle(InternalShaderHandle handle) {
 		_handle = handle;
 	}
 }

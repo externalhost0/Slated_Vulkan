@@ -9,18 +9,20 @@
 
 #include "ImGuiSnippets.h"
 namespace Slate {
-	ImVec4 Brighten(const ImVec4& color, float amount) {
-		// clamp between 0 and 1
-		amount = std::clamp(amount, 0.0f, 1.0f);
-		// adjust each channel
+	ImVec4 Adjust_Brightness(const ImVec4& color, float amount) {
+		// Clamp each channel after applying the adjustment (positive or negative)
+		auto saturate = [](float v) {
+			return std::clamp(v, 0.0f, 1.0f);
+		};
 		return {
-				std::min(color.x + amount, 1.0f),
-				std::min(color.y + amount, 1.0f),
-				std::min(color.z + amount, 1.0f),
-				color.w
+				saturate(color.x + amount),
+				saturate(color.y + amount),
+				saturate(color.z + amount),
+				color.w // Preserve alpha
 		};
 	}
-	ImVec4 Desaturate(const ImVec4& color, float amount) {
+
+	ImVec4 Adjust_Saturation(const ImVec4& color, float amount) {
 		// percieved luminance
 		float grayscale = color.x * 0.299f + color.y * 0.587f + color.z * 0.114f;
 		// lerp between original and graysscale
@@ -30,7 +32,7 @@ namespace Slate {
 		// return the new ImVec4 with the adjusted RGB and original alpha
 		return {r, g, b, color.w};
 	}
-	ImVec4 HueShift(const ImVec4& color, float amount) {
+	ImVec4 Adjust_HueShift(const ImVec4& color, float amount) {
 		// normalize input amount
 		amount = std::clamp(amount, -1.0f, 1.0f);
 
@@ -92,8 +94,8 @@ namespace Slate {
 
 				ImGui::TableNextColumn();
 				{
-					ImGui::PushStyleColor(ImGuiCol_Button, Desaturate(guizmocolors[ImGuizmo::DIRECTION_X], -0.15f));
-					ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Desaturate(guizmocolors[ImGuizmo::DIRECTION_X], 0.25f));
+					ImGui::PushStyleColor(ImGuiCol_Button, Adjust_Saturation(guizmocolors[ImGuizmo::DIRECTION_X], -0.15f));
+					ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Adjust_Saturation(guizmocolors[ImGuizmo::DIRECTION_X], 0.25f));
 					ImGui::PushStyleColor(ImGuiCol_ButtonActive, guizmocolors[ImGuizmo::DIRECTION_X]);
 				}
 				ImGui::PushStyleVarX(ImGuiStyleVar_FramePadding, buttonwidth);
@@ -105,8 +107,8 @@ namespace Slate {
 
 				ImGui::TableNextColumn();
 				{
-					ImGui::PushStyleColor(ImGuiCol_Button, Desaturate(guizmocolors[ImGuizmo::DIRECTION_Y], -0.15f));
-					ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Desaturate(guizmocolors[ImGuizmo::DIRECTION_Y], 0.45f));
+					ImGui::PushStyleColor(ImGuiCol_Button, Adjust_Saturation(guizmocolors[ImGuizmo::DIRECTION_Y], -0.15f));
+					ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Adjust_Saturation(guizmocolors[ImGuizmo::DIRECTION_Y], 0.45f));
 					ImGui::PushStyleColor(ImGuiCol_ButtonActive, guizmocolors[ImGuizmo::DIRECTION_Y]);
 				}
 				ImGui::PushStyleVarX(ImGuiStyleVar_FramePadding, buttonwidth);
@@ -118,8 +120,8 @@ namespace Slate {
 
 				ImGui::TableNextColumn();
 				{
-					ImGui::PushStyleColor(ImGuiCol_Button, Desaturate(guizmocolors[ImGuizmo::DIRECTION_Z], -0.15f));
-					ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Desaturate(guizmocolors[ImGuizmo::DIRECTION_Z], 0.5f));
+					ImGui::PushStyleColor(ImGuiCol_Button, Adjust_Saturation(guizmocolors[ImGuizmo::DIRECTION_Z], -0.15f));
+					ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Adjust_Saturation(guizmocolors[ImGuizmo::DIRECTION_Z], 0.5f));
 					ImGui::PushStyleColor(ImGuiCol_ButtonActive, guizmocolors[ImGuizmo::DIRECTION_Z]);
 				}
 				ImGui::PushStyleVarX(ImGuiStyleVar_FramePadding, buttonwidth);
@@ -165,8 +167,8 @@ namespace Slate {
 		ImGuizmo::Style guizmostyle  = ImGuizmo::GetStyle();
 		ImVec4* guizmocolors = guizmostyle.Colors;
 		// float 3 drawing below
-		ImGui::PushStyleColor(ImGuiCol_Button, Desaturate(guizmocolors[ImGuizmo::DIRECTION_X], -0.15f));
-		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Desaturate(guizmocolors[ImGuizmo::DIRECTION_X], 0.25f));
+		ImGui::PushStyleColor(ImGuiCol_Button, Adjust_Saturation(guizmocolors[ImGuizmo::DIRECTION_X], -0.15f));
+		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Adjust_Saturation(guizmocolors[ImGuizmo::DIRECTION_X], 0.25f));
 		ImGui::PushStyleColor(ImGuiCol_ButtonActive, guizmocolors[ImGuizmo::DIRECTION_X]);
 
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, framePadding);
@@ -180,8 +182,8 @@ namespace Slate {
 		ImGui::PopItemWidth();
 		ImGui::SameLine();
 
-		ImGui::PushStyleColor(ImGuiCol_Button, Desaturate(guizmocolors[ImGuizmo::DIRECTION_Y], -0.15f));
-		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Desaturate(guizmocolors[ImGuizmo::DIRECTION_Y], 0.45f));
+		ImGui::PushStyleColor(ImGuiCol_Button, Adjust_Saturation(guizmocolors[ImGuizmo::DIRECTION_Y], -0.15f));
+		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Adjust_Saturation(guizmocolors[ImGuizmo::DIRECTION_Y], 0.45f));
 		ImGui::PushStyleColor(ImGuiCol_ButtonActive, guizmocolors[ImGuizmo::DIRECTION_Y]);
 
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, framePadding);
@@ -195,8 +197,8 @@ namespace Slate {
 		ImGui::PopItemWidth();
 		ImGui::SameLine();
 
-		ImGui::PushStyleColor(ImGuiCol_Button, Desaturate(guizmocolors[ImGuizmo::DIRECTION_Z], -0.15f));
-		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Desaturate(guizmocolors[ImGuizmo::DIRECTION_Z], 0.5f));
+		ImGui::PushStyleColor(ImGuiCol_Button, Adjust_Saturation(guizmocolors[ImGuizmo::DIRECTION_Z], -0.15f));
+		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Adjust_Saturation(guizmocolors[ImGuizmo::DIRECTION_Z], 0.5f));
 		ImGui::PushStyleColor(ImGuiCol_ButtonActive, guizmocolors[ImGuizmo::DIRECTION_Z]);
 
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, framePadding);

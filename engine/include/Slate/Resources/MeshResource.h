@@ -15,13 +15,13 @@ namespace Slate {
 
 	class MeshData final {
 	public:
-		const BufferHandle& getVertexBufferHandle() const { return _vertexBuffer; }
-		const BufferHandle& getIndexBufferHandle() const { return _indexBuffer; }
+		const InternalBufferHandle & getVertexBufferHandle() const { return _vertexBuffer; }
+		const InternalBufferHandle & getIndexBufferHandle() const { return _indexBuffer; }
 		uint32_t getVertexCount() const { return _vertexCount; }
 		uint32_t getIndexCount() const { return _indexCount; }
 	private:
-		BufferHandle _indexBuffer;
-		BufferHandle _vertexBuffer;
+		InternalBufferHandle _indexBuffer;
+		InternalBufferHandle _vertexBuffer;
 		VkDeviceAddress _vertexBufferAddress = 0;
 		uint32_t _vertexCount = 0;
 		uint32_t _indexCount = 0;

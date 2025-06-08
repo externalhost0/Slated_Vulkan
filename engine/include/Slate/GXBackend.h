@@ -13,7 +13,6 @@ namespace vkb {
 	class Device;
 }
 class GLFWwindow;
-
 namespace Slate {
 	class VulkanInstanceInfo;
 
@@ -25,15 +24,15 @@ namespace Slate {
 		uint32_t presentQueueFamilyIndex = Invalid<uint32_t>;
 	};
 
-	class GXBackbone final {
+	class GXBackend final {
 	public:
-		GXBackbone() = default;
-		~GXBackbone() = default;
+		GXBackend() = default;
+		~GXBackend() = default;
 		void initialize(GLFWwindow* glfWwindow, VulkanInstanceInfo info);
 		void terminate();
 		// disallow copy and assignment
-		GXBackbone(const GXBackbone&) = delete;
-		GXBackbone& operator=(const GXBackbone&) = delete;
+		GXBackend(const GXBackend &) = delete;
+		GXBackend & operator=(const GXBackend &) = delete;
 	public:
 		// functions typically required by gx, CommandBuffer, Immediate, Swapchain or other abstractions
 		inline VkInstance getInstance() const { return _vkInstance; }
@@ -59,8 +58,8 @@ namespace Slate {
 	private:
 		VmaAllocator _vmaAllocator                 = VK_NULL_HANDLE;
 		VkInstance _vkInstance                     = VK_NULL_HANDLE;
-		VkDebugUtilsMessengerEXT _vkDebugMessenger = VK_NULL_HANDLE;
 		VkSurfaceKHR _vkSurfaceKHR                 = VK_NULL_HANDLE;
+		VkDebugUtilsMessengerEXT _vkDebugMessenger = VK_NULL_HANDLE;
 		VkPhysicalDevice _vkPhysicalDevice         = VK_NULL_HANDLE;
 		VkDevice _vkDevice                         = VK_NULL_HANDLE;
 		// maybe move this later
@@ -79,8 +78,8 @@ namespace Slate {
 #endif
 	private:
 		void _createInstance(vkb::Instance& vkb_instance, VulkanInstanceInfo info);
-		void _createSurface(GLFWwindow* glfWwindow);
 		void _createDevices(vkb::Instance& vkb_instance, vkb::Device& vkb_device);
+		void _createSurface(GLFWwindow* glfWwindow);
 		void _createAllocator();
 		void _createQueues(vkb::Device& vkb_device);
 	};

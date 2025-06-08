@@ -18,15 +18,15 @@
 namespace Slate {
 
 	TextureType ResolveTypeFromFileExtension(const std::string& extension) {
-		static const std::unordered_map<std::string, TextureType> extensionMap = {
+		const std::unordered_map<std::string, TextureType> extensionMap = {
 				// 2d types
-				{ "png",     TextureType::Type_2D },
-				{ "jpg",     TextureType::Type_2D },
-				{ "jpeg",    TextureType::Type_2D },
-				{ "tga",     TextureType::Type_2D },
+				{ "png",   TextureType::Type_2D },
+				{ "jpg",   TextureType::Type_2D },
+				{ "jpeg",  TextureType::Type_2D },
+				{ "tga",   TextureType::Type_2D },
 
 				// cube maps
-				{ "hdr",     TextureType::Type_Cube },
+				{ "hdr",   TextureType::Type_Cube },
 		};
 
 		std::string ext = extension.substr(1);
@@ -73,7 +73,7 @@ namespace Slate {
 		}
 		return Result::SUCCESS;
 	}
-	void TextureResource::assignHandle(TextureHandle handle) {
+	void TextureResource::assignHandle(InternalTextureHandle handle) {
 		this->_handle = handle;
 	}
 
@@ -83,7 +83,7 @@ namespace Slate {
 	VkExtent2D TextureResource::getDimensions() const {
 		return {_width, _height };
 	}
-	TextureHandle TextureResource::getHandle() {
+	InternalTextureHandle TextureResource::getHandle() {
 		return _handle;
 	}
 }

@@ -13,6 +13,7 @@
 #include "Slate/Resources/MeshResource.h"
 #include "Slate/Resources/ScriptResource.h"
 #include "Slate/Resources/ShaderResource.h"
+#include "Slate/ResourcePool.h"
 #include "Slate/SmartPointers.h"
 #include "Slate/VK/vktypes.h"
 
@@ -95,8 +96,12 @@ namespace Slate {
 	struct GeometryPrimitiveComponent : IComponent<ComponentType::GeometryPrimitive> {
 		MeshPrimitiveType mesh_type = MeshPrimitiveType::Empty;
 	};
+
+	// TODO, implement this
+	// components that refrence resources should hold non-persistent identifiers to resources
+	// meanwhile resource pools hold persistent identifiers to the resources that are included
 	struct GeometryGLTFComponent : IComponent<ComponentType::GeometryGLTF> {
-		StrongPtr<MeshResource> mesh_source;
+		MeshHandle handle;
 	};
 	struct RenderableComponent : IComponent<ComponentType::Renderable> {
 		StrongPtr<ShaderResource> shader_source;
@@ -135,7 +140,7 @@ namespace Slate {
 	};
 
 	struct ScriptComponent : IComponent<ComponentType::Script> {
-		StrongPtr<ScriptResource> script_source;
+		ScriptHandle handle;
 	};
 	struct AudioComponent : IComponent<ComponentType::Audio> {
 		std::string name;

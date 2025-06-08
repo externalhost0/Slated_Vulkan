@@ -108,7 +108,7 @@ namespace Slate {
 		}
 	}
 
-	TextureHandle VulkanSwapchain::acquireCurrentImage() {
+	InternalTextureHandle VulkanSwapchain::acquireCurrentImage() {
 		if (_getNextImage) {
 			const VkSemaphoreWaitInfo waitInfo = {
 					.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,

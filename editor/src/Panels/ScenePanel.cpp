@@ -166,14 +166,14 @@ namespace Slate {
 		float ypad = ImGui::GetFontSize() * 0.35f;
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.0f, ypad));
 		ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
-		if (isSelected) ImGui::PushStyleColor(ImGuiCol_HeaderHovered, Brighten(ImGui::GetStyleColorVec4(ImGuiCol_Header), 0.035f));
-
-		bool opened = ImGui::TreeNodeEx((void*) entity.getHandle(), flags, " " ICON_LC_BOX "  %s", entity.getName().c_str());
+		if (isSelected) ImGui::PushStyleColor(ImGuiCol_HeaderHovered, Adjust_Brightness(ImGui::GetStyleColorVec4(ImGuiCol_Header), 0.035f));
+		bool opened = ImGui::TreeNodeEx((void*)entity.getHandle(), flags, " " ICON_LC_BOX "  %s", entity.getName().c_str());
 		if (isSelected) ImGui::PopStyleColor();
 		ImGui::PopStyleVar(2);
 
 		if (ImGui::IsItemClicked()) {
 			this->ctx.activeEntity.emplace(entity);
+			_selectedEntry = std::nullopt;
 		}
 
 		// drag source
@@ -246,7 +246,7 @@ namespace Slate {
 			ImGui::Separator();
 
 			ImGui::PushStyleColor(ImGuiCol_HeaderHovered,
-								  Brighten(ImGui::GetStyleColorVec4(ImGuiCol_HeaderHovered), 0.2f));
+								  Adjust_Brightness(ImGui::GetStyleColorVec4(ImGuiCol_HeaderHovered), 0.2f));
 			// rename functionality
 			if (ImGui::Selectable("Rename", false, ImGuiSelectableFlags_NoAutoClosePopups))
 				ImGui::OpenPopup("RenamePopup");
@@ -256,7 +256,7 @@ namespace Slate {
 				char buffer[64] = "";
 				const std::string& currentName = entity.getName();
 				strncpy(buffer, currentName.c_str(), sizeof(buffer) - 1);
-				buffer[sizeof(buffer) - 1] = '\0'; // Ensure null-termination
+				buffer[sizeof(buffer) - 1] = '\0';
 				if (ImGui::InputText("##RenameInput", buffer, IM_ARRAYSIZE(buffer), ImGuiInputTextFlags_EnterReturnsTrue)) {
 					entity.setName(buffer);
 					ImGui::ClosePopupsExceptModals();
@@ -304,7 +304,7 @@ namespace Slate {
 
 			// right click menu on window empty space
 			if (ImGui::BeginPopupContextWindow()) {
-				ImGui::PushStyleColor(ImGuiCol_HeaderHovered, Brighten(ImGui::GetStyleColorVec4(ImGuiCol_HeaderHovered), 0.2f));
+				ImGui::PushStyleColor(ImGuiCol_HeaderHovered, Adjust_Brightness(ImGui::GetStyleColorVec4(ImGuiCol_HeaderHovered), 0.2f));
 				if (ImGui::Selectable("New Entity")) {
 					this->ctx.activeEntity.emplace(this->ctx.scene->createEntity("Unnamed Enitty"));
 				}

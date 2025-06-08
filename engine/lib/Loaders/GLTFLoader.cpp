@@ -8,7 +8,7 @@
 #include <fastgltf/types.hpp>
 #include <fastgltf/glm_element_traits.hpp>
 
-#include "Slate/Common/Debug.h"
+#include "Slate/Common/HelperMacros.h"
 #include "Slate/VK/vktypes.h"
 
 #include "Slate/Loaders/GLTFLoader.h"

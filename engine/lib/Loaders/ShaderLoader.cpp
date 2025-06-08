@@ -2,7 +2,7 @@
 // Created by Hayden Rivas on 3/16/25.
 //
 #include "Slate/Loaders/ShaderLoader.h"
-#include "Slate/Common/Debug.h"
+#include "Slate/Common/HelperMacros.h"
 #include "Slate/Filesystem.h"
 
 #include <slang/slang.h>
@@ -22,7 +22,8 @@ namespace Slate {
 				.apiVersion = SLANG_API_VERSION,
 				.enableGLSL = false
 		};
-		ASSERT_MSG(slang::createGlobalSession(&globalDesc, globalSession.writeRef()) == 0, "Failed to create global Slang session!");
+		int gs_result = slang::createGlobalSession(&globalDesc, globalSession.writeRef());
+		ASSERT_MSG(gs_result == 0, "Faield to create global Slang session!");
 
 		// session info
 		// profile spirv_1_5 for Vulkan 1.2
