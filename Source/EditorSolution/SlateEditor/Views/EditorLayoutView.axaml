@@ -1,0 +1,91 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+
+             xmlns:vm="clr-namespace:SlateEditor.ViewModels"
+             xmlns:views="clr-namespace:SlateEditor.Views"
+             xmlns:panels="clr-namespace:SlateEditor.Views.Panels"
+             xmlns:controls="clr-namespace:SlateEditor.Controls"
+             
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="SlateEditor.Views.EditorLayoutView"
+             x:DataType="vm:EditorLayoutViewModel">
+    
+    <Design.DataContext>
+        <vm:EditorLayoutViewModel />
+    </Design.DataContext>
+    
+    <Grid>
+        <!-- Column layout: Scene | Viewport | Properties -->
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="3*" MinWidth="150" />
+            <ColumnDefinition Width="5" /> <!-- Vertical Splitter -->
+            <ColumnDefinition Width="6*" MinWidth="300" />
+            <ColumnDefinition Width="5" /> <!-- Vertical Splitter -->
+            <ColumnDefinition Width="3*" MinWidth="200" />
+        </Grid.ColumnDefinitions>
+        <!-- Row layout: Top (main) | Bottom (console/assets) -->
+        <Grid.RowDefinitions>
+            <RowDefinition Height="6*" MinHeight="200" />
+            <RowDefinition Height="5" /> <!-- Horizontal Splitter -->
+            <RowDefinition Height="2*" MinHeight="100" />
+        </Grid.RowDefinitions>
+
+        <!-- Scene Panel -->
+        <Border Grid.Row="0" Grid.Column="0" Background="LightGray">
+            <controls:IEditorPanel Title="Scene Panel" Background="Chartreuse">
+                <panels:ScenePanelView />
+            </controls:IEditorPanel>
+        </Border>
+
+        <GridSplitter Grid.Row="0" Grid.Column="1" Width="5" Background="DarkGray" ShowsPreview="True" />
+
+        <!-- Viewport -->
+        <Border Grid.Row="0" Grid.Column="2" Background="Black">
+            <controls:IEditorPanel Title="Viewport Panel">
+                <panels:ViewportPanelView/>
+            </controls:IEditorPanel>
+        </Border>
+
+        <GridSplitter Grid.Row="0" Grid.Column="3" Width="5" Background="DarkGray" ShowsPreview="True" />
+
+        <!-- Properties/Inspector -->
+        <Border Grid.Row="0" Grid.Column="4" Background="LightSlateGray">
+            <controls:IEditorPanel Title="Properties Panel">
+                <panels:InspectorPanelView/>
+                <TextBlock Text="Properties / Inspector" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </controls:IEditorPanel>
+        </Border>
+
+        <!-- Horizontal splitter between top and bottom -->
+        <GridSplitter Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="5" Height="5" Background="DarkGray" ShowsPreview="True" />
+
+        <!-- Bottom Row: Asset Browser and Console with resizable splitter -->
+        <Grid Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="5">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3*" MinWidth="150"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="5*" MinWidth="200"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Console -->
+            <Border Grid.Column="0" Background="DimGray">
+                <controls:IEditorPanel Title="Console Panel">
+                    <TextBlock Text="Console" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </controls:IEditorPanel>
+            </Border>
+
+            <!-- Vertical Grid Splitter -->
+            <GridSplitter Grid.Column="1" Width="5" Background="DarkGray" ShowsPreview="True" />
+            
+            <!-- Asset Browser -->
+            <Border Grid.Column="2" Background="LightSteelBlue">
+                <controls:IEditorPanel Title="Asset Browser">
+                    <TextBlock Text="Asset Browser" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </controls:IEditorPanel>
+            </Border>
+
+        </Grid>
+    </Grid>
+</UserControl>

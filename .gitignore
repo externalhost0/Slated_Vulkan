@@ -2,4 +2,4 @@
 CMakeUserPresets.json
 cmake-build-debug
 .clang-format
-/editor/shaders/compiled_shaders/
+/Source/EditorOLD/shaders/compiled_shaders/

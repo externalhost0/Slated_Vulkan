@@ -1,0 +1,35 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:SlateEditor.ViewModels"
+        xmlns:views="clr-namespace:SlateEditor.Views"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        x:Class="SlateEditor.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="SlateEditor">
+    <!-- Main Menu Bar -->
+    <NativeMenu.Menu>
+        <NativeMenu>
+            <NativeMenuItem Header="File" IsVisible="true">
+                <NativeMenu>
+                    <NativeMenuItem Header="Open" Click="FileOpen_OnClick" Gesture="Meta+O" />
+                    <NativeMenuItem Header="Save" Click="FileSaveAs_OnClick" Gesture="Meta+Shift+S" />
+                    <NativeMenuItem Header="Save As" Click="FileSaveAs_OnClick" Gesture="Meta+A" />
+                </NativeMenu>
+            </NativeMenuItem>
+            <NativeMenuItem Header="Edit" IsEnabled="true">
+                <NativeMenu>
+                    <NativeMenuItem Header="Cut" Command="{Binding CutCommand}" Gesture="Meta+X" />
+                    <NativeMenuItem Header="Copy" Command="{Binding CopyCommand}" Gesture="Meta+C" />
+                    <NativeMenuItem Header="Paste" Command="{Binding PasteCommand}" Gesture="Meta+V" />
+                </NativeMenu>
+            </NativeMenuItem>
+        </NativeMenu>
+    </NativeMenu.Menu>
+
+
+    <!-- Main Content -->
+    <views:MainView />
+</Window>
