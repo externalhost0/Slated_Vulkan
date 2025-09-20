@@ -4,14 +4,19 @@
 
 # Slate Engine & Editor
 
-*Create, Iterate, Share*
 </div>
 
 ## About
-Slate Engine & Editor is a high performance multiplatform 3D game engine that is coupled with its own editor application.
 
 This is a hobby project of mine I started in my first year of college because of the abundance of time on my hands and heavy interest in graphics programming.
 It's prob never going to be finished it was more of just testing grounds for a proper game engine, which I was able to achieve.
+
+Here's what I was able to accomplish!
+![Editor Standard][standard_img]
+![Editor Unshaded][unshaded_img]
+![Editor WireframeAndShade][wireframeandshade_img]
+
+
 
 ## License
 This project is distributed under the **Mozilla Public License Version 2.0**, please see `LICENSE.txt` for more.
@@ -30,3 +35,8 @@ This project is distributed under the **Mozilla Public License Version 2.0**, pl
 <!-- image and url definitions -->
 
 [slate_logo_img]: Documentation/img/slate_logo_small.png
+[standard_img]: Documentation/img/screenshot/standard.png
+[unshaded_img]: Documentation/img/screenshot/unshaded.png
+[wireframe]: Documentation/img/screenshot/wireframe.png
+[wireframeandshade_img]: Documentation/img/screenshot/wireframeandshade.png
+[lighting_img]: Documentation/img/screenshot/lighting.png
