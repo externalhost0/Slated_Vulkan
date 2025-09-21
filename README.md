@@ -2,7 +2,7 @@
 
 ![Slate Logo][slate_logo_img]
 
-# Slate Engine & Editor
+# Slate_Vulkan
 
 </div>
 
@@ -10,6 +10,8 @@
 
 This is a hobby project of mine I started in my first year of college because of the abundance of time on my hands and heavy interest in graphics programming.
 It's prob never going to be finished it was more of just testing grounds for a proper game engine, which I was able to achieve.
+
+Though basically appearing the same as another repo of mine, Slate, this version uses Vulkan and explored some far more difficult concepts (rendergraphs, automatic reflection of shaders, scripting).
 
 Here's what I was able to accomplish!
 ![Editor Standard][standard_img]
