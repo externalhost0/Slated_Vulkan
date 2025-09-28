@@ -322,7 +322,7 @@ namespace Slate {
 
 	void EditorApplication::_onPropertiesPanelUpdate() {
 		ImGui::Begin("Properties");
-		ImGui::ShowStyleEditor();
+//		ImGui::ShowStyleEditor();
 
 		if (this->ctx.activeEntity.has_value()) {
 			GameEntity entity = this->ctx.activeEntity.value(); // alias active entity

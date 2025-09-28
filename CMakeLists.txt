@@ -23,8 +23,8 @@ helper_detectOS()
 helper_addGlobalDefines()
 helper_addExternalDefines()
 
-add_subdirectory("${SLATED_BASE_FOLDER}/Source/Engine")
-add_subdirectory("${SLATED_BASE_FOLDER}/Source/Boilerplate")
+#add_subdirectory("${SLATED_BASE_FOLDER}/Source/Engine")
+#add_subdirectory("${SLATED_BASE_FOLDER}/Source/Boilerplate")
 #
 ## boilerplate project
 #add_executable(Slate
@@ -39,3 +39,8 @@ add_subdirectory("${SLATED_BASE_FOLDER}/Source/Boilerplate")
 #        SlateEngine
 #)
 #add_subdirectory("${SLATE_BASE_FOLDER}/Editor")
+
+
+# OLD Editor source
+add_subdirectory("${SLATED_BASE_FOLDER}/Source/Engine")
+add_subdirectory("${SLATED_BASE_FOLDER}/Source/EditorOLD")

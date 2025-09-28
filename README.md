@@ -17,7 +17,7 @@ Here's what I was able to accomplish!
 ![Editor Standard][standard_img]
 ![Editor Unshaded][unshaded_img]
 ![Editor WireframeAndShade][wireframeandshade_img]
-
+![Editor Shader Example][shader_img]
 
 
 ## License
@@ -41,4 +41,4 @@ This project is distributed under the **Mozilla Public License Version 2.0**, pl
 [unshaded_img]: Documentation/img/screenshot/unshaded.png
 [wireframe]: Documentation/img/screenshot/wireframe.png
 [wireframeandshade_img]: Documentation/img/screenshot/wireframeandshade.png
-[lighting_img]: Documentation/img/screenshot/lighting.png
+[shader_img]: Documentation/img/screenshot/shader.png

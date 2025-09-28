@@ -111,6 +111,7 @@ namespace Slate {
 		ASSERT_MSG(surface_result == VK_SUCCESS, "Failed window surface creation!");
 #endif
 	}
+
 	void GXBackend::_createDevices(vkb::Instance& vkb_instance, vkb::Device& vkb_device) {
 		// vulkan 1.3 features
 		VkPhysicalDeviceVulkan13Features features13 = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };

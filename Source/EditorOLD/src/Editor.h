@@ -87,7 +87,7 @@ namespace Slate {
 
 
 		Optional<std::filesystem::path> _selectedEntry;
-		std::filesystem::path _assetsDirectory = "../../editor";
+		std::filesystem::path _assetsDirectory = "../../../Source/EditorOLD/";
 		std::filesystem::path _currentDirectory = _assetsDirectory;
 
 

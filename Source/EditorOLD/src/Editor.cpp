@@ -703,6 +703,8 @@ namespace Slate {
 	TextureResource spotlightTexture;
 	TextureResource cubemapRes;
 
+	ShaderResource crazyShader;
+
 	ShaderResource standardShader;
 	ShaderResource primitiveShader;
 	ShaderResource imageShader;
@@ -835,10 +837,15 @@ namespace Slate {
 		}));
 	}
 	void LoadEditorShaders(GX& gx) {
-		standardShader.loadResource(Filesystem::GetRelativePath("shaders/standard.slang"));
+		standardShader.loadResource(Filesystem::GetRelativePath("shaders/zippy.slang"));
 		standardShader.assignHandle(gx.createShader({
 				.spirvBlob = standardShader.requestCode()
 		}));
+		crazyShader.loadResource(Filesystem::GetRelativePath("shaders/zippy.slang"));
+		crazyShader.assignHandle(gx.createShader({
+				.spirvBlob = crazyShader.requestCode()
+		}));
+
 		primitiveShader.loadResource(Filesystem::GetRelativePath("shaders/EditorEXT/editor_primitives.slang"));
 		primitiveShader.assignHandle(gx.createShader({
 				.spirvBlob = primitiveShader.requestCode(),
@@ -880,6 +887,7 @@ namespace Slate {
 		};
 		createWindow(window_spec);
 
+
 		// Vulkan Setup
 		VulkanInstanceInfo vk_info = {
 				.app_name = "Slate Editor",
@@ -892,7 +900,6 @@ namespace Slate {
 		GLTFLoader::_gx = &gx;
 
 		NFD_Init();
-
 
 		// editor essentials
 		// hidden editor
@@ -1153,7 +1160,6 @@ namespace Slate {
 	}
 
 	void EditorApplication::onRender() {
-
 		GX& gx = _gx;
 
 		_camera.updateMatrices();

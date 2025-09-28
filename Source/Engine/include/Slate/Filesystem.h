@@ -40,6 +40,6 @@ namespace Slate {
 
 
 	private:
-		static inline std::filesystem::path rootFolderPath = "../../editor/";
+		static inline std::filesystem::path rootFolderPath = "../../../Source/EditorOLD/";
 	};
 }

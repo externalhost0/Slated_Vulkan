@@ -5,6 +5,7 @@
 
 #include <atomic>
 
+#include "InputHandler.h"
 #include "Slate/GX.h"
 #include "Slate/Timer.h"
 #include "Slate/Window.h"
@@ -44,14 +45,15 @@ namespace Slate {
 		// function
 		inline virtual void createWindow(const WindowSpec& spec) final {
 			_window.create(spec);
+			_inputHandler = new InputHandler(_window);
 			installAppCallbacksToWindow(_window.getGLFWWindow());
 		}
 
 //		inline virtual ScriptEngine& getScripting() final { return _script; }
-//		inline virtual GX& getGX() final { return this->_gx; }
-//		inline virtual Window* getActiveWindow() final { return this->_gx._windowService.getFocusedWindow(); }
-//		inline virtual InputHandler& GetInput() final { return this->_gx._windowService._input; }
-//		inline virtual const Timer& getTime() const final { return this->_apptime; }
+		inline virtual GX& getGX() final { return this->_gx; }
+		inline virtual Window* getActiveWindow() final { return &this->_window; }
+		inline virtual InputHandler& GetInput() final { return *this->_inputHandler; }
+		inline virtual const Timer& getTime() const final { return this->_apptime; }
 	private:
 		virtual void start() final;
 		virtual void loop() final;
@@ -62,6 +64,7 @@ namespace Slate {
 		std::atomic<bool> _running = true;
 		// every app has its graphics
 		GX _gx;
+		InputHandler* _inputHandler;
 		Window _window;
 		// time
 		Timer _apptime;
